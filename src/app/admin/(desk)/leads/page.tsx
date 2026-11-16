@@ -29,7 +29,7 @@ export default async function LeadsPage({
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
-    <div>
+    <div className="desk-paper">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <h1 className="text-4xl text-ink">Registrations</h1>

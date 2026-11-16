@@ -24,6 +24,27 @@ export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 export type LearnerType = "student" | "professional";
 
+export interface TrainingBatch {
+  id: string;
+  name: string;
+  label: string;
+  learnerType: LearnerType;
+  sort: number;
+  createdAt: string;
+}
+
+export interface BatchMember {
+  id: string;
+  batchId: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  note: string;
+  messaged: boolean;
+  absentToday: boolean;
+  createdAt: string;
+}
+
 export type PhaseId =
   | "foundation"
   | "core"

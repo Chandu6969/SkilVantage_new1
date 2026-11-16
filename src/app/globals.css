@@ -187,6 +187,99 @@
   box-shadow: 0 0 0 3px oklch(0.55 0.13 46 / 0.2);
 }
 
+.desk {
+  --desk-bg: #141a17;
+  --desk-side: #101614;
+  --desk-card: #1c2421;
+  --desk-card-2: #232c28;
+  --desk-line: rgb(255 255 255 / 0.08);
+  --desk-text: #f3f7f4;
+  --desk-muted: #9aaba3;
+  --desk-teal: #14967c;
+  --desk-teal-2: #1ec9a0;
+  min-height: 100vh;
+  background: var(--desk-bg);
+  color: var(--desk-text);
+  font-family: var(--font-outfit), sans-serif;
+}
+
+.desk-skil {
+  background: linear-gradient(180deg, #d9ffe9 0%, #5ee0a4 42%, #129864 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.desk-hero .desk-skil {
+  background: linear-gradient(180deg, #f4ffe8 0%, #9dffb8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.desk-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: 1.1rem;
+  padding: 1.15rem 1.25rem;
+  background: linear-gradient(90deg, #0f766e 0%, #14967c 46%, #3ecfb0 100%);
+  color: white;
+}
+
+.desk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.18);
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.desk-composer {
+  border-radius: 1rem;
+  padding: 2px;
+  background: linear-gradient(135deg, #5dffb0, #8ef0c8 38%, #e879f9 100%);
+}
+
+.desk-composer textarea {
+  width: 100%;
+  min-height: 8.5rem;
+  resize: vertical;
+  border: 0;
+  border-radius: 0.9rem;
+  background: #17211e;
+  color: white;
+  padding: 0.9rem 1rem;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.desk[data-theme="light"] {
+  --desk-bg: #eef3f0;
+  --desk-card: #ffffff;
+  --desk-card-2: #f7faf8;
+  --desk-line: rgb(16 32 28 / 0.1);
+  --desk-text: #14211c;
+  --desk-muted: #5d6f68;
+}
+
+.desk-paper {
+  border-radius: 1.25rem;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 1.25rem;
+}
+
+.desk[data-theme="light"] .desk-composer textarea {
+  background: #f4faf7;
+  color: #14211c;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {

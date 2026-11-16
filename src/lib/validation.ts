@@ -127,6 +127,40 @@ export const enquirySchema = z.object({
   consent: z.literal(true, { error: "Consent is required before we can contact you." }),
 });
 
+export const batchCreateSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Enter a batch name.")
+    .max(40, "Use 40 characters or fewer.")
+    .regex(/^[\p{L}\p{N}][\p{L}\p{N}\s.&-]{1,39}$/u, "Use letters or numbers in the batch name."),
+  learnerType: z.enum(["student", "professional"]),
+});
+
+export const memberCreateSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Enter the full name.")
+    .max(80)
+    .regex(/^[\p{L}][\p{L}\s.'-]{1,79}$/u, "Use letters in the name."),
+  phone: phoneField,
+  email: z
+    .string()
+    .trim()
+    .max(120)
+    .default("")
+    .refine((value) => value === "" || z.string().email().safeParse(value).success, { error: "Enter a valid email, or leave it blank." }),
+  note: z.string().trim().max(300).default(""),
+});
+
+export const memberPatchSchema = z.object({
+  messaged: z.boolean().optional(),
+  absentToday: z.boolean().optional(),
+}).refine((value) => value.messaged !== undefined || value.absentToday !== undefined, {
+  error: "Nothing to update.",
+});
+
 export const leadPatchSchema = z.object({
   status: z.enum(LEAD_STATUSES).optional(),
   counsellorNotes: z.string().trim().max(4000).optional(),

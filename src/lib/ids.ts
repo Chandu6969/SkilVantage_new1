@@ -28,6 +28,14 @@ export function fileId() {
   return `SVR-${randomCode(8)}`;
 }
 
+export function batchId() {
+  return `SVB-${randomCode(6)}`;
+}
+
+export function memberId() {
+  return `SVM-${randomCode(6)}`;
+}
+
 export function isRegistrationId(value: string) {
   return /^SV[SP]-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(value);
 }

@@ -7,7 +7,7 @@ export function SignOutButton() {
   return (
     <button
       type="button"
-      className="whitespace-nowrap text-paper/50 hover:text-paper"
+      className="whitespace-nowrap text-white hover:underline"
       onClick={async () => {
         await fetch("/api/v1/admin/logout", { method: "POST" });
         router.push("/admin/login");

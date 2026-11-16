@@ -14,7 +14,7 @@ export default async function EnquiriesPage({ searchParams }: { searchParams: Pr
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
-    <div>
+    <div className="desk-paper">
       <h1 className="text-4xl text-ink">Enquiries</h1>
       <p className="mt-2 text-sm text-muted-foreground">{rows.length} messages. {session?.role === "admin" ? <a className="underline" href="/api/v1/admin/export?type=enquiries">Export enquiries</a> : null}</p>
       <div className="mt-6 space-y-4">

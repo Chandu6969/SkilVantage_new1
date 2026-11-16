@@ -1,10 +1,12 @@
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { STARTER_BATCHES, ordinalLabel } from "@/lib/batches";
+import { batchId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, Enquiry, FollowUp, Registration, Session, StoredFile } from "@/lib/types";
+import type { AnalyticsEvent, BatchMember, Enquiry, FollowUp, LearnerType, Registration, Session, StoredFile, TrainingBatch } from "@/lib/types";
 
 interface FileBody {
   meta: Record<string, string>;
@@ -14,10 +16,12 @@ interface FileBody {
   events: AnalyticsEvent[];
   files: (StoredFile & { data: string })[];
   sessions: { tokenHash: string; role: Session["role"]; expiresAt: string }[];
+  batches: TrainingBatch[];
+  learners: BatchMember[];
 }
 
 function emptyBody(): FileBody {
-  return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [] };
+  return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [], batches: [], learners: [] };
 }
 
 export class FileStore implements LeadStore {
@@ -52,6 +56,8 @@ export class FileStore implements LeadStore {
       parsed.events ||= [];
       parsed.files ||= [];
       parsed.sessions ||= [];
+      parsed.batches ||= [];
+      parsed.learners ||= [];
       return parsed;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -213,6 +219,92 @@ export class FileStore implements LeadStore {
     await this.locked(async () => {
       const body = await this.read();
       body.files = body.files.filter((item) => item.id !== id);
+      await this.write(body);
+    });
+  }
+
+  private ensureBatches(body: FileBody) {
+    let changed = false;
+    for (const starter of STARTER_BATCHES) {
+      if (!body.batches.some((item) => item.id === starter.id)) {
+        body.batches.push({ ...starter });
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  async listBatches(learnerType?: LearnerType) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const changed = this.ensureBatches(body);
+      if (changed) await this.write(body);
+      return body.batches
+        .filter((item) => !learnerType || item.learnerType === learnerType)
+        .sort((a, b) => a.sort - b.sort);
+    });
+  }
+
+  async getBatch(id: string) {
+    const batches = await this.listBatches();
+    return batches.find((item) => item.id === id) || null;
+  }
+
+  async createBatch(input: { name: string; learnerType: LearnerType }) {
+    return this.locked(async () => {
+      const body = await this.read();
+      this.ensureBatches(body);
+      const name = input.name.trim();
+      const duplicate = body.batches.find(
+        (item) => item.learnerType === input.learnerType && item.name.toLowerCase() === name.toLowerCase(),
+      );
+      if (duplicate) return duplicate;
+      const sort = body.batches.filter((item) => item.learnerType === input.learnerType).reduce((max, item) => Math.max(max, item.sort), 0) + 1;
+      const batch: TrainingBatch = {
+        id: batchId(),
+        name,
+        label: ordinalLabel(sort),
+        learnerType: input.learnerType,
+        sort,
+        createdAt: new Date().toISOString(),
+      };
+      body.batches.push(batch);
+      await this.write(body);
+      return batch;
+    });
+  }
+
+  async listMembers(batchId: string) {
+    const body = await this.read();
+    return body.learners.filter((item) => item.batchId === batchId).sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }
+
+  async addMember(member: BatchMember) {
+    await this.locked(async () => {
+      const body = await this.read();
+      body.learners.push(member);
+      await this.write(body);
+    });
+  }
+
+  async updateMember(id: string, patch: Partial<Pick<BatchMember, "messaged" | "absentToday">>) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const member = body.learners.find((item) => item.id === id);
+      if (!member) return null;
+      if (patch.messaged !== undefined) member.messaged = patch.messaged;
+      if (patch.absentToday !== undefined) member.absentToday = patch.absentToday;
+      await this.write(body);
+      return member;
+    });
+  }
+
+  async resetMessaged(batchId: string) {
+    await this.locked(async () => {
+      const body = await this.read();
+      for (const member of body.learners) {
+        if (member.batchId === batchId) member.messaged = false;
+      }
       await this.write(body);
     });
   }

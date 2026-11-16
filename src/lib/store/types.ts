@@ -1,10 +1,13 @@
 import type {
   AnalyticsEvent,
+  BatchMember,
   Enquiry,
   FollowUp,
+  LearnerType,
   Registration,
   Session,
   StoredFile,
+  TrainingBatch,
 } from "@/lib/types";
 
 /**
@@ -37,6 +40,13 @@ export interface LeadStore {
   saveFile(file: StoredFile, bytes: Buffer): Promise<void>;
   getFile(id: string): Promise<(StoredFile & { data: Buffer }) | null>;
   deleteFile(id: string): Promise<void>;
+  listBatches(learnerType?: LearnerType): Promise<TrainingBatch[]>;
+  getBatch(id: string): Promise<TrainingBatch | null>;
+  createBatch(input: { name: string; learnerType: LearnerType }): Promise<TrainingBatch>;
+  listMembers(batchId: string): Promise<BatchMember[]>;
+  addMember(member: BatchMember): Promise<void>;
+  updateMember(id: string, patch: Partial<Pick<BatchMember, "messaged" | "absentToday">>): Promise<BatchMember | null>;
+  resetMessaged(batchId: string): Promise<void>;
   createSession(role: Session["role"]): Promise<{ token: string; expiresAt: string }>;
   getSession(token: string): Promise<Session | null>;
   deleteSession(token: string): Promise<void>;

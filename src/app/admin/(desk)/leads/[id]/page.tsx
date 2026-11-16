@@ -20,7 +20,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
   const rows = detailRows(lead);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+    <div className="desk-paper grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
       <div>
         <Link href="/admin/leads" className="text-sm text-muted-foreground underline-offset-4 hover:underline">All registrations</Link>
         <h1 className="mt-2 text-4xl text-ink">{lead.fullName}</h1>

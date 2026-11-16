@@ -1,9 +1,11 @@
 import crypto from "crypto";
 import { Pool } from "pg";
+import { STARTER_BATCHES, ordinalLabel } from "@/lib/batches";
+import { batchId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, Enquiry, FollowUp, Registration, Session, StoredFile } from "@/lib/types";
+import type { AnalyticsEvent, BatchMember, Enquiry, FollowUp, LearnerType, Registration, Session, StoredFile, TrainingBatch } from "@/lib/types";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS registrations (
@@ -65,6 +67,26 @@ CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS batches (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  label TEXT NOT NULL,
+  learner_type TEXT NOT NULL,
+  sort INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE IF NOT EXISTS batch_members (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL,
+  full_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  messaged BOOLEAN NOT NULL DEFAULT FALSE,
+  absent_today BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS batch_members_batch_idx ON batch_members (batch_id);
 `;
 
 const globalPool = globalThis as unknown as { skilVantagePool?: Pool };
@@ -322,6 +344,127 @@ export class PostgresStore implements LeadStore {
   async deleteFile(id: string) {
     await this.init();
     await pool().query("DELETE FROM files WHERE id = $1", [id]);
+  }
+
+  private async ensureBatches() {
+    await this.init();
+    for (const starter of STARTER_BATCHES) {
+      await pool().query(
+        `INSERT INTO batches (id, name, label, learner_type, sort, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING`,
+        [starter.id, starter.name, starter.label, starter.learnerType, starter.sort, starter.createdAt],
+      );
+    }
+  }
+
+  private mapBatch(row: { id: string; name: string; label: string; learner_type: LearnerType; sort: number; created_at: Date | string }): TrainingBatch {
+    return {
+      id: row.id,
+      name: row.name,
+      label: row.label,
+      learnerType: row.learner_type,
+      sort: row.sort,
+      createdAt: new Date(row.created_at).toISOString(),
+    };
+  }
+
+  private mapMember(row: {
+    id: string;
+    batch_id: string;
+    full_name: string;
+    phone: string;
+    email: string;
+    note: string;
+    messaged: boolean;
+    absent_today: boolean;
+    created_at: Date | string;
+  }): BatchMember {
+    return {
+      id: row.id,
+      batchId: row.batch_id,
+      fullName: row.full_name,
+      phone: row.phone,
+      email: row.email,
+      note: row.note,
+      messaged: row.messaged,
+      absentToday: row.absent_today,
+      createdAt: new Date(row.created_at).toISOString(),
+    };
+  }
+
+  async listBatches(learnerType?: LearnerType) {
+    await this.ensureBatches();
+    const result = learnerType
+      ? await pool().query("SELECT * FROM batches WHERE learner_type = $1 ORDER BY sort ASC, name ASC", [learnerType])
+      : await pool().query("SELECT * FROM batches ORDER BY sort ASC, name ASC");
+    return result.rows.map((row) => this.mapBatch(row));
+  }
+
+  async getBatch(id: string) {
+    await this.ensureBatches();
+    const result = await pool().query("SELECT * FROM batches WHERE id = $1", [id]);
+    return result.rows[0] ? this.mapBatch(result.rows[0]) : null;
+  }
+
+  async createBatch(input: { name: string; learnerType: LearnerType }) {
+    await this.ensureBatches();
+    const name = input.name.trim();
+    const existing = await pool().query("SELECT * FROM batches WHERE learner_type = $1 AND lower(name) = lower($2)", [
+      input.learnerType,
+      name,
+    ]);
+    if (existing.rows[0]) return this.mapBatch(existing.rows[0]);
+    const max = await pool().query<{ sort: number }>("SELECT COALESCE(MAX(sort), 0)::int AS sort FROM batches WHERE learner_type = $1", [
+      input.learnerType,
+    ]);
+    const sort = (max.rows[0]?.sort || 0) + 1;
+    const batch: TrainingBatch = {
+      id: batchId(),
+      name,
+      label: ordinalLabel(sort),
+      learnerType: input.learnerType,
+      sort,
+      createdAt: new Date().toISOString(),
+    };
+    await pool().query(
+      `INSERT INTO batches (id, name, label, learner_type, sort, created_at) VALUES ($1,$2,$3,$4,$5,$6)`,
+      [batch.id, batch.name, batch.label, batch.learnerType, batch.sort, batch.createdAt],
+    );
+    return batch;
+  }
+
+  async listMembers(batchId: string) {
+    await this.init();
+    const result = await pool().query("SELECT * FROM batch_members WHERE batch_id = $1 ORDER BY full_name ASC", [batchId]);
+    return result.rows.map((row) => this.mapMember(row));
+  }
+
+  async addMember(member: BatchMember) {
+    await this.init();
+    await pool().query(
+      `INSERT INTO batch_members (id, batch_id, full_name, phone, email, note, messaged, absent_today, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [member.id, member.batchId, member.fullName, member.phone, member.email, member.note, member.messaged, member.absentToday, member.createdAt],
+    );
+  }
+
+  async updateMember(id: string, patch: Partial<Pick<BatchMember, "messaged" | "absentToday">>) {
+    await this.init();
+    const current = await pool().query("SELECT * FROM batch_members WHERE id = $1", [id]);
+    if (!current.rows[0]) return null;
+    const messaged = patch.messaged ?? current.rows[0].messaged;
+    const absent = patch.absentToday ?? current.rows[0].absent_today;
+    const result = await pool().query("UPDATE batch_members SET messaged = $2, absent_today = $3 WHERE id = $1 RETURNING *", [
+      id,
+      messaged,
+      absent,
+    ]);
+    return result.rows[0] ? this.mapMember(result.rows[0]) : null;
+  }
+
+  async resetMessaged(batchId: string) {
+    await this.init();
+    await pool().query("UPDATE batch_members SET messaged = FALSE WHERE batch_id = $1", [batchId]);
   }
 
   async createSession(role: Session["role"]) {
