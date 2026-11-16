@@ -13,7 +13,7 @@ export default function ProgramsPage() {
     <>
       <section className="sv-band">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-          <p className="text-xs tracking-[0.16em] text-copper uppercase">Programs</p>
+          <p className="text-xs tracking-[0.16em] text-white/75 uppercase">Programs</p>
           <h1 className="mt-3 max-w-3xl text-4xl sm:text-5xl">Choose the career you want to be ready for.</h1>
           <p className="mt-4 max-w-2xl text-lg text-paper/75">
             Each program has a roadmap, projects, communication practice, and a separate pace for students and working professionals. Durations are typical cohort lengths.

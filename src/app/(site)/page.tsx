@@ -12,7 +12,7 @@ const organization = {
   "@type": "EducationalOrganization",
   name: "SkilVantage",
   description: brand.about,
-  email: "hello@skilvantage.com",
+  email: "skillvantageadmin@gmail.com",
   areaServed: "IN",
 };
 
@@ -100,7 +100,7 @@ export default function HomePage() {
           <p className="text-xs font-medium tracking-[0.16em] text-copper uppercase">Who Can Join?</p>
           <h2 className="mt-3 text-4xl text-ink">Two ways in. The same standard of work.</h2>
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
-            <article className="sv-band rounded-[2rem] p-6 sm:p-8">
+            <article className="sv-band sv-color-card rounded-[2rem] p-6 sm:p-8">
               <h3 className="text-3xl">Students & Freshers</h3>
               <ul className="mt-5 space-y-2 text-paper/80">
                 {studentAudience.map((item) => <li key={item}>{item}</li>)}
@@ -109,12 +109,12 @@ export default function HomePage() {
                 Explore Student Programs
               </Link>
             </article>
-            <article className="sv-card rounded-[2rem] p-6 sm:p-8">
-              <h3 className="text-3xl text-ink">Working Professionals</h3>
-              <ul className="mt-5 space-y-2 text-muted-foreground">
+            <article className="sv-pros sv-color-card rounded-[2rem] p-6 sm:p-8">
+              <h3 className="text-3xl">Working Professionals</h3>
+              <ul className="mt-5 space-y-2 text-white/85">
                 {professionalAudience.map((item) => <li key={item}>{item}</li>)}
               </ul>
-              <Link href="/register?type=professional" className="mt-8 inline-flex h-12 w-full items-center justify-center rounded-full bg-[#0c3b28] px-5 text-white sm:w-auto">
+              <Link href="/register?type=professional" className="mt-8 inline-flex h-12 w-full items-center justify-center rounded-full bg-white px-5 text-[#312e81] sm:w-auto">
                 Explore Professional Programs
               </Link>
             </article>

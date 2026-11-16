@@ -30,8 +30,8 @@ export function SiteHeader() {
               href={item.href}
               aria-current={active(pathname, item.href) ? "page" : undefined}
               className={cn(
-                "text-sm text-muted-foreground hover:text-ink",
-                active(pathname, item.href) && "text-ink",
+                "text-sm text-muted-foreground hover:text-[#12a36a]",
+                active(pathname, item.href) && "font-medium text-[#12a36a]",
               )}
             >
               {item.label}

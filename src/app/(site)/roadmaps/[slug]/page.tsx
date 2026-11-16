@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JourneyTimeline } from "@/components/journey-timeline";
 import { getProgram, programs } from "@/lib/content";
+import { programGradient, programLook } from "@/lib/palette";
 
 export function generateStaticParams() {
   return programs.map((program) => ({ slug: program.slug }));
@@ -22,14 +23,14 @@ export default async function RoadmapDetailPage({ params }: { params: Promise<{ 
   if (!program) notFound();
   return (
     <>
-      <section className="sv-band">
+      <section className="relative overflow-hidden text-white" style={{ background: programGradient(program.slug) }}>
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <p className="text-sm text-paper/60"><Link href="/roadmaps" className="hover:text-paper">Career Roadmaps</Link> / {program.shortName}</p>
           <h1 className="mt-3 text-4xl sm:text-5xl">{program.name} roadmap</h1>
           <p className="mt-4 max-w-2xl text-paper/75">{program.description}</p>
           <div className="mt-6 flex gap-2 overflow-x-auto">
             {programs.map((item) => (
-              <Link key={item.slug} href={`/roadmaps/${item.slug}`} className={`shrink-0 rounded-full px-4 py-2 text-sm ${item.slug === program.slug ? "bg-copper text-white" : "border border-white/20"}`}>
+              <Link key={item.slug} href={`/roadmaps/${item.slug}`} className={`shrink-0 rounded-full px-4 py-2 text-sm text-white ${item.slug === program.slug ? "ring-2 ring-white" : ""}`} style={{ background: programLook(item.slug).from }}>
                 {item.shortName}
               </Link>
             ))}

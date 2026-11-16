@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { brand, programs } from "@/lib/content";
 import { getContact } from "@/lib/contact";
+import { programLook } from "@/lib/palette";
 
 export function SiteFooter() {
   const contact = getContact();
@@ -18,7 +19,8 @@ export function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm text-paper/80">
             {programs.map((program) => (
               <li key={program.slug}>
-                <Link href={`/programs/${program.slug}`} className="hover:text-paper">
+                <Link href={`/programs/${program.slug}`} className="inline-flex items-center gap-2 hover:text-paper">
+                  <span className="size-2 rounded-full" style={{ background: programLook(program.slug).to }} />
                   {program.name}
                 </Link>
               </li>
@@ -41,7 +43,7 @@ export function SiteFooter() {
           <p className="text-xs tracking-[0.16em] text-copper uppercase">Contact</p>
           <ul className="mt-3 space-y-2 text-sm text-paper/80">
             <li><a href={`mailto:${contact.email}`} className="hover:text-paper">{contact.email}</a></li>
-            <li>{contact.phone || "Request a call-back on the contact form"}</li>
+            <li><a href={`https://wa.me/${contact.whatsapp}`} className="hover:text-paper">WhatsApp {contact.phone}</a></li>
             <li>{contact.location}</li>
             <li><Link href="/contact" className="hover:text-paper">Talk to a career advisor</Link></li>
             <li><Link href="/admin/login" className="text-paper/50 hover:text-paper">Career team desk</Link></li>

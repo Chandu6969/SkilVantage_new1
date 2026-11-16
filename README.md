@@ -53,7 +53,7 @@ The sync creates five tabs if they are missing:
 
 ## Contact details
 
-Email defaults to `hello@skilvantage.com`. Set `CONTACT_PHONE`, `CONTACT_WHATSAPP`, `CONTACT_EMAIL`, and `CONTACT_LOCATION` when you have them. Until a phone number is set, the contact page asks visitors to request a call-back. Until a WhatsApp number is set, the WhatsApp button asks for a WhatsApp conversation in the form.
+Public contact defaults are `skillvantageadmin@gmail.com`, WhatsApp and phone `+91 63032 20248`, and Hyderabad, India. Override them with `CONTACT_EMAIL`, `CONTACT_PHONE`, `CONTACT_WHATSAPP`, and `CONTACT_LOCATION`.
 
 ## API for a later mobile app
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useChallenge } from "@/components/use-challenge";
 import { getProgram, professionalAudience, programs, studentAudience, trackLabel } from "@/lib/content";
+import { programGradient } from "@/lib/palette";
 import {
   AVAILABILITY,
   BATCH_TIMINGS,
@@ -309,8 +310,8 @@ export function RegisterWizard({
           <fieldset>
             <legend className="text-2xl text-ink">Select Your Learner Type</legend>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Choice checked={draft.learnerType === "student"} onChange={() => { update("learnerType", "student"); void fetch("/api/v1/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: "/register", eventType: "learner_choice", learnerType: "student", device: window.innerWidth < 768 ? "mobile" : "desktop" }) }).catch(() => undefined); }} title="Student / Fresher" points={studentAudience} />
-              <Choice checked={draft.learnerType === "professional"} onChange={() => { update("learnerType", "professional"); void fetch("/api/v1/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: "/register", eventType: "learner_choice", learnerType: "professional", device: window.innerWidth < 768 ? "mobile" : "desktop" }) }).catch(() => undefined); }} title="Working Professional" points={professionalAudience} />
+              <Choice tone="student" checked={draft.learnerType === "student"} onChange={() => { update("learnerType", "student"); void fetch("/api/v1/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: "/register", eventType: "learner_choice", learnerType: "student", device: window.innerWidth < 768 ? "mobile" : "desktop" }) }).catch(() => undefined); }} title="Student / Fresher" points={studentAudience} />
+              <Choice tone="professional" checked={draft.learnerType === "professional"} onChange={() => { update("learnerType", "professional"); void fetch("/api/v1/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: "/register", eventType: "learner_choice", learnerType: "professional", device: window.innerWidth < 768 ? "mobile" : "desktop" }) }).catch(() => undefined); }} title="Working Professional" points={professionalAudience} />
             </div>
             {errors.learnerType ? <p className="mt-2 text-sm text-destructive">{errors.learnerType}</p> : null}
           </fieldset>
@@ -321,10 +322,10 @@ export function RegisterWizard({
             <legend className="text-2xl text-ink">Select Your Program</legend>
             <div className="mt-4 grid gap-3">
               {programs.map((item) => (
-                <label key={item.slug} className={`sv-card cursor-pointer rounded-2xl p-4 ${draft.program === item.slug ? "ring-2 ring-[#12a36a]" : ""}`}>
+                <label key={item.slug} className={`sv-color-card cursor-pointer rounded-2xl p-4 text-white ${draft.program === item.slug ? "ring-4 ring-white" : ""}`} style={{ background: programGradient(item.slug) }}>
                   <input className="sr-only" type="radio" name="program" checked={draft.program === item.slug} onChange={() => setDraft((current) => ({ ...current, program: item.slug, preferredTrack: item.slug, targetTrack: trackLabel[item.slug], preferredRole: item.roles[0] || "", targetRole: item.roles[0] || "" }))} />
-                  <span className="block text-lg text-ink">{item.name}</span>
-                  <span className="mt-1 block text-sm text-muted-foreground">{item.description}</span>
+                  <span className="block text-lg">{item.name}</span>
+                  <span className="mt-1 block text-sm text-white/85">{item.description}</span>
                 </label>
               ))}
             </div>
@@ -471,12 +472,12 @@ export function RegisterWizard({
   );
 }
 
-function Choice({ checked, onChange, title, points }: { checked: boolean; onChange: () => void; title: string; points: string[] }) {
+function Choice({ checked, onChange, title, points, tone }: { checked: boolean; onChange: () => void; title: string; points: string[]; tone: "student" | "professional" }) {
   return (
-    <label className={`sv-card cursor-pointer rounded-3xl p-5 ${checked ? "ring-2 ring-[#12a36a]" : ""}`}>
+    <label className={`sv-color-card cursor-pointer rounded-3xl p-5 text-white ${tone === "student" ? "sv-band" : "sv-pros"} ${checked ? "ring-4 ring-white" : ""}`}>
       <input className="sr-only" type="radio" name="learnerType" checked={checked} onChange={onChange} />
-      <span className="block text-xl text-ink">{title}</span>
-      <span className="mt-3 block space-y-1 text-sm text-muted-foreground">{points.map((point) => <span key={point} className="block">{point}</span>)}</span>
+      <span className="block text-xl">{title}</span>
+      <span className="mt-3 block space-y-1 text-sm text-white/85">{points.map((point) => <span key={point} className="block">{point}</span>)}</span>
     </label>
   );
 }
