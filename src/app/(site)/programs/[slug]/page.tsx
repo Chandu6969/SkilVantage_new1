@@ -35,7 +35,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(courseJson).replace(/</g, "\\u003c") }} />
-      <section className="bg-ink text-paper">
+      <section className="sv-band">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <p className="text-xs tracking-[0.16em] text-copper uppercase">Job-readiness focused training</p>
           <h1 className="mt-3 max-w-3xl text-4xl sm:text-6xl">{program.name}</h1>
@@ -164,7 +164,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
         </section>
       </div>
       <div className="sticky bottom-0 z-30 border-t border-border bg-paper/95 p-3 backdrop-blur lg:hidden">
-        <Link href={`/register?program=${program.slug}`} className="flex h-12 items-center justify-center rounded-xl bg-ink text-paper">{program.registerLabel}</Link>
+        <Link href={`/register?program=${program.slug}`} className="flex h-12 items-center justify-center rounded-xl sv-band">{program.registerLabel}</Link>
       </div>
     </>
   );

@@ -15,7 +15,7 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
   const whatsappText = encodeURIComponent("Hello SkilVantage, I would like to talk about a career program.");
   return (
     <>
-      <section className="bg-ink text-paper">
+      <section className="sv-band">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <p className="text-xs tracking-[0.16em] text-copper uppercase">Contact</p>
           <h1 className="mt-3 text-4xl sm:text-5xl">Talk to SkilVantage</h1>

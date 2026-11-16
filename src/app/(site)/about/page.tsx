@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <>
-      <section className="bg-ink text-paper">
+      <section className="sv-band">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <p className="text-xs tracking-[0.16em] text-copper uppercase">About SkilVantage</p>
           <h1 className="mt-3 max-w-3xl text-4xl sm:text-5xl">Training that treats a career as the outcome.</h1>

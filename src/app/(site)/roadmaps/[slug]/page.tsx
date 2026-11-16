@@ -22,7 +22,7 @@ export default async function RoadmapDetailPage({ params }: { params: Promise<{ 
   if (!program) notFound();
   return (
     <>
-      <section className="bg-ink text-paper">
+      <section className="sv-band">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <p className="text-sm text-paper/60"><Link href="/roadmaps" className="hover:text-paper">Career Roadmaps</Link> / {program.shortName}</p>
           <h1 className="mt-3 text-4xl sm:text-5xl">{program.name} roadmap</h1>

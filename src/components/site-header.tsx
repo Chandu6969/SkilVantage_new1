@@ -18,8 +18,8 @@ export function SiteHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-paper/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+    <header className="sv-nav">
+      <div className="mx-auto flex h-16 items-center justify-between gap-3 px-3 sm:px-5">
         <Link href="/" aria-label="SkilVantage home">
           <Logo />
         </Link>
@@ -39,9 +39,9 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <Button asChild className="hidden h-10 px-4 lg:inline-flex">
-            <Link href="/register">Register Now</Link>
-          </Button>
+          <Link href="/register" className="hidden h-10 items-center rounded-full bg-[#12a36a] px-4 text-sm text-white shadow-[0_8px_24px_rgb(18_163_106_/_0.35)] lg:inline-flex">
+            Register Now
+          </Link>
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="size-10 lg:hidden" aria-label="Open menu">
@@ -71,7 +71,7 @@ export function SiteHeader() {
               </nav>
               <div className="mt-auto p-4">
                 <SheetClose asChild>
-                  <Link href="/register" className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-ink text-base text-paper">
+                  <Link href="/register" className="inline-flex h-12 w-full items-center justify-center rounded-full bg-[#12a36a] text-base text-white">
                     Register Now
                   </Link>
                 </SheetClose>

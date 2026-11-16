@@ -24,7 +24,7 @@ export function EnquiryEditor({ id, status, notes }: { id: string; status: LeadS
     <form onSubmit={onSubmit} className="mt-3 grid gap-3">
       <label className="field">Status<select name="status" defaultValue={status}>{LEAD_STATUSES.map((item) => <option key={item}>{item}</option>)}</select></label>
       <label className="field">Notes<textarea name="notes" defaultValue={notes} /></label>
-      <button className="h-11 rounded-xl bg-ink text-paper" type="submit">Save enquiry</button>
+      <button className="h-11 rounded-xl bg-[#0c3b28] text-white" type="submit">Save enquiry</button>
       {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
     </form>
   );

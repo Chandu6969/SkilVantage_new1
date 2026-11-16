@@ -272,17 +272,27 @@ export function RegisterWizard({
     }
   }
 
+  const cheers = [
+    "Two doors. Pick the one that fits today.",
+    "Five careers. One of them can be yours.",
+    "Just the details a person would ask over coffee.",
+    draft.learnerType === "professional" ? "Where you work now, in your own words." : "Your college story, kept short.",
+    draft.learnerType === "professional" ? "The move you want to make." : "What you already know. None yet is a fine answer.",
+    "Last step. Then the career team takes it from here.",
+  ];
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-      <p className="text-xs tracking-[0.16em] text-copper uppercase">Registration</p>
+    <div className="sv-card mx-auto max-w-3xl rounded-[2rem] px-4 py-10 sm:px-8 sm:py-14">
+      <p className="sv-kicker">Registration</p>
       <h1 className="mt-2 text-4xl text-ink">Tell us where you are, and where you want to go.</h1>
-      <p className="mt-3 text-muted-foreground">This takes a few minutes on a phone. A counsellor reviews it before anyone is enrolled.</p>
+      <p className="mt-3 text-lg text-[#12a36a]">{cheers[step]}</p>
+      <p className="mt-2 text-muted-foreground">This takes a few minutes on a phone. A counsellor reviews it before anyone is enrolled.</p>
       {focus === "communication" ? (
         <p className="mt-4 rounded-2xl bg-secondary px-4 py-3 text-sm">Communication training is part of every program. Choose the career path you want, and mention communication in counselling.</p>
       ) : null}
       <div className="mt-6 flex gap-1" aria-hidden="true">
         {Array.from({ length: 6 }, (_, index) => (
-          <span key={index} className={`h-1 flex-1 rounded-full ${index <= step ? "bg-ink" : "bg-border"}`} />
+          <span key={index} className={`h-1.5 flex-1 rounded-full transition-colors ${index <= step ? "bg-[#12a36a]" : "bg-white/80"}`} />
         ))}
       </div>
       <p className="mt-3 text-sm text-muted-foreground">Step {step + 1} of 6</p>
@@ -294,7 +304,7 @@ export function RegisterWizard({
         </div>
       ) : null}
 
-      <div className="mt-6">
+      <div key={step} className="sv-step mt-6">
         {step === 0 ? (
           <fieldset>
             <legend className="text-2xl text-ink">Select Your Learner Type</legend>
@@ -311,7 +321,7 @@ export function RegisterWizard({
             <legend className="text-2xl text-ink">Select Your Program</legend>
             <div className="mt-4 grid gap-3">
               {programs.map((item) => (
-                <label key={item.slug} className={`cursor-pointer rounded-2xl border p-4 ${draft.program === item.slug ? "border-ink bg-card" : "border-border"}`}>
+                <label key={item.slug} className={`sv-card cursor-pointer rounded-2xl p-4 ${draft.program === item.slug ? "ring-2 ring-[#12a36a]" : ""}`}>
                   <input className="sr-only" type="radio" name="program" checked={draft.program === item.slug} onChange={() => setDraft((current) => ({ ...current, program: item.slug, preferredTrack: item.slug, targetTrack: trackLabel[item.slug], preferredRole: item.roles[0] || "", targetRole: item.roles[0] || "" }))} />
                   <span className="block text-lg text-ink">{item.name}</span>
                   <span className="mt-1 block text-sm text-muted-foreground">{item.description}</span>
@@ -450,9 +460,9 @@ export function RegisterWizard({
           <button type="button" className="h-12 rounded-xl border border-border px-5" onClick={() => { setErrors({}); setStep((current) => current - 1); }}>Back</button>
         ) : <span />}
         {step < 5 ? (
-          <button type="button" className="h-12 rounded-xl bg-ink px-5 text-paper" onClick={next}>Continue</button>
+          <button type="button" className="h-12 rounded-full bg-[#12a36a] px-5 text-white" onClick={next}>Continue</button>
         ) : (
-          <button type="button" disabled={submitting} className="h-12 rounded-xl bg-copper px-5 text-white disabled:opacity-60" onClick={() => void submit()}>
+          <button type="button" disabled={submitting} className="h-12 rounded-full bg-[#0c3b28] px-5 text-white disabled:opacity-60" onClick={() => void submit()}>
             {submitting ? "Saving…" : draft.learnerType === "professional" ? "Plan My Career Transition" : "Start My Career Journey"}
           </button>
         )}
@@ -463,7 +473,7 @@ export function RegisterWizard({
 
 function Choice({ checked, onChange, title, points }: { checked: boolean; onChange: () => void; title: string; points: string[] }) {
   return (
-    <label className={`cursor-pointer rounded-3xl border p-5 ${checked ? "border-ink bg-card" : "border-border"}`}>
+    <label className={`sv-card cursor-pointer rounded-3xl p-5 ${checked ? "ring-2 ring-[#12a36a]" : ""}`}>
       <input className="sr-only" type="radio" name="learnerType" checked={checked} onChange={onChange} />
       <span className="block text-xl text-ink">{title}</span>
       <span className="mt-3 block space-y-1 text-sm text-muted-foreground">{points.map((point) => <span key={point} className="block">{point}</span>)}</span>
@@ -489,7 +499,7 @@ function Chips({ label, options, value, onChange, error }: { label: string; opti
       <legend className="text-sm font-medium text-ink">{label}</legend>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map((option) => (
-          <button key={option} type="button" onClick={() => onChange(toggleChip(value, option))} className={`rounded-full border px-3 py-2 text-sm ${selected.includes(option) ? "border-ink bg-ink text-paper" : "border-border"}`}>
+          <button key={option} type="button" onClick={() => onChange(toggleChip(value, option))} className={`rounded-full border px-3 py-2 text-sm transition ${selected.includes(option) ? "border-[#12a36a] bg-[#12a36a] text-white" : "border-white/80 bg-white/70"}`}>
             {option}
           </button>
         ))}

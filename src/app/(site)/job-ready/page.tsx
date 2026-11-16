@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function JobReadyPage() {
   return (
     <>
-      <section className="bg-ink text-paper">
+      <section className="sv-band">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <p className="text-xs tracking-[0.16em] text-copper uppercase">Job readiness</p>
           <h1 className="mt-3 max-w-3xl text-4xl sm:text-5xl">Become Job Ready</h1>
@@ -40,7 +40,7 @@ export default function JobReadyPage() {
           ))}
         </div>
       </section>
-      <section id="communication" className="bg-ink text-paper">
+      <section id="communication" className="sv-band">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <h2 className="max-w-3xl text-4xl">Technical Skills + Communication = Career Success</h2>
           <p className="mt-4 max-w-2xl text-lg text-paper/80">Knowing the answer is important. Communicating the answer is what makes you stand out.</p>
@@ -58,7 +58,7 @@ export default function JobReadyPage() {
         </div>
       </section>
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-        <Link href="/register" className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-ink text-paper sm:w-auto sm:px-5">Start Learning</Link>
+        <Link href="/register" className="inline-flex h-12 w-full items-center justify-center rounded-xl sv-band sm:w-auto sm:px-5">Start Learning</Link>
       </section>
     </>
   );

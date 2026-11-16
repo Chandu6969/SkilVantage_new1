@@ -13,7 +13,7 @@ const icons = {
 export function ProgramCard({ program, index }: { program: Program; index: number }) {
   const Icon = icons[program.slug];
   return (
-    <article className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-[0_1px_0_rgba(16,32,58,0.04)]">
+    <article className="sv-card relative flex h-full flex-col overflow-hidden rounded-[1.7rem] p-6">
       <span className={`absolute inset-x-0 top-0 h-1 ${program.accent}`} />
       <div className="flex items-start justify-between gap-3">
         <span className="grid size-11 place-items-center rounded-2xl bg-secondary text-ink">

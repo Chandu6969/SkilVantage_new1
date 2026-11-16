@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function ProgramsPage() {
   return (
     <>
-      <section className="bg-ink text-paper">
+      <section className="sv-band">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <p className="text-xs tracking-[0.16em] text-copper uppercase">Programs</p>
           <h1 className="mt-3 max-w-3xl text-4xl sm:text-5xl">Choose the career you want to be ready for.</h1>

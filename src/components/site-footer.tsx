@@ -6,7 +6,7 @@ import { getContact } from "@/lib/contact";
 export function SiteFooter() {
   const contact = getContact();
   return (
-    <footer className="border-t border-border bg-ink text-paper">
+    <footer className="border-t border-border sv-band">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
         <div className="md:col-span-1">
           <Logo light />
