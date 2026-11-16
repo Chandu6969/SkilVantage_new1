@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Outfit } from "next/font/google";
+import { Outfit } from "next/font/google";
 import { headers } from "next/headers";
 import { AnalyticsBeacon } from "@/components/analytics-beacon";
 import { brand } from "@/lib/content";
@@ -8,12 +8,6 @@ import "./globals.css";
 const outfit = Outfit({
   subsets: ["latin"],
   variable: "--font-outfit",
-  display: "swap",
-});
-
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-fraunces",
   display: "swap",
 });
 
@@ -65,7 +59,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${outfit.variable} ${fraunces.variable}`}>
+    <html lang="en" className={outfit.variable}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
         <AnalyticsBeacon />

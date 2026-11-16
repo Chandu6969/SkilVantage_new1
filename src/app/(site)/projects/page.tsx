@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getProgram, projectGroups } from "@/lib/content";
+import { courseWash, programLook } from "@/lib/palette";
 
 export const metadata: Metadata = {
   title: "Real-World Projects",
@@ -24,20 +25,20 @@ export default function ProjectsPage() {
         {projectGroups.map((group) => {
           const program = getProgram(group.slug);
           return (
-            <article key={group.title} className="rounded-3xl border border-border bg-card p-6">
-              <h2 className="text-3xl text-ink">{group.title}</h2>
+            <article key={group.title} className="sv-course-body rounded-[1.7rem] p-6" style={courseWash(group.slug)}>
+              <h2 className="text-3xl">{group.title}</h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {group.items.map((item) => {
                   const detail = program?.projects.find((project) => project.title === item);
                   return (
-                    <div key={item} className="rounded-2xl bg-secondary p-4">
-                      <h3 className="text-lg text-ink">{item}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{detail?.summary}</p>
+                    <div key={item} className="sv-course-panel rounded-2xl p-4">
+                      <h3 className="text-lg">{item}</h3>
+                      <p className="mt-1 text-sm">{detail?.summary}</p>
                     </div>
                   );
                 })}
               </div>
-              <Link href={`/programs/${group.slug}`} className="mt-5 inline-flex text-sm underline-offset-4 hover:underline">
+              <Link href={`/programs/${group.slug}`} className="mt-5 inline-flex text-sm font-semibold underline-offset-4 hover:underline" style={{ color: programLook(group.slug).from }}>
                 See this work inside the {program?.name} program
               </Link>
             </article>

@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 const looks = {
   "data-analyst": { from: "#065f46", to: "#10b981" },
   "data-scientist": { from: "#1e3a8a", to: "#3b82f6" },
@@ -15,4 +17,21 @@ export function programLook(slug: string): ProgramLook {
 export function programGradient(slug: string) {
   const look = programLook(slug);
   return `linear-gradient(155deg, ${look.from} 0%, ${look.to} 100%)`;
+}
+
+export function courseVars(slug: string) {
+  const look = programLook(slug);
+  return {
+    "--course": look.from,
+    "--course-soft": look.to,
+  } as CSSProperties;
+}
+
+export function courseWash(slug: string) {
+  const look = programLook(slug);
+  return {
+    ...courseVars(slug),
+    background: `linear-gradient(180deg, color-mix(in srgb, ${look.to} 52%, white), color-mix(in srgb, ${look.from} 40%, white))`,
+    color: look.from,
+  } as CSSProperties;
 }

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { FaqList } from "@/components/faq-list";
 import { JourneyTimeline } from "@/components/journey-timeline";
 import { faqs, getProgram, programs } from "@/lib/content";
-import { programGradient } from "@/lib/palette";
+import { courseWash, programGradient, programLook } from "@/lib/palette";
 
 export function generateStaticParams() {
   return programs.map((program) => ({ slug: program.slug }));
@@ -33,9 +33,11 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
     timeRequired: program.duration,
   };
 
+  const wash = courseWash(program.slug);
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(courseJson).replace(/</g, "\\u003c") }} />
+      <div style={wash}>
       <section className="relative overflow-hidden text-white" style={{ background: programGradient(program.slug) }}>
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <p className="text-xs tracking-[0.16em] text-white/75 uppercase">Job-readiness focused training</p>
@@ -52,52 +54,52 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl space-y-16 px-4 py-14 sm:px-6">
+      <div className="sv-course-body mx-auto max-w-6xl space-y-16 px-4 py-14 sm:px-6">
         <section>
           <h2 className="text-3xl text-ink">Course overview</h2>
           <p className="mt-3 max-w-3xl text-lg leading-relaxed text-muted-foreground">{program.overview}</p>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">
-          <article className="sv-band rounded-3xl p-6">
-            <h2 className="text-2xl text-white">Who should join</h2>
-            <h3 className="mt-4 text-lg text-white">Students and freshers</h3>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-white/85">{program.whoStudents.map((item) => <li key={item}>{item}</li>)}</ul>
+          <article className="sv-course-panel rounded-3xl p-6">
+            <h2 className="text-2xl">Who should join</h2>
+            <h3 className="mt-4 text-lg">Students and freshers</h3>
+            <ul className="mt-2 list-disc space-y-1 pl-5">{program.whoStudents.map((item) => <li key={item}>{item}</li>)}</ul>
           </article>
-          <article className="sv-pros rounded-3xl p-6">
+          <article className="sv-course-panel sv-course-panel-deep rounded-3xl p-6">
             <h2 className="text-2xl">Working professionals</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-white/85">{program.whoProfessionals.map((item) => <li key={item}>{item}</li>)}</ul>
+            <ul className="mt-2 list-disc space-y-1 pl-5">{program.whoProfessionals.map((item) => <li key={item}>{item}</li>)}</ul>
           </article>
         </section>
         <section>
-          <article className="rounded-3xl bg-secondary p-6">
+          <article className="sv-course-panel rounded-3xl p-6">
             <h2 className="text-2xl text-ink">Prerequisites</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5 text-muted-foreground">{program.prerequisites.map((item) => <li key={item}>{item}</li>)}</ul>
           </article>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">
-          <article className="sv-band rounded-3xl p-6">
-            <h2 className="text-2xl text-white">Student track</h2>
-            <ul className="mt-3 list-disc space-y-2 pl-5 text-white/85">{program.studentTrack.map((item) => <li key={item}>{item}</li>)}</ul>
+          <article className="sv-course-panel rounded-3xl p-6">
+            <h2 className="text-2xl">Student track</h2>
+            <ul className="mt-3 list-disc space-y-2 pl-5">{program.studentTrack.map((item) => <li key={item}>{item}</li>)}</ul>
           </article>
-          <article className="sv-pros rounded-3xl p-6">
+          <article className="sv-course-panel sv-course-panel-deep rounded-3xl p-6">
             <h2 className="text-2xl">Professional track</h2>
-            <ul className="mt-3 list-disc space-y-2 pl-5 text-white/85">{program.professionalTrack.map((item) => <li key={item}>{item}</li>)}</ul>
+            <ul className="mt-3 list-disc space-y-2 pl-5">{program.professionalTrack.map((item) => <li key={item}>{item}</li>)}</ul>
           </article>
         </section>
 
         <section>
           <h2 className="text-3xl text-ink">Skills covered</h2>
           <ul className="mt-4 flex flex-wrap gap-2">
-            {program.skills.map((skill) => <li key={skill} className="rounded-full border border-border px-3 py-1 text-sm">{skill}</li>)}
+            {program.skills.map((skill) => <li key={skill} className="sv-course-panel rounded-full px-3 py-1 text-sm">{skill}</li>)}
           </ul>
         </section>
 
         <section>
           <h2 className="text-3xl text-ink">Tools and technologies</h2>
           <ul className="mt-4 flex flex-wrap gap-2">
-            {program.tools.map((tool) => <li key={tool} className="rounded-full bg-ink px-3 py-1 text-sm text-paper">{tool}</li>)}
+            {program.tools.map((tool) => <li key={tool} className="sv-course-panel-deep rounded-full px-3 py-1 text-sm">{tool}</li>)}
           </ul>
         </section>
 
@@ -105,7 +107,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
           <h2 className="text-3xl text-ink">Complete roadmap</h2>
           <ol className="mt-4 space-y-2">
             {program.curriculum.map((step, index) => (
-              <li key={step} className="flex gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+              <li key={step} className="sv-course-panel flex gap-3 rounded-2xl px-4 py-3">
                 <span className="w-8 text-copper">{String(index + 1).padStart(2, "0")}</span>
                 <span>{step}</span>
               </li>
@@ -122,7 +124,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
           <h2 className="text-3xl text-ink">Projects</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {program.projects.map((project) => (
-              <article key={project.title} className="rounded-3xl bg-secondary p-5">
+              <article key={project.title} className="sv-course-panel rounded-3xl p-5">
                 <h3 className="text-xl text-ink">{project.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{project.summary}</p>
               </article>
@@ -142,7 +144,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
             ["Resume support", program.resumeSupport],
             ["Career guidance", program.careerGuidance],
           ].map(([title, items]) => (
-            <article key={String(title)} className="rounded-3xl border border-border p-5">
+            <article key={String(title)} className="sv-course-panel rounded-3xl p-5">
               <h2 className="text-2xl text-ink">{title}</h2>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">{(items as string[]).map((item) => <li key={item}>{item}</li>)}</ul>
             </article>
@@ -152,7 +154,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
         <section>
           <h2 className="text-3xl text-ink">Career roles</h2>
           <ul className="mt-4 flex flex-wrap gap-2">
-            {program.roles.map((role) => <li key={role} className="rounded-full border border-border px-3 py-1 text-sm">{role}</li>)}
+            {program.roles.map((role) => <li key={role} className="sv-course-panel rounded-full px-3 py-1 text-sm">{role}</li>)}
           </ul>
           <p className="mt-4 max-w-3xl text-sm text-muted-foreground">These are roles the curriculum is aimed at. SkilVantage does not guarantee interviews or offers.</p>
         </section>
@@ -168,8 +170,9 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
           <Link href={`/register?program=${program.slug}`} className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-full bg-white px-5 text-[#10281c] sm:w-auto">{program.registerLabel}</Link>
         </section>
       </div>
-      <div className="sticky bottom-0 z-30 border-t border-border bg-paper/95 p-3 backdrop-blur lg:hidden">
-        <Link href={`/register?program=${program.slug}`} className="flex h-12 items-center justify-center rounded-xl sv-band">{program.registerLabel}</Link>
+      </div>
+      <div className="sticky bottom-0 z-30 border-t border-white/30 p-3 backdrop-blur lg:hidden" style={{ background: programLook(program.slug).from }}>
+        <Link href={`/register?program=${program.slug}`} className="flex h-12 items-center justify-center rounded-full bg-white" style={{ color: programLook(program.slug).from }}>{program.registerLabel}</Link>
       </div>
     </>
   );

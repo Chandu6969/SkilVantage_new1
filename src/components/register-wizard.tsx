@@ -309,7 +309,7 @@ export function RegisterWizard({
         {step === 0 ? (
           <fieldset>
             <legend className="text-2xl text-ink">Select Your Learner Type</legend>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-2 grid gap-4 overflow-visible px-2 py-4 sm:grid-cols-2">
               <Choice tone="student" checked={draft.learnerType === "student"} onChange={() => { update("learnerType", "student"); void fetch("/api/v1/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: "/register", eventType: "learner_choice", learnerType: "student", device: window.innerWidth < 768 ? "mobile" : "desktop" }) }).catch(() => undefined); }} title="Student / Fresher" points={studentAudience} />
               <Choice tone="professional" checked={draft.learnerType === "professional"} onChange={() => { update("learnerType", "professional"); void fetch("/api/v1/analytics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: "/register", eventType: "learner_choice", learnerType: "professional", device: window.innerWidth < 768 ? "mobile" : "desktop" }) }).catch(() => undefined); }} title="Working Professional" points={professionalAudience} />
             </div>
@@ -320,12 +320,16 @@ export function RegisterWizard({
         {step === 1 ? (
           <fieldset>
             <legend className="text-2xl text-ink">Select Your Program</legend>
-            <div className="mt-4 grid gap-3">
+            <div className="mt-2 grid gap-4 overflow-visible px-2 py-4">
               {programs.map((item) => (
-                <label key={item.slug} className={`sv-color-card cursor-pointer rounded-2xl p-4 text-white ${draft.program === item.slug ? "ring-4 ring-white" : ""}`} style={{ background: programGradient(item.slug) }}>
+                <label key={item.slug} className={`sv-pick sv-color-card cursor-pointer rounded-2xl p-4 text-white ${draft.program === item.slug ? "sv-pick-on" : ""}`} style={{ background: programGradient(item.slug) }}>
                   <input className="sr-only" type="radio" name="program" checked={draft.program === item.slug} onChange={() => setDraft((current) => ({ ...current, program: item.slug, preferredTrack: item.slug, targetTrack: trackLabel[item.slug], preferredRole: item.roles[0] || "", targetRole: item.roles[0] || "" }))} />
-                  <span className="block text-lg">{item.name}</span>
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="block text-lg">{item.name}</span>
+                    <span className={`grid size-7 shrink-0 place-items-center rounded-full border-2 text-sm ${draft.program === item.slug ? "border-white bg-white text-[#0c3b28]" : "border-white/60"}`}>{draft.program === item.slug ? "✓" : ""}</span>
+                  </span>
                   <span className="mt-1 block text-sm text-white/85">{item.description}</span>
+                  <span className="mt-3 block text-xs font-semibold tracking-wide uppercase">{draft.program === item.slug ? "Selected" : "Tap to select"}</span>
                 </label>
               ))}
             </div>
@@ -474,10 +478,14 @@ export function RegisterWizard({
 
 function Choice({ checked, onChange, title, points, tone }: { checked: boolean; onChange: () => void; title: string; points: string[]; tone: "student" | "professional" }) {
   return (
-    <label className={`sv-color-card cursor-pointer rounded-3xl p-5 text-white ${tone === "student" ? "sv-band" : "sv-pros"} ${checked ? "ring-4 ring-white" : ""}`}>
+    <label className={`sv-pick sv-color-card cursor-pointer rounded-3xl p-5 text-white ${tone === "student" ? "sv-band" : "sv-pros"} ${checked ? "sv-pick-on" : ""}`}>
       <input className="sr-only" type="radio" name="learnerType" checked={checked} onChange={onChange} />
-      <span className="block text-xl">{title}</span>
+      <span className="flex items-center justify-between gap-3">
+        <span className="block text-xl">{title}</span>
+        <span className={`grid size-7 shrink-0 place-items-center rounded-full border-2 text-sm ${checked ? "border-white bg-white text-[#0c3b28]" : "border-white/60"}`}>{checked ? "✓" : ""}</span>
+      </span>
       <span className="mt-3 block space-y-1 text-sm text-white/85">{points.map((point) => <span key={point} className="block">{point}</span>)}</span>
+      <span className="mt-4 inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-wide text-[#10281c] uppercase">{checked ? "Selected" : "Tap to select"}</span>
     </label>
   );
 }

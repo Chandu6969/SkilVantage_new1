@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JourneyTimeline } from "@/components/journey-timeline";
 import { phases, programs } from "@/lib/content";
-import { programGradient, programLook } from "@/lib/palette";
+import { courseWash, programGradient, programLook } from "@/lib/palette";
 
 export const metadata: Metadata = {
   title: "Career Roadmaps",
@@ -39,7 +39,7 @@ export default function RoadmapsPage() {
         </ol>
         <div className="mt-12 space-y-16">
           {programs.map((program) => (
-            <section key={program.slug} id={program.slug} className="overflow-hidden rounded-[1.7rem] border border-white/70 bg-white/55">
+            <section key={program.slug} id={program.slug} className="overflow-hidden rounded-[1.7rem]" style={courseWash(program.slug)}>
               <div className="flex flex-col justify-between gap-3 px-5 py-5 text-white sm:flex-row sm:items-end" style={{ background: programGradient(program.slug) }}>
                 <div>
                   <h2 className="text-3xl">{program.name}</h2>
@@ -47,7 +47,7 @@ export default function RoadmapsPage() {
                 </div>
                 <Link href={`/roadmaps/${program.slug}`} className="text-sm text-white underline-offset-4 hover:underline">{program.roadmapLabel}</Link>
               </div>
-              <div className="p-4 sm:p-6">
+              <div className="sv-course-body p-4 sm:p-6">
                 <JourneyTimeline program={program} />
               </div>
             </section>

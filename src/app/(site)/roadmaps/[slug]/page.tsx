@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JourneyTimeline } from "@/components/journey-timeline";
 import { getProgram, programs } from "@/lib/content";
-import { programGradient, programLook } from "@/lib/palette";
+import { courseWash, programGradient, programLook } from "@/lib/palette";
 
 export function generateStaticParams() {
   return programs.map((program) => ({ slug: program.slug }));
@@ -22,7 +22,7 @@ export default async function RoadmapDetailPage({ params }: { params: Promise<{ 
   const program = getProgram((await params).slug);
   if (!program) notFound();
   return (
-    <>
+    <div style={courseWash(program.slug)}>
       <section className="relative overflow-hidden text-white" style={{ background: programGradient(program.slug) }}>
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <p className="text-sm text-paper/60"><Link href="/roadmaps" className="hover:text-paper">Career Roadmaps</Link> / {program.shortName}</p>
@@ -37,13 +37,13 @@ export default async function RoadmapDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
       </section>
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <section className="sv-course-body mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <JourneyTimeline program={program} />
         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-          <Link href={`/programs/${program.slug}`} className="inline-flex h-12 items-center justify-center rounded-xl border border-border px-5">View course details</Link>
-          <Link href={`/register?program=${program.slug}`} className="inline-flex h-12 items-center justify-center rounded-xl bg-ink px-5 text-paper">{program.registerLabel}</Link>
+          <Link href={`/programs/${program.slug}`} className="inline-flex h-12 items-center justify-center rounded-full border border-current px-5">View course details</Link>
+          <Link href={`/register?program=${program.slug}`} className="inline-flex h-12 items-center justify-center rounded-full px-5 text-white" style={{ background: programLook(program.slug).from }}>{program.registerLabel}</Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }

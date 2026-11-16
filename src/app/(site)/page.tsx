@@ -4,6 +4,7 @@ import { FaqList } from "@/components/faq-list";
 import { ProgramCard } from "@/components/program-card";
 import { QuoteRotator } from "@/components/quote-rotator";
 import { brand, communicationTopics, faqs, jobSteps, journey, professionalAudience, programs, projectGroups, studentAudience, trustCards, whyCards } from "@/lib/content";
+import { courseWash } from "@/lib/palette";
 
 const whyIcons = [Building2, FolderKanban, Briefcase, MessagesSquare, Mic, Compass];
 
@@ -178,9 +179,9 @@ export default function HomePage() {
           <h2 className="mt-3 text-4xl text-ink">Build Real-World Projects</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {projectGroups.slice(0, 3).map((group) => (
-              <article key={group.title} className="sv-card rounded-3xl p-5">
-                <h3 className="text-xl text-ink">{group.title}</h3>
-                <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+              <article key={group.title} className="sv-course-body rounded-3xl p-5" style={courseWash(group.slug)}>
+                <h3 className="text-xl">{group.title}</h3>
+                <ul className="mt-3 space-y-1 text-sm">
                   {group.items.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </article>
