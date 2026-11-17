@@ -45,6 +45,47 @@ export interface BatchMember {
   createdAt: string;
 }
 
+export type AttendanceStatus = "present" | "absent";
+export type FeeKind = "cash" | "bank" | "upi";
+export type AssignmentProgress = "pending" | "submitted" | "reviewed";
+
+export interface AttendanceMark {
+  id: string;
+  batchId: string;
+  memberId: string;
+  date: string;
+  status: AttendanceStatus;
+  createdAt: string;
+}
+
+export interface FeePayment {
+  id: string;
+  batchId: string;
+  memberId: string;
+  amount: number;
+  kind: FeeKind;
+  paidOn: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface ClassAssignment {
+  id: string;
+  batchId: string;
+  memberId: string;
+  title: string;
+  dueOn: string;
+  status: AssignmentProgress;
+  createdAt: string;
+}
+
+export interface TeacherNote {
+  id: string;
+  batchId: string;
+  body: string;
+  createdAt: string;
+}
+
 export type PhaseId =
   | "foundation"
   | "core"

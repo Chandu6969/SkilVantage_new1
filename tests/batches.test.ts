@@ -31,5 +31,48 @@ test("student batches start with SASI and WISE and keep an added person", async 
   const members = await store.listMembers(batches[0]!.id);
   assert.equal(members.length, 1);
   assert.equal(members[0]?.fullName, "Sample Student");
+  const marked = await store.markAttendance({
+    id: "SVA-TEST01",
+    batchId: batches[0]!.id,
+    memberId: "SVM-TEST01",
+    date: "2026-11-16",
+    status: "present",
+    createdAt: new Date().toISOString(),
+  });
+  await store.markAttendance({ ...marked, id: "SVA-TEST02", status: "absent" });
+  const marks = await store.listAttendance(batches[0]!.id);
+  assert.equal(marks.length, 1);
+  assert.equal(marks[0]?.status, "absent");
+  await store.addFee({
+    id: "SVY-TEST01",
+    batchId: batches[0]!.id,
+    memberId: "SVM-TEST01",
+    amount: 5000,
+    kind: "cash",
+    paidOn: "2026-11-16",
+    note: "First instalment",
+    createdAt: new Date().toISOString(),
+  });
+  const fees = await store.listFees();
+  assert.equal(fees[0]?.amount, 5000);
+  await store.addAssignment({
+    id: "SVG-TEST01",
+    batchId: batches[0]!.id,
+    memberId: "SVM-TEST01",
+    title: "SQL practice",
+    dueOn: "2026-11-20",
+    status: "pending",
+    createdAt: new Date().toISOString(),
+  });
+  const updated = await store.updateAssignment("SVG-TEST01", "reviewed");
+  assert.equal(updated?.status, "reviewed");
+  await store.addTeacherNote({
+    id: "SVT-TEST01",
+    batchId: batches[0]!.id,
+    body: "Covered joins.",
+    createdAt: new Date().toISOString(),
+  });
+  const notes = await store.listTeacherNotes(batches[0]!.id);
+  assert.equal(notes[0]?.body, "Covered joins.");
   storeModule.resetStoreForTests();
 });

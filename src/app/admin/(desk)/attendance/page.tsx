@@ -1,22 +1,18 @@
-import Link from "next/link";
-import { DeskHeader, DeskTitle } from "@/components/admin/desk-header";
+import { AttendanceBoard } from "@/components/admin/attendance-board";
 import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function AttendancePage() {
-  const batches = await getStore().listBatches();
+  const store = getStore();
+  const batches = await store.listBatches();
+  const members = (await Promise.all(batches.map((batch) => store.listMembers(batch.id)))).flat();
+  const marks = (await Promise.all(batches.map((batch) => store.listAttendance(batch.id)))).flat();
   return (
     <div>
-      <DeskHeader eyebrow="Attendance" title={<DeskTitle />} subtitle="Open a batch and mark who is absent today. The list on the batch screen can filter to those people." />
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {batches.map((batch) => (
-          <Link key={batch.id} href={`/admin/batches/${batch.id}`} className="rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4">
-            <p className="text-xs tracking-[0.14em] text-[var(--desk-muted)] uppercase">{batch.learnerType === "student" ? "Student" : "Professional"} · {batch.label}</p>
-            <p className="mt-1 text-xl font-semibold">{batch.name}</p>
-          </Link>
-        ))}
-      </div>
+      <h1 className="text-2xl font-semibold">Attendance</h1>
+      <p className="mt-1 text-sm text-[var(--desk-muted)]">Mark present or absent for the names already in each batch, then read the report below.</p>
+      <div className="mt-5"><AttendanceBoard batches={batches} members={members} marks={marks} /></div>
     </div>
   );
 }

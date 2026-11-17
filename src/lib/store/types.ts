@@ -1,7 +1,11 @@
 import type {
   AnalyticsEvent,
+  AttendanceMark,
   BatchMember,
+  ClassAssignment,
   Enquiry,
+  FeePayment,
+  TeacherNote,
   FollowUp,
   LearnerType,
   Registration,
@@ -47,6 +51,15 @@ export interface LeadStore {
   addMember(member: BatchMember): Promise<void>;
   updateMember(id: string, patch: Partial<Pick<BatchMember, "messaged" | "absentToday">>): Promise<BatchMember | null>;
   resetMessaged(batchId: string): Promise<void>;
+  listAttendance(batchId: string): Promise<AttendanceMark[]>;
+  markAttendance(mark: AttendanceMark): Promise<AttendanceMark>;
+  listFees(): Promise<FeePayment[]>;
+  addFee(fee: FeePayment): Promise<void>;
+  listAssignments(batchId?: string): Promise<ClassAssignment[]>;
+  addAssignment(item: ClassAssignment): Promise<void>;
+  updateAssignment(id: string, status: ClassAssignment["status"]): Promise<ClassAssignment | null>;
+  listTeacherNotes(batchId?: string): Promise<TeacherNote[]>;
+  addTeacherNote(note: TeacherNote): Promise<void>;
   createSession(role: Session["role"]): Promise<{ token: string; expiresAt: string }>;
   getSession(token: string): Promise<Session | null>;
   deleteSession(token: string): Promise<void>;

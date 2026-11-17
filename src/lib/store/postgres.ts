@@ -5,7 +5,7 @@ import { batchId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, BatchMember, Enquiry, FollowUp, LearnerType, Registration, Session, StoredFile, TrainingBatch } from "@/lib/types";
+import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, FeePayment, FollowUp, LearnerType, Registration, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS registrations (
@@ -87,6 +87,15 @@ CREATE TABLE IF NOT EXISTS batch_members (
   created_at TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX IF NOT EXISTS batch_members_batch_idx ON batch_members (batch_id);
+CREATE TABLE IF NOT EXISTS desk_items (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  batch_id TEXT NOT NULL DEFAULT '',
+  member_id TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL,
+  record JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS desk_items_kind_idx ON desk_items (kind, batch_id);
 `;
 
 const globalPool = globalThis as unknown as { skilVantagePool?: Pool };
@@ -465,6 +474,79 @@ export class PostgresStore implements LeadStore {
   async resetMessaged(batchId: string) {
     await this.init();
     await pool().query("UPDATE batch_members SET messaged = FALSE WHERE batch_id = $1", [batchId]);
+  }
+
+  private async deskRows<T>(kind: string, batchId?: string) {
+    await this.init();
+    const result = batchId
+      ? await pool().query<{ record: T }>("SELECT record FROM desk_items WHERE kind = $1 AND batch_id = $2 ORDER BY created_at DESC", [kind, batchId])
+      : await pool().query<{ record: T }>("SELECT record FROM desk_items WHERE kind = $1 ORDER BY created_at DESC", [kind]);
+    return result.rows.map((row) => row.record);
+  }
+
+  async listAttendance(batchId: string) {
+    const rows = await this.deskRows<AttendanceMark>("attendance", batchId);
+    return rows.sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  async markAttendance(mark: AttendanceMark) {
+    await this.init();
+    await pool().query(
+      "DELETE FROM desk_items WHERE kind = 'attendance' AND batch_id = $1 AND member_id = $2 AND record->>'date' = $3",
+      [mark.batchId, mark.memberId, mark.date],
+    );
+    await pool().query(
+      "INSERT INTO desk_items (id, kind, batch_id, member_id, created_at, record) VALUES ($1,'attendance',$2,$3,$4,$5::jsonb)",
+      [mark.id, mark.batchId, mark.memberId, mark.createdAt, JSON.stringify(mark)],
+    );
+    return mark;
+  }
+
+  async listFees() {
+    const rows = await this.deskRows<FeePayment>("fee");
+    return rows.sort((a, b) => b.paidOn.localeCompare(a.paidOn) || b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async addFee(fee: FeePayment) {
+    await this.init();
+    await pool().query(
+      "INSERT INTO desk_items (id, kind, batch_id, member_id, created_at, record) VALUES ($1,'fee',$2,$3,$4,$5::jsonb)",
+      [fee.id, fee.batchId, fee.memberId, fee.createdAt, JSON.stringify(fee)],
+    );
+  }
+
+  async listAssignments(batchId?: string) {
+    return this.deskRows<ClassAssignment>("assignment", batchId);
+  }
+
+  async addAssignment(item: ClassAssignment) {
+    await this.init();
+    await pool().query(
+      "INSERT INTO desk_items (id, kind, batch_id, member_id, created_at, record) VALUES ($1,'assignment',$2,$3,$4,$5::jsonb)",
+      [item.id, item.batchId, item.memberId, item.createdAt, JSON.stringify(item)],
+    );
+  }
+
+  async updateAssignment(id: string, status: ClassAssignment["status"]) {
+    await this.init();
+    const current = await pool().query<{ record: ClassAssignment }>("SELECT record FROM desk_items WHERE id = $1 AND kind = 'assignment'", [id]);
+    const item = current.rows[0]?.record;
+    if (!item) return null;
+    item.status = status;
+    await pool().query("UPDATE desk_items SET record = $2::jsonb WHERE id = $1", [id, JSON.stringify(item)]);
+    return item;
+  }
+
+  async listTeacherNotes(batchId?: string) {
+    return this.deskRows<TeacherNote>("teacher", batchId);
+  }
+
+  async addTeacherNote(note: TeacherNote) {
+    await this.init();
+    await pool().query(
+      "INSERT INTO desk_items (id, kind, batch_id, member_id, created_at, record) VALUES ($1,'teacher',$2,'',$3,$4::jsonb)",
+      [note.id, note.batchId, note.createdAt, JSON.stringify(note)],
+    );
   }
 
   async createSession(role: Session["role"]) {

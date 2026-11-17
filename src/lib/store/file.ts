@@ -6,7 +6,7 @@ import { batchId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, BatchMember, Enquiry, FollowUp, LearnerType, Registration, Session, StoredFile, TrainingBatch } from "@/lib/types";
+import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, FeePayment, FollowUp, LearnerType, Registration, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
 
 interface FileBody {
   meta: Record<string, string>;
@@ -18,10 +18,14 @@ interface FileBody {
   sessions: { tokenHash: string; role: Session["role"]; expiresAt: string }[];
   batches: TrainingBatch[];
   learners: BatchMember[];
+  attendance: AttendanceMark[];
+  fees: FeePayment[];
+  assignments: ClassAssignment[];
+  teacherNotes: TeacherNote[];
 }
 
 function emptyBody(): FileBody {
-  return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [], batches: [], learners: [] };
+  return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [], batches: [], learners: [], attendance: [], fees: [], assignments: [], teacherNotes: [] };
 }
 
 export class FileStore implements LeadStore {
@@ -58,6 +62,10 @@ export class FileStore implements LeadStore {
       parsed.sessions ||= [];
       parsed.batches ||= [];
       parsed.learners ||= [];
+      parsed.attendance ||= [];
+      parsed.fees ||= [];
+      parsed.assignments ||= [];
+      parsed.teacherNotes ||= [];
       return parsed;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -296,6 +304,77 @@ export class FileStore implements LeadStore {
       if (patch.absentToday !== undefined) member.absentToday = patch.absentToday;
       await this.write(body);
       return member;
+    });
+  }
+
+  async listAttendance(batchId: string) {
+    const body = await this.read();
+    return body.attendance.filter((item) => item.batchId === batchId).sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  async markAttendance(mark: AttendanceMark) {
+    return this.locked(async () => {
+      const body = await this.read();
+      body.attendance = body.attendance.filter(
+        (item) => !(item.batchId === mark.batchId && item.memberId === mark.memberId && item.date === mark.date),
+      );
+      body.attendance.push(mark);
+      await this.write(body);
+      return mark;
+    });
+  }
+
+  async listFees() {
+    const body = await this.read();
+    return body.fees.sort((a, b) => b.paidOn.localeCompare(a.paidOn) || b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async addFee(fee: FeePayment) {
+    await this.locked(async () => {
+      const body = await this.read();
+      body.fees.push(fee);
+      await this.write(body);
+    });
+  }
+
+  async listAssignments(batchId?: string) {
+    const body = await this.read();
+    return body.assignments
+      .filter((item) => !batchId || item.batchId === batchId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async addAssignment(item: ClassAssignment) {
+    await this.locked(async () => {
+      const body = await this.read();
+      body.assignments.push(item);
+      await this.write(body);
+    });
+  }
+
+  async updateAssignment(id: string, status: ClassAssignment["status"]) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const item = body.assignments.find((row) => row.id === id);
+      if (!item) return null;
+      item.status = status;
+      await this.write(body);
+      return item;
+    });
+  }
+
+  async listTeacherNotes(batchId?: string) {
+    const body = await this.read();
+    return body.teacherNotes
+      .filter((item) => !batchId || item.batchId === batchId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async addTeacherNote(note: TeacherNote) {
+    await this.locked(async () => {
+      const body = await this.read();
+      body.teacherNotes.push(note);
+      await this.write(body);
     });
   }
 

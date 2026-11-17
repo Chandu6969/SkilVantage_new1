@@ -36,6 +36,22 @@ export function memberId() {
   return `SVM-${randomCode(6)}`;
 }
 
+export function attendanceId() {
+  return `SVA-${randomCode(6)}`;
+}
+
+export function feeId() {
+  return `SVY-${randomCode(6)}`;
+}
+
+export function assignmentId() {
+  return `SVG-${randomCode(6)}`;
+}
+
+export function teacherNoteId() {
+  return `SVT-${randomCode(6)}`;
+}
+
 export function isRegistrationId(value: string) {
   return /^SV[SP]-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(value);
 }
