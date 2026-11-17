@@ -115,5 +115,22 @@ test("student batches start with SASI and WISE and keep an added person", async 
   });
   const settled = await store.settleFacultyPay(saved.id, "2026-11-17");
   assert.equal(settled?.status, "paid");
+  const gone = await store.removeMember("SVM-TEST01");
+  assert.equal(gone?.fullName, "Sample Student");
+  assert.equal((await store.listMembers(batches[0]!.id)).length, 0);
+  await store.addRemoved({
+    id: "SVX-TEST01",
+    memberId: "SVM-TEST01",
+    batchId: batches[0]!.id,
+    batchName: "SASI",
+    learnerType: "student",
+    fullName: "Sample Student",
+    phone: "9845011122",
+    email: "",
+    registrationId: "SVS-TEST01",
+    removedAt: new Date().toISOString(),
+  });
+  const removed = await store.listRemoved("student");
+  assert.equal(removed[0]?.fullName, "Sample Student");
   storeModule.resetStoreForTests();
 });

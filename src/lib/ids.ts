@@ -64,6 +64,10 @@ export function facultyPayId() {
   return `SVK-${randomCode(6)}`;
 }
 
+export function removedId() {
+  return `SVX-${randomCode(6)}`;
+}
+
 export function isRegistrationId(value: string) {
   return /^SV[SP]-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(value);
 }

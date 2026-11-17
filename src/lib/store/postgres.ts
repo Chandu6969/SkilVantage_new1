@@ -5,7 +5,7 @@ import { batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
+import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, RemovedLearner, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS registrations (
@@ -455,6 +455,24 @@ export class PostgresStore implements LeadStore {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [member.id, member.batchId, member.fullName, member.phone, member.email, member.note, member.messaged, member.absentToday, member.createdAt],
     );
+  }
+
+  async removeMember(id: string) {
+    await this.init();
+    const result = await pool().query("DELETE FROM batch_members WHERE id = $1 RETURNING *", [id]);
+    return result.rows[0] ? this.mapMember(result.rows[0]) : null;
+  }
+
+  async listRemoved(learnerType?: LearnerType) {
+    const rows = await this.deskRows<RemovedLearner>("removed");
+    return rows
+      .filter((item) => !learnerType || item.learnerType === learnerType)
+      .sort((a, b) => b.removedAt.localeCompare(a.removedAt));
+  }
+
+  async addRemoved(item: RemovedLearner) {
+    await this.init();
+    await this.putDesk("removed", item.id, item.memberId, item.removedAt, item);
   }
 
   async updateMember(id: string, patch: Partial<Pick<BatchMember, "messaged" | "absentToday">>) {

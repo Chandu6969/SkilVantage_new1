@@ -89,6 +89,21 @@ export function BatchBoard({ batch, members }: { batch: TrainingBatch; members: 
     setNotice("Sent marks cleared for this batch.");
   }
 
+  async function sendBack(member: BatchMember) {
+    const sure = window.confirm(`Remove ${member.fullName} from ${batch.name}? They will show up again in Registrations.`);
+    if (!sure) return;
+    setError("");
+    const response = await fetch(`/api/v1/admin/batches/${batch.id}/members/${member.id}`, { method: "DELETE" });
+    const data = (await response.json()) as { ok?: boolean; error?: string };
+    if (!response.ok || !data.ok) {
+      setError(data.error || "Could not return this person to Registrations.");
+      return;
+    }
+    setRows((current) => current.filter((row) => row.id !== member.id));
+    setNotice(`${member.fullName} is back in Registrations.`);
+    router.refresh();
+  }
+
   async function addPerson(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -200,6 +215,13 @@ export function BatchBoard({ batch, members }: { batch: TrainingBatch; members: 
               </button>
               <button type="button" onClick={() => openChat(member, true)} className="rounded-full border border-[#1ec9a0] px-3 py-1.5 text-sm text-[#8ee0c0]">
                 WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={() => void sendBack(member)}
+                className="rounded-full border px-3 py-1.5 text-sm" style={{ borderColor: "#fb7185", color: "#e11d48" }}
+              >
+                Remove
               </button>
             </li>
           ))}

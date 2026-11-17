@@ -1,4 +1,4 @@
-import type { TrainingBatch } from "@/lib/types";
+import type { LearnerType, TrainingBatch } from "@/lib/types";
 
 export const STARTER_BATCHES: TrainingBatch[] = [
   {
@@ -28,6 +28,28 @@ export const MESSAGE_TEMPLATES = [
 ] as const;
 
 const AVATARS = ["#7c5cbf", "#3b6fd8", "#e08a2c", "#d15a78", "#1f9d78", "#6d5bd0"];
+
+const studentLooks = [
+  { from: "#065f46", to: "#10b981" },
+  { from: "#1e3a8a", to: "#3b82f6" },
+  { from: "#5b21b6", to: "#8b5cf6" },
+  { from: "#9a3412", to: "#f97316" },
+  { from: "#9f1239", to: "#f43f5e" },
+];
+
+const professionalLooks = [
+  { from: "#312e81", to: "#818cf8" },
+  { from: "#5b21b6", to: "#c4b5fd" },
+  { from: "#9f1239", to: "#fb7185" },
+];
+
+export function batchLook(batch: { name: string; learnerType: LearnerType; sort: number }) {
+  const name = batch.name.trim().toLowerCase();
+  if (batch.learnerType === "student" && name === "sasi") return studentLooks[0]!;
+  if (batch.learnerType === "student" && name === "wise") return studentLooks[1]!;
+  const palette = batch.learnerType === "student" ? studentLooks : professionalLooks;
+  return palette[(Math.max(batch.sort, 1) - 1) % palette.length]!;
+}
 
 export function ordinalLabel(index: number) {
   const mod = index % 100;

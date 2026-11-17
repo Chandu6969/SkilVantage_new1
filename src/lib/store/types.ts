@@ -2,6 +2,7 @@ import type {
   AnalyticsEvent,
   AttendanceMark,
   BatchMember,
+  RemovedLearner,
   ClassAssignment,
   Enquiry,
   Faculty,
@@ -53,6 +54,9 @@ export interface LeadStore {
   listMembers(batchId: string): Promise<BatchMember[]>;
   addMember(member: BatchMember): Promise<void>;
   updateMember(id: string, patch: Partial<Pick<BatchMember, "messaged" | "absentToday">>): Promise<BatchMember | null>;
+  removeMember(id: string): Promise<BatchMember | null>;
+  listRemoved(learnerType?: LearnerType): Promise<RemovedLearner[]>;
+  addRemoved(item: RemovedLearner): Promise<void>;
   resetMessaged(batchId: string): Promise<void>;
   listAttendance(batchId: string): Promise<AttendanceMark[]>;
   markAttendance(mark: AttendanceMark): Promise<AttendanceMark>;

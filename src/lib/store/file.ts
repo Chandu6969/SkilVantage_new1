@@ -6,7 +6,7 @@ import { batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
+import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, RemovedLearner, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
 
 interface FileBody {
   meta: Record<string, string>;
@@ -18,6 +18,7 @@ interface FileBody {
   sessions: { tokenHash: string; role: Session["role"]; expiresAt: string }[];
   batches: TrainingBatch[];
   learners: BatchMember[];
+  removed: RemovedLearner[];
   attendance: AttendanceMark[];
   fees: FeePayment[];
   assignments: ClassAssignment[];
@@ -28,7 +29,7 @@ interface FileBody {
 }
 
 function emptyBody(): FileBody {
-  return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [], batches: [], learners: [], attendance: [], fees: [], assignments: [], teacherNotes: [], teachers: [], teacherDays: [], teacherPays: [] };
+  return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [], batches: [], learners: [], removed: [], attendance: [], fees: [], assignments: [], teacherNotes: [], teachers: [], teacherDays: [], teacherPays: [] };
 }
 
 export class FileStore implements LeadStore {
@@ -65,6 +66,7 @@ export class FileStore implements LeadStore {
       parsed.sessions ||= [];
       parsed.batches ||= [];
       parsed.learners ||= [];
+      parsed.removed ||= [];
       parsed.attendance ||= [];
       parsed.fees ||= [];
       parsed.assignments ||= [];
@@ -297,6 +299,32 @@ export class FileStore implements LeadStore {
     await this.locked(async () => {
       const body = await this.read();
       body.learners.push(member);
+      await this.write(body);
+    });
+  }
+
+  async removeMember(id: string) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const member = body.learners.find((item) => item.id === id);
+      if (!member) return null;
+      body.learners = body.learners.filter((item) => item.id !== id);
+      await this.write(body);
+      return member;
+    });
+  }
+
+  async listRemoved(learnerType?: LearnerType) {
+    const body = await this.read();
+    return body.removed
+      .filter((item) => !learnerType || item.learnerType === learnerType)
+      .sort((a, b) => b.removedAt.localeCompare(a.removedAt));
+  }
+
+  async addRemoved(item: RemovedLearner) {
+    await this.locked(async () => {
+      const body = await this.read();
+      body.removed.push(item);
       await this.write(body);
     });
   }

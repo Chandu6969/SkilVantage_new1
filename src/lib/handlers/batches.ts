@@ -1,9 +1,9 @@
-import { memberId } from "@/lib/ids";
+import { memberId, registrationId, removedId } from "@/lib/ids";
 import { assertSameOrigin, json, readJson } from "@/lib/security";
 import { getStore } from "@/lib/store";
 import { sessionFromRequest } from "@/lib/auth";
 import { batchCreateSchema, memberCreateSchema, memberPatchSchema, zodFieldErrors } from "@/lib/validation";
-import type { BatchMember } from "@/lib/types";
+import type { BatchMember, Registration } from "@/lib/types";
 
 async function guard(req: Request) {
   if (!assertSameOrigin(req)) return { error: json({ ok: false, error: "This action can only be taken from the SkilVantage site." }, 403) };
@@ -82,6 +82,102 @@ export async function patchMember(req: Request, ctx: { params: Promise<{ id: str
   const member = await getStore().updateMember(id, parsed.data);
   if (!member) return json({ ok: false, error: "Person not found." }, 404);
   return json({ ok: true, member });
+}
+
+function emptyLead(member: BatchMember, learnerType: Registration["learnerType"], batchName: string): Registration {
+  const now = new Date().toISOString();
+  return {
+    id: registrationId(learnerType),
+    createdAt: now,
+    learnerType,
+    program: "data-analyst",
+    status: "Follow-up Required",
+    fullName: member.fullName,
+    phone: member.phone,
+    email: member.email,
+    city: "Hyderabad",
+    state: "Telangana",
+    gender: "",
+    college: "",
+    degree: "",
+    branch: "",
+    passedOutYear: "",
+    currentYear: "",
+    skills: "",
+    programmingLanguages: "",
+    tools: "",
+    projects: "",
+    certifications: "",
+    preferredTrack: "",
+    expectedPackage: "",
+    preferredRole: "",
+    opportunity: "",
+    learningMode: "",
+    availability: "",
+    source: "Returned from batch",
+    linkedin: "",
+    github: "",
+    company: "",
+    currentRole: "",
+    experience: "",
+    industry: "",
+    currentSkills: "",
+    previousExperience: "",
+    targetTrack: "",
+    targetRole: "",
+    careerChangeReason: "",
+    currentPackage: "",
+    noticePeriod: "",
+    batchTiming: "",
+    counsellorNotes: `Returned from the ${batchName} batch.`,
+    followUpDate: null,
+    resumeFileId: null,
+    resumeName: null,
+    sheetsSynced: false,
+    sample: false,
+    consentAt: now,
+  };
+}
+
+export async function deleteMember(req: Request, ctx: { params: Promise<{ id: string; memberId: string }> }) {
+  const access = await guard(req);
+  if ("error" in access) return access.error;
+  const { id: batchId, memberId: id } = await ctx.params;
+  const batch = await getStore().getBatch(batchId);
+  if (!batch) return json({ ok: false, error: "Batch not found." }, 404);
+  const member = await getStore().removeMember(id);
+  if (!member || member.batchId !== batchId) return json({ ok: false, error: "Person not found." }, 404);
+  const digits = member.phone.replace(/\D/g, "");
+  const leads = await getStore().listRegistrations();
+  const existing = digits
+    ? leads.find((item) => !item.sample && item.learnerType === batch.learnerType && item.phone.replace(/\D/g, "") === digits)
+    : undefined;
+  const note = `Returned from the ${batch.name} batch.`;
+  let leadId = existing?.id || "";
+  if (existing) {
+    const updated = await getStore().updateRegistration(existing.id, {
+      status: "Follow-up Required",
+      counsellorNotes: existing.counsellorNotes ? `${existing.counsellorNotes} ${note}` : note,
+    });
+    leadId = updated?.id || existing.id;
+  } else {
+    const lead = emptyLead(member, batch.learnerType, batch.name);
+    await getStore().insertRegistration(lead);
+    leadId = lead.id;
+  }
+  await getStore().addRemoved({
+    id: removedId(),
+    memberId: member.id,
+    batchId: batch.id,
+    batchName: batch.name,
+    learnerType: batch.learnerType,
+    fullName: member.fullName,
+    phone: member.phone,
+    email: member.email,
+    registrationId: leadId,
+    removedAt: new Date().toISOString(),
+  });
+  return json({ ok: true, registrationId: leadId });
 }
 
 export async function postReset(req: Request, ctx: { params: Promise<{ id: string }> }) {

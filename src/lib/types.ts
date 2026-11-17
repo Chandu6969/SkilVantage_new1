@@ -45,6 +45,19 @@ export interface BatchMember {
   createdAt: string;
 }
 
+export interface RemovedLearner {
+  id: string;
+  memberId: string;
+  batchId: string;
+  batchName: string;
+  learnerType: LearnerType;
+  fullName: string;
+  phone: string;
+  email: string;
+  registrationId: string;
+  removedAt: string;
+}
+
 export type AttendanceStatus = "present" | "absent";
 export type FeeKind = "cash" | "bank" | "upi";
 export type AssignmentProgress = "pending" | "submitted" | "reviewed";

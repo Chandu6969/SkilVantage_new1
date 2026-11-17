@@ -1,28 +1,39 @@
-import Link from "next/link";
+import { BatchLink } from "@/components/admin/batch-link";
 import { AddBatchForm } from "@/components/admin/add-batch-form";
+import { CohortBoard } from "@/components/admin/cohort-board";
 import { DeskHeader, DeskTitle } from "@/components/admin/desk-header";
+import { batchLook } from "@/lib/batches";
 import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudentsPage() {
-  const batches = await getStore().listBatches("student");
-  const counts = await Promise.all(batches.map(async (batch) => (await getStore().listMembers(batch.id)).length));
+  const store = getStore();
+  const batches = await store.listBatches("student");
+  const members = (await Promise.all(batches.map((batch) => store.listMembers(batch.id)))).flat();
+  const registrations = (await store.listRegistrations()).filter((item) => !item.sample && item.learnerType === "student");
+  const removed = await store.listRemoved("student");
+  const fees = await store.listFees();
+  const memberIds = new Set(members.map((member) => member.id));
+  const counts = new Map(batches.map((batch) => [batch.id, members.filter((member) => member.batchId === batch.id).length]));
 
   return (
     <div>
-      <DeskHeader eyebrow="Students" title={<DeskTitle />} subtitle="College batches. SASI is the first, WISE is the second." />
+      <DeskHeader eyebrow="Students" title={<DeskTitle />} subtitle="College batches. SASI is green, WISE is blue." />
+      <div className="mt-4">
+        <CohortBoard
+          noun="student"
+          batches={batches.map((batch) => ({ label: batch.name, value: counts.get(batch.id) || 0, color: batchLook(batch).to }))}
+          joined={members.map((member) => ({ at: member.createdAt }))}
+          registered={registrations.map((item) => ({ at: item.createdAt }))}
+          removed={removed.map((item) => ({ at: item.removedAt, name: item.fullName, batchName: item.batchName }))}
+          paid={fees.filter((fee) => memberIds.has(fee.memberId)).map((fee) => ({ at: fee.paidOn, amount: fee.amount, memberId: fee.memberId }))}
+        />
+      </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="grid gap-3">
-          {batches.map((batch, index) => (
-            <Link key={batch.id} href={`/admin/batches/${batch.id}`} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] px-4 py-4 hover:border-[#14967c]">
-              <span>
-                <span className="block text-xs tracking-[0.14em] text-[#8ee0c0] uppercase">{batch.label}</span>
-                <span className="mt-1 block text-2xl font-semibold">{batch.name}</span>
-                <span className="mt-1 block text-sm text-[var(--desk-muted)]">{counts[index]} students</span>
-              </span>
-              <span className="rounded-full bg-[#14967c] px-3 py-1.5 text-sm text-white">Open</span>
-            </Link>
+          {batches.map((batch) => (
+            <BatchLink key={batch.id} batch={batch} count={counts.get(batch.id) || 0} noun="student" />
           ))}
         </div>
         <AddBatchForm learnerType="student" />
