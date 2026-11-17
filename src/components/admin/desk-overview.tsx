@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import type { LearnerType } from "@/lib/types";
 
 export type OverviewFee = {
@@ -80,15 +80,29 @@ export function DeskOverview({ data }: { data: OverviewData }) {
   const activity = recentActivity(data);
 
   return (
-    <section className="rounded-[28px] p-3 sm:p-5" style={{ background: "#f4f1fb", color: "#14211c" }}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section
+      className="rounded-[28px] p-3 sm:p-5"
+      style={{
+        color: "#14211c",
+        background:
+          "radial-gradient(720px 280px at 0% -10%, rgb(52 211 153 / 0.34), transparent 58%), radial-gradient(560px 260px at 100% 0%, rgb(16 185 129 / 0.2), transparent 54%), #f4fbf6",
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <GradientCard from="#065f46" to="#10b981" title="Students" value={String(data.students)} detail={`${data.siteStudents} registered on the website`} bars={buckets.map((bucket) => bucket.studentLeads)} />
+        <GradientCard from="#312e81" to="#818cf8" title="Professionals" value={String(data.professionals)} detail={`${data.siteProfessionals} registered on the website`} bars={buckets.map((bucket) => bucket.proLeads)} />
+        <GradientCard from="#1e3a8a" to="#60a5fa" title="Fees collected" value={rupees(collected)} detail={`${data.fees.length} payments recorded`} bars={buckets.map((bucket) => bucket.fees)} />
+        <GradientCard from="#9a3412" to="#fb923c" title="Teacher pay" value={rupees(teacherDue)} detail={`${rupees(teacherPaid)} already paid · ${data.presentToday} present today`} bars={buckets.map((bucket) => bucket.teacherDue)} />
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold">Dashboard</h2>
-          <p className="text-sm text-[#6b728d]">Payments, registrations, and who is in class.</p>
+          <p className="text-sm" style={{ color: "#3d4a57" }}>Payments, registrations, and who is in class.</p>
         </div>
-        <div className="flex rounded-full bg-white p-1 text-xs shadow-sm">
+        <div className="flex rounded-full p-1 text-xs" style={glass}>
           {(["week", "month", "year"] as const).map((item) => (
-            <button key={item} type="button" onClick={() => setRange(item)} className={`rounded-full px-3 py-1.5 capitalize ${range === item ? "bg-[#5b4dff] text-white" : "text-[#6b728d]"}`}>
+            <button key={item} type="button" onClick={() => setRange(item)} className={`rounded-full px-3 py-1.5 capitalize ${range === item ? "bg-[#149764] text-white" : ""}`} style={range === item ? undefined : { color: "#3d4a57" }}>
               {item === "week" ? "Weekly" : item === "month" ? "Monthly" : "Yearly"}
             </button>
           ))}
@@ -96,7 +110,7 @@ export function DeskOverview({ data }: { data: OverviewData }) {
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.45fr_0.8fr]">
-        <article className="rounded-3xl bg-white p-4 shadow-sm sm:p-5">
+        <article className="rounded-3xl p-4 sm:p-5" style={glass}>
           <p className="text-3xl font-semibold tracking-tight sm:text-4xl">{rupees(rangeFees || collected)}</p>
           <p className="mt-1 text-sm text-[#6b728d]">{rangeLeads} registrations in this {range}</p>
           <FeeChart buckets={buckets} />
@@ -107,7 +121,7 @@ export function DeskOverview({ data }: { data: OverviewData }) {
             <MiniStat color="#f43f5e" label="Teacher due" value={rupees(teacherDue)} />
           </div>
         </article>
-        <article className="rounded-3xl bg-white p-4 shadow-sm sm:p-5">
+        <article className="rounded-3xl p-4 sm:p-5" style={glass}>
           <h3 className="text-lg font-semibold" style={{ color: "#14211c" }}>Registrations</h3>
           <p className="text-sm" style={{ color: "#3d4a57" }}>Every course keeps its own colour. The number is the real count.</p>
           <Donut programs={data.programs} total={programTotal} />
@@ -122,15 +136,8 @@ export function DeskOverview({ data }: { data: OverviewData }) {
         </article>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <GradientCard from="#065f46" to="#10b981" title="Students" value={String(data.students)} detail={`${data.siteStudents} registered on the website`} bars={buckets.map((bucket) => bucket.studentLeads)} />
-        <GradientCard from="#312e81" to="#818cf8" title="Professionals" value={String(data.professionals)} detail={`${data.siteProfessionals} registered on the website`} bars={buckets.map((bucket) => bucket.proLeads)} />
-        <GradientCard from="#1e3a8a" to="#60a5fa" title="Fees collected" value={rupees(collected)} detail={`${data.fees.length} payments recorded`} bars={buckets.map((bucket) => bucket.fees)} />
-        <GradientCard from="#9a3412" to="#fb923c" title="Teacher pay" value={rupees(teacherDue)} detail={`${rupees(teacherPaid)} already paid · ${data.presentToday} present today`} bars={buckets.map((bucket) => bucket.teacherDue)} />
-      </div>
-
       <div className="mt-4 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-        <article className="rounded-3xl bg-white p-4 shadow-sm sm:p-5">
+        <article className="rounded-3xl p-4 sm:p-5" style={glass}>
           <h3 className="font-semibold">Recent activity</h3>
           <ul className="mt-3 grid gap-3">
             {activity.length === 0 ? <li className="text-sm text-[#6b728d]">Registrations, fees, and class payments will show up here.</li> : null}
@@ -146,7 +153,7 @@ export function DeskOverview({ data }: { data: OverviewData }) {
           </ul>
           <p className="mt-4 text-xs text-[#6b728d]">Open assignments {data.openAssignments} · absent today {data.absentToday}</p>
         </article>
-        <article className="overflow-hidden rounded-3xl bg-white shadow-sm">
+        <article className="overflow-hidden rounded-3xl" style={glass}>
           <div className="flex items-center justify-between px-4 py-4 sm:px-5">
             <div>
               <h3 className="font-semibold">Payments</h3>
@@ -193,22 +200,43 @@ function MiniStat({ color, label, value }: { color: string; label: string; value
   );
 }
 
+const glass: CSSProperties = {
+  background: "rgb(255 255 255 / 0.62)",
+  border: "1px solid rgb(255 255 255 / 0.82)",
+  boxShadow: "0 18px 40px rgb(16 80 40 / 0.08)",
+  backdropFilter: "blur(18px)",
+};
+
 function GradientCard({ from, to, title, value, detail, bars }: { from: string; to: string; title: string; value: string; detail: string; bars: number[] }) {
   const max = Math.max(1, ...bars);
   return (
-    <article className="rounded-3xl p-4 text-white shadow-sm" style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}>
-      <div className="flex items-start justify-between gap-3">
+    <article
+      className="relative overflow-hidden rounded-3xl p-4"
+      style={{
+        color: from,
+        background: `linear-gradient(165deg, color-mix(in srgb, ${to} 46%, white), color-mix(in srgb, ${from} 22%, white))`,
+        border: "1px solid rgb(255 255 255 / 0.84)",
+        boxShadow: "0 18px 42px rgb(16 80 40 / 0.1)",
+        backdropFilter: "blur(18px)",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-10 -right-8 size-32 rounded-full"
+        style={{ background: `radial-gradient(circle, color-mix(in srgb, ${to} 70%, white), transparent 68%)` }}
+      />
+      <div className="relative flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm text-white/80">{title}</p>
+          <p className="text-sm font-medium">{title}</p>
           <p className="mt-2 text-2xl font-semibold">{value}</p>
         </div>
         <svg viewBox="0 0 72 36" className="h-9 w-16" aria-hidden="true">
           {bars.map((bar, index) => (
-            <rect key={index} x={index * 12} y={36 - (bar / max) * 32} width="8" height={(bar / max) * 32} rx="2" fill="white" opacity={0.35 + (index / Math.max(1, bars.length)) * 0.55} />
+            <rect key={index} x={index * 12} y={36 - (bar / max) * 32} width="8" height={(bar / max) * 32} rx="2" fill={from} opacity={0.28 + (index / Math.max(1, bars.length)) * 0.5} />
           ))}
         </svg>
       </div>
-      <p className="mt-3 text-xs text-white/85">{detail}</p>
+      <p className="relative mt-3 text-sm leading-5">{detail}</p>
     </article>
   );
 }
