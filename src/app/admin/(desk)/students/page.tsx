@@ -1,7 +1,6 @@
 import { BatchLink } from "@/components/admin/batch-link";
 import { AddBatchForm } from "@/components/admin/add-batch-form";
 import { CohortBoard } from "@/components/admin/cohort-board";
-import { DeskHeader, DeskTitle } from "@/components/admin/desk-header";
 import { batchLook } from "@/lib/batches";
 import { getStore } from "@/lib/store";
 
@@ -19,7 +18,16 @@ export default async function StudentsPage() {
 
   return (
     <div>
-      <DeskHeader eyebrow="Students" title={<DeskTitle />} subtitle="College batches. SASI is green, WISE is blue." />
+      <p className="inline-flex items-center gap-1.5 rounded-full bg-[#065f46] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-white uppercase">
+        <span className="size-1.5 rounded-full bg-[#b8ffd4]" />
+        Students
+      </p>
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr_0.9fr]">
+        {batches.map((batch) => (
+          <BatchLink key={batch.id} batch={batch} count={counts.get(batch.id) || 0} noun="student" />
+        ))}
+        <AddBatchForm learnerType="student" />
+      </div>
       <div className="mt-4">
         <CohortBoard
           noun="student"
@@ -29,14 +37,6 @@ export default async function StudentsPage() {
           removed={removed.map((item) => ({ at: item.removedAt, name: item.fullName, batchName: item.batchName }))}
           paid={fees.filter((fee) => memberIds.has(fee.memberId)).map((fee) => ({ at: fee.paidOn, amount: fee.amount, memberId: fee.memberId }))}
         />
-      </div>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="grid gap-3">
-          {batches.map((batch) => (
-            <BatchLink key={batch.id} batch={batch} count={counts.get(batch.id) || 0} noun="student" />
-          ))}
-        </div>
-        <AddBatchForm learnerType="student" />
       </div>
     </div>
   );
