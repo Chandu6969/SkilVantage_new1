@@ -6,9 +6,9 @@ import type { AssignmentProgress, BatchMember, ClassAssignment, LearnerType, Tra
 
 const field = "mt-1 h-11 w-full rounded-xl border border-black/10 bg-white/80 px-3 text-sm text-[#14211c] outline-none";
 
-const audiences: { key: LearnerType; title: string; hint: string; from: string; to: string }[] = [
-  { key: "student", title: "Students", hint: "College batches, in the same green as the website.", from: "#065f46", to: "#10b981" },
-  { key: "professional", title: "Working professionals", hint: "Kept in the indigo used for professionals on the website.", from: "#312e81", to: "#6366f1" },
+const audiences: { key: LearnerType; title: string; hint: string; from: string; wash: string; band: string }[] = [
+  { key: "student", title: "Students", hint: "College batches, in the same green as the website.", from: "#064e3b", wash: "#d1fae5", band: "linear-gradient(155deg, #065f46, #10b981)" },
+  { key: "professional", title: "Working professionals", hint: "Kept in the indigo used for professionals on the website.", from: "#312e81", wash: "#e0e7ff", band: "linear-gradient(155deg, #312e81, #6366f1)" },
 ];
 
 const statusTone: Record<AssignmentProgress, string> = {
@@ -68,21 +68,13 @@ export function AssignmentBoard({ batches, members, items }: { batches: Training
         const roster = members.filter((member) => group.some((batch) => batch.id === member.batchId) && (!selected || member.batchId === selected));
         const rows = items.filter((item) => item.batchId === selected);
         return (
-          <section
-            key={audience.key}
-            className="rounded-3xl p-4 sm:p-5"
-            style={{
-              background: `linear-gradient(180deg, color-mix(in srgb, ${audience.to} 48%, white), color-mix(in srgb, ${audience.from} 34%, white))`,
-              color: audience.from,
-            }}
-          >
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold tracking-[0.16em] uppercase">{audience.title}</p>
-                <h2 className="mt-1 text-2xl font-semibold">{group.length} batches · {members.filter((member) => group.some((batch) => batch.id === member.batchId)).length} people</h2>
-                <p className="mt-1 text-sm opacity-80">{audience.hint}</p>
-              </div>
+          <section key={audience.key} className="overflow-hidden rounded-3xl" style={{ background: audience.wash, color: audience.from }}>
+            <div className="px-4 py-4 text-white sm:px-5" style={{ background: audience.band }}>
+              <p className="text-xs font-semibold tracking-[0.16em] uppercase">{audience.title}</p>
+              <h2 className="mt-1 text-2xl font-semibold">{group.length} batches · {members.filter((member) => group.some((batch) => batch.id === member.batchId)).length} people</h2>
+              <p className="mt-1 text-sm text-white/85">{audience.hint}</p>
             </div>
+            <div className="p-4 sm:p-5">
             {group.length === 0 ? (
               <p className="mt-4 rounded-2xl bg-white/70 px-4 py-6 text-sm">No {audience.title.toLowerCase()} batch yet.</p>
             ) : (
@@ -150,6 +142,7 @@ export function AssignmentBoard({ batches, members, items }: { batches: Training
                 </div>
               </>
             )}
+            </div>
           </section>
         );
       })}

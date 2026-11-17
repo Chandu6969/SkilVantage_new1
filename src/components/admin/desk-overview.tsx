@@ -80,7 +80,7 @@ export function DeskOverview({ data }: { data: OverviewData }) {
   const activity = recentActivity(data);
 
   return (
-    <section className="rounded-[28px] bg-[#f4f1fb] p-3 text-[#243044] sm:p-5">
+    <section className="rounded-[28px] p-3 sm:p-5" style={{ background: "#f4f1fb", color: "#14211c" }}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold">Dashboard</h2>
@@ -108,22 +108,16 @@ export function DeskOverview({ data }: { data: OverviewData }) {
           </div>
         </article>
         <article className="rounded-3xl bg-white p-4 shadow-sm sm:p-5">
-          <h3 className="font-semibold">Registrations</h3>
-          <p className="text-sm text-[#6b728d]">Split by course colour</p>
+          <h3 className="text-lg font-semibold" style={{ color: "#14211c" }}>Registrations</h3>
+          <p className="text-sm" style={{ color: "#3d4a57" }}>Every course keeps its own colour. The number is the real count.</p>
           <Donut programs={data.programs} total={programTotal} />
           <ul className="mt-3 grid gap-2">
-            {data.programs.map((item) => {
-              const share = programTotal ? Math.round((item.count / programTotal) * 100) : 0;
-              return (
-                <li key={item.slug} className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="size-2.5 rounded-full" style={{ background: item.to }} />
-                    {item.name}
-                  </span>
-                  <span className="font-medium">{item.count} · {share}%</span>
-                </li>
-              );
-            })}
+            {data.programs.map((item) => (
+              <li key={item.slug} className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-white" style={{ background: `linear-gradient(90deg, ${item.from}, ${item.to})` }}>
+                <span>{item.name}</span>
+                <span>{item.count}</span>
+              </li>
+            ))}
           </ul>
         </article>
       </div>
@@ -193,8 +187,8 @@ export function DeskOverview({ data }: { data: OverviewData }) {
 function MiniStat({ color, label, value }: { color: string; label: string; value: string }) {
   return (
     <div>
-      <p className="flex items-center gap-2 text-xs text-[#6b728d]"><span className="size-2 rounded-full" style={{ background: color }} />{label}</p>
-      <p className="mt-1 text-sm font-semibold">{value}</p>
+      <p className="flex items-center gap-2 text-xs font-medium" style={{ color: "#3d4a57" }}><span className="size-2.5 rounded-full" style={{ background: color }} />{label}</p>
+      <p className="mt-1 text-base font-semibold" style={{ color: "#14211c" }}>{value}</p>
     </div>
   );
 }
@@ -261,38 +255,38 @@ function FeeChart({ buckets }: { buckets: Bucket[] }) {
 }
 
 function Donut({ programs, total }: { programs: OverviewProgram[]; total: number }) {
-  const radius = 68;
+  const radius = 58;
   const circumference = 2 * Math.PI * radius;
+  const weights = programs.map((item) => item.count + 0.45);
+  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
   let offset = 0;
   return (
-    <div className="mx-auto mt-3 grid size-44 place-items-center">
-      <svg viewBox="0 0 180 180" className="col-start-1 row-start-1 size-44" role="img" aria-label={total ? `${total} course registrations` : "No course registrations yet"}>
-        <circle cx="90" cy="90" r={radius} fill="none" stroke="#eeeaf8" strokeWidth="22" />
-        {total
-          ? programs.map((item) => {
-            const length = (item.count / total) * circumference;
-            const circle = (
-              <circle
-                key={item.slug}
-                cx="90"
-                cy="90"
-                r={radius}
-                fill="none"
-                stroke={item.to}
-                strokeWidth="22"
-                strokeDasharray={`${length} ${circumference - length}`}
-                strokeDashoffset={-offset}
-                transform="rotate(-90 90 90)"
-              />
-            );
-            offset += length;
-            return circle;
-          })
-          : null}
+    <div className="mx-auto mt-3 grid size-40 place-items-center">
+      <svg viewBox="0 0 160 160" className="col-start-1 row-start-1 size-40" role="img" aria-label={total ? `${total} course registrations` : "No course registrations yet"}>
+        <circle cx="80" cy="80" r={radius} fill="none" stroke="#eeeaf8" strokeWidth="18" />
+        {programs.map((item, index) => {
+          const length = Math.max(8, (weights[index]! / weightTotal) * circumference - 4);
+          const circle = (
+            <circle
+              key={item.slug}
+              cx="80"
+              cy="80"
+              r={radius}
+              fill="none"
+              stroke={item.from}
+              strokeWidth="18"
+              strokeDasharray={`${length} ${circumference - length}`}
+              strokeDashoffset={-offset}
+              transform="rotate(-90 80 80)"
+            />
+          );
+          offset += length + 4;
+          return circle;
+        })}
       </svg>
       <div className="col-start-1 row-start-1 text-center">
-        <p className="text-2xl font-semibold">{total}</p>
-        <p className="text-xs text-[#6b728d]">Courses</p>
+        <p className="text-2xl font-semibold" style={{ color: "#14211c" }}>{total}</p>
+        <p className="text-xs" style={{ color: "#3d4a57" }}>Registered</p>
       </div>
     </div>
   );

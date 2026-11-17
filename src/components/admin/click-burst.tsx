@@ -56,6 +56,7 @@ export function ClickBurst() {
       }, 1000);
     }
     document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("click", onDown, true);
   }, []);
   return null;
 }
