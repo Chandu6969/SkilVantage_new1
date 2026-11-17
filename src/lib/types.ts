@@ -86,6 +86,38 @@ export interface TeacherNote {
   createdAt: string;
 }
 
+export interface Faculty {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  course: ProgramSlug;
+  rate: number;
+  note: string;
+  createdAt: string;
+}
+
+export interface FacultyDay {
+  id: string;
+  teacherId: string;
+  date: string;
+  status: AttendanceStatus;
+  createdAt: string;
+}
+
+export type FacultyPayStatus = "due" | "paid";
+
+export interface FacultyPay {
+  id: string;
+  teacherId: string;
+  amount: number;
+  classDate: string;
+  paidOn: string;
+  status: FacultyPayStatus;
+  note: string;
+  createdAt: string;
+}
+
 export type PhaseId =
   | "foundation"
   | "core"

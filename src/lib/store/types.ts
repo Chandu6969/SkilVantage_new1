@@ -4,6 +4,9 @@ import type {
   BatchMember,
   ClassAssignment,
   Enquiry,
+  Faculty,
+  FacultyDay,
+  FacultyPay,
   FeePayment,
   TeacherNote,
   FollowUp,
@@ -60,6 +63,13 @@ export interface LeadStore {
   updateAssignment(id: string, status: ClassAssignment["status"]): Promise<ClassAssignment | null>;
   listTeacherNotes(batchId?: string): Promise<TeacherNote[]>;
   addTeacherNote(note: TeacherNote): Promise<void>;
+  listFaculty(): Promise<Faculty[]>;
+  addFaculty(person: Faculty): Promise<void>;
+  listFacultyDays(): Promise<FacultyDay[]>;
+  markFacultyDay(day: FacultyDay): Promise<FacultyDay>;
+  listFacultyPays(): Promise<FacultyPay[]>;
+  saveFacultyPay(pay: FacultyPay): Promise<FacultyPay>;
+  settleFacultyPay(id: string, paidOn: string): Promise<FacultyPay | null>;
   createSession(role: Session["role"]): Promise<{ token: string; expiresAt: string }>;
   getSession(token: string): Promise<Session | null>;
   deleteSession(token: string): Promise<void>;

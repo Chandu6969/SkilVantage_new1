@@ -52,6 +52,18 @@ export function teacherNoteId() {
   return `SVT-${randomCode(6)}`;
 }
 
+export function facultyId() {
+  return `SVQ-${randomCode(6)}`;
+}
+
+export function facultyDayId() {
+  return `SVD-${randomCode(6)}`;
+}
+
+export function facultyPayId() {
+  return `SVK-${randomCode(6)}`;
+}
+
 export function isRegistrationId(value: string) {
   return /^SV[SP]-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(value);
 }

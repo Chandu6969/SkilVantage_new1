@@ -16,6 +16,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { SignOutButton } from "@/app/admin/(desk)/logout-button";
+import { ClickBurst } from "@/components/admin/click-burst";
 
 const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -45,6 +46,7 @@ export function DeskShell({ role, children }: { role: string; children: React.Re
 
   return (
     <div className="desk lg:grid lg:grid-cols-[240px_1fr]" data-theme={theme}>
+      <ClickBurst />
       <aside className="flex flex-col border-b border-white/10 bg-[#101614] text-white lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-white/10">
         <div className="flex items-center justify-between px-4 py-4">
           <Link href="/admin" className="flex items-center gap-2" aria-label="SkilVantage desk">

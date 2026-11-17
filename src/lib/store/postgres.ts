@@ -1,11 +1,11 @@
 import crypto from "crypto";
 import { Pool } from "pg";
 import { STARTER_BATCHES, ordinalLabel } from "@/lib/batches";
-import { batchId } from "@/lib/ids";
+import { batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, FeePayment, FollowUp, LearnerType, Registration, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
+import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS registrations (
@@ -547,6 +547,86 @@ export class PostgresStore implements LeadStore {
       "INSERT INTO desk_items (id, kind, batch_id, member_id, created_at, record) VALUES ($1,'teacher',$2,'',$3,$4::jsonb)",
       [note.id, note.batchId, note.createdAt, JSON.stringify(note)],
     );
+  }
+
+  private async putDesk(kind: string, id: string, memberId: string, createdAt: string, record: unknown) {
+    await pool().query(
+      "INSERT INTO desk_items (id, kind, batch_id, member_id, created_at, record) VALUES ($1,$2,'',$3,$4,$5::jsonb)",
+      [id, kind, memberId, createdAt, JSON.stringify(record)],
+    );
+  }
+
+  async listFaculty() {
+    const rows = await this.deskRows<Faculty>("faculty");
+    return rows.sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }
+
+  async addFaculty(person: Faculty) {
+    await this.init();
+    await this.putDesk("faculty", person.id, person.id, person.createdAt, person);
+  }
+
+  async listFacultyDays() {
+    const rows = await this.deskRows<FacultyDay>("faculty-day");
+    return rows.sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  async markFacultyDay(day: FacultyDay) {
+    await this.init();
+    await pool().query("DELETE FROM desk_items WHERE kind = 'faculty-day' AND member_id = $1 AND record->>'date' = $2", [day.teacherId, day.date]);
+    await this.putDesk("faculty-day", day.id, day.teacherId, day.createdAt, day);
+    const teachers = await this.deskRows<Faculty>("faculty");
+    const teacher = teachers.find((item) => item.id === day.teacherId);
+    const pays = await this.deskRows<FacultyPay>("faculty-pay");
+    const existing = pays.find((item) => item.teacherId === day.teacherId && item.classDate === day.date);
+    if (day.status === "absent") {
+      if (existing?.status === "due") await pool().query("DELETE FROM desk_items WHERE id = $1", [existing.id]);
+    } else if (teacher && teacher.rate > 0 && !existing) {
+      const pay: FacultyPay = {
+        id: facultyPayId(),
+        teacherId: day.teacherId,
+        amount: teacher.rate,
+        classDate: day.date,
+        paidOn: "",
+        status: "due",
+        note: "Class pay",
+        createdAt: day.createdAt,
+      };
+      await this.putDesk("faculty-pay", pay.id, pay.teacherId, pay.createdAt, pay);
+    }
+    return day;
+  }
+
+  async listFacultyPays() {
+    const rows = await this.deskRows<FacultyPay>("faculty-pay");
+    return rows.sort((a, b) => b.classDate.localeCompare(a.classDate) || b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async saveFacultyPay(pay: FacultyPay) {
+    await this.init();
+    const pays = await this.deskRows<FacultyPay>("faculty-pay");
+    const existing = pays.find((item) => item.teacherId === pay.teacherId && item.classDate === pay.classDate);
+    if (existing) {
+      existing.amount = pay.amount;
+      existing.status = pay.status;
+      existing.note = pay.note || existing.note;
+      existing.paidOn = pay.paidOn;
+      await pool().query("UPDATE desk_items SET record = $2::jsonb WHERE id = $1", [existing.id, JSON.stringify(existing)]);
+      return existing;
+    }
+    await this.putDesk("faculty-pay", pay.id, pay.teacherId, pay.createdAt, pay);
+    return pay;
+  }
+
+  async settleFacultyPay(id: string, paidOn: string) {
+    await this.init();
+    const current = await pool().query<{ record: FacultyPay }>("SELECT record FROM desk_items WHERE id = $1 AND kind = 'faculty-pay'", [id]);
+    const item = current.rows[0]?.record;
+    if (!item) return null;
+    item.status = "paid";
+    item.paidOn = paidOn;
+    await pool().query("UPDATE desk_items SET record = $2::jsonb WHERE id = $1", [id, JSON.stringify(item)]);
+    return item;
   }
 
   async createSession(role: Session["role"]) {

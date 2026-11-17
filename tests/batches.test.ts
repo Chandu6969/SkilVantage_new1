@@ -74,5 +74,46 @@ test("student batches start with SASI and WISE and keep an added person", async 
   });
   const notes = await store.listTeacherNotes(batches[0]!.id);
   assert.equal(notes[0]?.body, "Covered joins.");
+  await store.addFaculty({
+    id: "SVQ-TEST01",
+    fullName: "Meera Rao",
+    phone: "9845012345",
+    email: "meera@example.com",
+    course: "data-analyst",
+    rate: 1500,
+    note: "",
+    createdAt: new Date().toISOString(),
+  });
+  await store.markFacultyDay({
+    id: "SVD-TEST01",
+    teacherId: "SVQ-TEST01",
+    date: "2026-11-16",
+    status: "present",
+    createdAt: new Date().toISOString(),
+  });
+  const due = await store.listFacultyPays();
+  assert.equal(due.length, 1);
+  assert.equal(due[0]?.status, "due");
+  assert.equal(due[0]?.amount, 1500);
+  await store.markFacultyDay({
+    id: "SVD-TEST02",
+    teacherId: "SVQ-TEST01",
+    date: "2026-11-16",
+    status: "absent",
+    createdAt: new Date().toISOString(),
+  });
+  assert.equal((await store.listFacultyPays()).length, 0);
+  const saved = await store.saveFacultyPay({
+    id: "SVK-TEST01",
+    teacherId: "SVQ-TEST01",
+    amount: 1500,
+    classDate: "2026-11-17",
+    paidOn: "",
+    status: "due",
+    note: "Evening class",
+    createdAt: new Date().toISOString(),
+  });
+  const settled = await store.settleFacultyPay(saved.id, "2026-11-17");
+  assert.equal(settled?.status, "paid");
   storeModule.resetStoreForTests();
 });

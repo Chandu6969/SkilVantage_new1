@@ -2,11 +2,11 @@ import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 import { STARTER_BATCHES, ordinalLabel } from "@/lib/batches";
-import { batchId } from "@/lib/ids";
+import { batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, FeePayment, FollowUp, LearnerType, Registration, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
+import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
 
 interface FileBody {
   meta: Record<string, string>;
@@ -22,10 +22,13 @@ interface FileBody {
   fees: FeePayment[];
   assignments: ClassAssignment[];
   teacherNotes: TeacherNote[];
+  teachers: Faculty[];
+  teacherDays: FacultyDay[];
+  teacherPays: FacultyPay[];
 }
 
 function emptyBody(): FileBody {
-  return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [], batches: [], learners: [], attendance: [], fees: [], assignments: [], teacherNotes: [] };
+  return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [], batches: [], learners: [], attendance: [], fees: [], assignments: [], teacherNotes: [], teachers: [], teacherDays: [], teacherPays: [] };
 }
 
 export class FileStore implements LeadStore {
@@ -66,6 +69,9 @@ export class FileStore implements LeadStore {
       parsed.fees ||= [];
       parsed.assignments ||= [];
       parsed.teacherNotes ||= [];
+      parsed.teachers ||= [];
+      parsed.teacherDays ||= [];
+      parsed.teacherPays ||= [];
       return parsed;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -375,6 +381,85 @@ export class FileStore implements LeadStore {
       const body = await this.read();
       body.teacherNotes.push(note);
       await this.write(body);
+    });
+  }
+
+  async listFaculty() {
+    const body = await this.read();
+    return body.teachers.sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }
+
+  async addFaculty(person: Faculty) {
+    await this.locked(async () => {
+      const body = await this.read();
+      body.teachers.push(person);
+      await this.write(body);
+    });
+  }
+
+  async listFacultyDays() {
+    const body = await this.read();
+    return body.teacherDays.sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  async markFacultyDay(day: FacultyDay) {
+    return this.locked(async () => {
+      const body = await this.read();
+      body.teacherDays = body.teacherDays.filter((item) => !(item.teacherId === day.teacherId && item.date === day.date));
+      body.teacherDays.push(day);
+      const teacher = body.teachers.find((item) => item.id === day.teacherId);
+      const existing = body.teacherPays.find((item) => item.teacherId === day.teacherId && item.classDate === day.date);
+      if (day.status === "absent") {
+        if (existing?.status === "due") body.teacherPays = body.teacherPays.filter((item) => item.id !== existing.id);
+      } else if (teacher && teacher.rate > 0 && !existing) {
+        body.teacherPays.push({
+          id: facultyPayId(),
+          teacherId: day.teacherId,
+          amount: teacher.rate,
+          classDate: day.date,
+          paidOn: "",
+          status: "due",
+          note: "Class pay",
+          createdAt: day.createdAt,
+        });
+      }
+      await this.write(body);
+      return day;
+    });
+  }
+
+  async listFacultyPays() {
+    const body = await this.read();
+    return body.teacherPays.sort((a, b) => b.classDate.localeCompare(a.classDate) || b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async saveFacultyPay(pay: FacultyPay) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const existing = body.teacherPays.find((item) => item.teacherId === pay.teacherId && item.classDate === pay.classDate);
+      if (existing) {
+        existing.amount = pay.amount;
+        existing.status = pay.status;
+        existing.note = pay.note || existing.note;
+        existing.paidOn = pay.paidOn;
+        await this.write(body);
+        return existing;
+      }
+      body.teacherPays.push(pay);
+      await this.write(body);
+      return pay;
+    });
+  }
+
+  async settleFacultyPay(id: string, paidOn: string) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const item = body.teacherPays.find((row) => row.id === id);
+      if (!item) return null;
+      item.status = "paid";
+      item.paidOn = paidOn;
+      await this.write(body);
+      return item;
     });
   }
 

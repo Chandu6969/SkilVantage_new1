@@ -11,7 +11,7 @@ export default async function AssignmentsPage() {
   return (
     <div>
       <h1 className="text-2xl font-semibold">Assignments</h1>
-      <p className="mt-1 text-sm text-[var(--desk-muted)]">Give one piece of work to a whole batch. Each student gets their own pending, submitted, or reviewed status.</p>
+      <p className="mt-1 text-sm text-[var(--desk-muted)]">Students stay in green and working professionals stay in indigo, the same split as the website. Each person gets their own pending, submitted, or reviewed status.</p>
       <div className="mt-5"><AssignmentBoard batches={batches} members={members} items={items} /></div>
     </div>
   );
