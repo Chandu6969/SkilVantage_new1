@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import type { LearnerType } from "@/lib/types";
 
 export type OverviewFee = {
@@ -54,31 +54,22 @@ function rupees(value: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value);
 }
 
-function dayKey(value: string) {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-CA", { timeZone: "Asia/Calcutta" });
-}
-
-function startOfDay(key: string) {
-  return new Date(`${key}T00:00:00+05:30`).getTime();
-}
-
 export function DeskOverview({ data }: { data: OverviewData }) {
-  const [range, setRange] = useState<"week" | "month" | "year">("month");
-  const buckets = useMemo(() => buildBuckets(range, data), [range, data]);
   const collected = data.fees.reduce((sum, fee) => sum + fee.amount, 0);
   const cash = data.fees.filter((fee) => fee.kind === "cash").reduce((sum, fee) => sum + fee.amount, 0);
   const bank = data.fees.filter((fee) => fee.kind === "bank").reduce((sum, fee) => sum + fee.amount, 0);
   const upi = data.fees.filter((fee) => fee.kind === "upi").reduce((sum, fee) => sum + fee.amount, 0);
   const teacherDue = data.teacherPays.filter((pay) => pay.status === "due").reduce((sum, pay) => sum + pay.amount, 0);
   const teacherPaid = data.teacherPays.filter((pay) => pay.status === "paid").reduce((sum, pay) => sum + pay.amount, 0);
-  const rangeFees = buckets.reduce((sum, bucket) => sum + bucket.fees, 0);
-  const rangeLeads = buckets.reduce((sum, bucket) => sum + bucket.leads, 0);
   const programTotal = data.programs.reduce((sum, item) => sum + item.count, 0);
   const activity = recentActivity(data);
-
+  const moneySlices = [
+    { label: "Cash", value: cash, color: "#10b981" },
+    { label: "Bank", value: bank, color: "#3b82f6" },
+    { label: "UPI", value: upi, color: "#f97316" },
+    { label: "Teacher paid", value: teacherPaid, color: "#8b5cf6" },
+    { label: "Still to pay", value: teacherDue, color: "#f43f5e" },
+  ];
   return (
     <section
       className="rounded-[28px] p-3 sm:p-5"
@@ -89,50 +80,29 @@ export function DeskOverview({ data }: { data: OverviewData }) {
       }}
     >
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <GradientCard from="#065f46" to="#10b981" title="Students" value={String(data.students)} detail={`${data.siteStudents} registered on the website`} bars={buckets.map((bucket) => bucket.studentLeads)} />
-        <GradientCard from="#312e81" to="#818cf8" title="Professionals" value={String(data.professionals)} detail={`${data.siteProfessionals} registered on the website`} bars={buckets.map((bucket) => bucket.proLeads)} />
-        <GradientCard from="#1e3a8a" to="#60a5fa" title="Fees collected" value={rupees(collected)} detail={`${data.fees.length} payments recorded`} bars={buckets.map((bucket) => bucket.fees)} />
-        <GradientCard from="#9a3412" to="#fb923c" title="Teacher pay" value={rupees(teacherDue)} detail={`${rupees(teacherPaid)} already paid · ${data.presentToday} present today`} bars={buckets.map((bucket) => bucket.teacherDue)} />
+        <GradientCard from="#065f46" to="#10b981" title="Students" value={String(data.students)} detail={`${data.siteStudents} registered on the website`} />
+        <GradientCard from="#312e81" to="#818cf8" title="Professionals" value={String(data.professionals)} detail={`${data.siteProfessionals} registered on the website`} />
+        <GradientCard from="#1e3a8a" to="#60a5fa" title="Fees collected" value={rupees(collected)} detail={`${data.fees.length} payments recorded`} />
+        <GradientCard from="#9a3412" to="#fb923c" title="Teacher pay" value={rupees(teacherDue)} detail={`${rupees(teacherPaid)} already paid · ${data.presentToday} present today`} />
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold">Dashboard</h2>
-          <p className="text-sm" style={{ color: "#3d4a57" }}>Payments, registrations, and who is in class.</p>
-        </div>
-        <div className="flex rounded-full p-1 text-xs" style={glass}>
-          {(["week", "month", "year"] as const).map((item) => (
-            <button key={item} type="button" onClick={() => setRange(item)} className={`rounded-full px-3 py-1.5 capitalize ${range === item ? "bg-[#149764] text-white" : ""}`} style={range === item ? undefined : { color: "#3d4a57" }}>
-              {item === "week" ? "Weekly" : item === "month" ? "Monthly" : "Yearly"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1.45fr_0.8fr]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <article className="rounded-3xl p-4 sm:p-5" style={glass}>
-          <p className="text-3xl font-semibold tracking-tight sm:text-4xl">{rupees(rangeFees || collected)}</p>
-          <p className="mt-1 text-sm text-[#6b728d]">{rangeLeads} registrations in this {range}</p>
-          <FeeChart buckets={buckets} />
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MiniStat color="#10b981" label="Cash" value={rupees(cash)} />
-            <MiniStat color="#3b82f6" label="Bank" value={rupees(bank)} />
-            <MiniStat color="#f97316" label="UPI" value={rupees(upi)} />
-            <MiniStat color="#f43f5e" label="Teacher due" value={rupees(teacherDue)} />
+          <h2 className="text-lg font-semibold">Payments</h2>
+          <p className="text-sm" style={{ color: "#3d4a57" }}>Cash, bank, UPI, and what is still owed to teachers.</p>
+          <div className="mt-4 grid items-center gap-4 sm:grid-cols-[180px_1fr]">
+            <Donut slices={moneySlices} center={rupees(collected + teacherPaid + teacherDue)} caption="All money" />
+            <SliceList slices={moneySlices} format={(value) => rupees(value)} />
           </div>
         </article>
         <article className="rounded-3xl p-4 sm:p-5" style={glass}>
-          <h3 className="text-lg font-semibold" style={{ color: "#14211c" }}>Registrations</h3>
-          <p className="text-sm" style={{ color: "#3d4a57" }}>Every course keeps its own colour. The number is the real count.</p>
-          <Donut programs={data.programs} total={programTotal} />
-          <ul className="mt-3 grid gap-2">
-            {data.programs.map((item) => (
-              <li key={item.slug} className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-white" style={{ background: `linear-gradient(90deg, ${item.from}, ${item.to})` }}>
-                <span>{item.name}</span>
-                <span>{item.count}</span>
-              </li>
-            ))}
-          </ul>
+          <h2 className="text-lg font-semibold">Courses</h2>
+          <p className="text-sm" style={{ color: "#3d4a57" }}>A pie of who registered, in each course colour.</p>
+          <div className="mt-4 grid items-center gap-4 sm:grid-cols-[180px_1fr]">
+            <Pie slices={data.programs.map((item) => ({ label: item.name, value: item.count, color: item.to }))} />
+            <SliceList slices={data.programs.map((item) => ({ label: item.name, value: item.count, color: item.from }))} format={(value) => String(value)} />
+          </div>
+          <p className="mt-3 text-xs" style={{ color: "#3d4a57" }}>{programTotal} registered on the website</p>
         </article>
       </div>
 
@@ -191,15 +161,6 @@ export function DeskOverview({ data }: { data: OverviewData }) {
   );
 }
 
-function MiniStat({ color, label, value }: { color: string; label: string; value: string }) {
-  return (
-    <div>
-      <p className="flex items-center gap-2 text-xs font-medium" style={{ color: "#3d4a57" }}><span className="size-2.5 rounded-full" style={{ background: color }} />{label}</p>
-      <p className="mt-1 text-base font-semibold" style={{ color: "#14211c" }}>{value}</p>
-    </div>
-  );
-}
-
 const glass: CSSProperties = {
   background: "rgb(255 255 255 / 0.62)",
   border: "1px solid rgb(255 255 255 / 0.82)",
@@ -207,8 +168,7 @@ const glass: CSSProperties = {
   backdropFilter: "blur(18px)",
 };
 
-function GradientCard({ from, to, title, value, detail, bars }: { from: string; to: string; title: string; value: string; detail: string; bars: number[] }) {
-  const max = Math.max(1, ...bars);
+function GradientCard({ from, to, title, value, detail }: { from: string; to: string; title: string; value: string; detail: string }) {
   return (
     <article
       className="relative overflow-hidden rounded-3xl p-4"
@@ -225,158 +185,114 @@ function GradientCard({ from, to, title, value, detail, bars }: { from: string; 
         className="pointer-events-none absolute -top-10 -right-8 size-32 rounded-full"
         style={{ background: `radial-gradient(circle, color-mix(in srgb, ${to} 70%, white), transparent 68%)` }}
       />
-      <div className="relative flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium">{title}</p>
-          <p className="mt-2 text-2xl font-semibold">{value}</p>
-        </div>
-        <svg viewBox="0 0 72 36" className="h-9 w-16" aria-hidden="true">
-          {bars.map((bar, index) => (
-            <rect key={index} x={index * 12} y={36 - (bar / max) * 32} width="8" height={(bar / max) * 32} rx="2" fill={from} opacity={0.28 + (index / Math.max(1, bars.length)) * 0.5} />
-          ))}
-        </svg>
+      <div className="relative">
+        <p className="text-sm font-medium">{title}</p>
+        <p className="mt-2 text-2xl font-semibold">{value}</p>
+        <p className="mt-3 text-sm leading-5">{detail}</p>
       </div>
-      <p className="relative mt-3 text-sm leading-5">{detail}</p>
     </article>
   );
 }
 
-function FeeChart({ buckets }: { buckets: Bucket[] }) {
-  const width = 640;
-  const height = 210;
-  const max = Math.max(1, ...buckets.map((bucket) => Math.max(bucket.fees, bucket.leads)));
-  const point = (value: number, index: number) => {
-    const x = buckets.length === 1 ? width / 2 : (index / (buckets.length - 1)) * (width - 36) + 18;
-    const y = height - 28 - (value / max) * (height - 56);
-    return [x, y] as const;
-  };
-  const fees = smooth(buckets.map((bucket, index) => point(bucket.fees, index)));
-  const leads = smooth(buckets.map((bucket, index) => point(bucket.leads, index)));
-  const first = point(buckets[0]?.fees || 0, 0);
-  const last = point(buckets.at(-1)?.fees || 0, Math.max(0, buckets.length - 1));
+type Slice = { label: string; value: number; color: string };
+
+function SliceList({ slices, format }: { slices: Slice[]; format: (value: number) => string }) {
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0);
   return (
-    <div className="mt-2 overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-52 min-w-[520px] w-full" role="img" aria-label="Fees collected and registrations across the selected period">
-        <defs>
-          <linearGradient id="sv-fee-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c084fc" stopOpacity="0.45" />
-            <stop offset="100%" stopColor="#c084fc" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[0, 1, 2, 3].map((line) => (
-          <line key={line} x1="12" x2={width - 12} y1={36 + line * 40} y2={36 + line * 40} stroke="#eceaf3" />
-        ))}
-        <path d={`${fees} L ${last[0]} ${height - 28} L ${first[0]} ${height - 28} Z`} fill="url(#sv-fee-fill)" />
-        <path d={fees} fill="none" stroke="#d946ef" strokeWidth="3" strokeLinecap="round" />
-        <path d={leads} fill="none" stroke="#fb923c" strokeWidth="3" strokeLinecap="round" />
-        {buckets.map((bucket, index) => {
-          const [x] = point(0, index);
-          return <text key={bucket.label + index} x={x} y={height - 8} textAnchor="middle" fontSize="11" fill="#8b8fa3">{bucket.label}</text>;
-        })}
-      </svg>
-      <p className="flex gap-4 text-xs text-[#6b728d]">
-        <span className="flex items-center gap-1"><i className="inline-block h-0.5 w-4 bg-[#d946ef]" /> Fees</span>
-        <span className="flex items-center gap-1"><i className="inline-block h-0.5 w-4 bg-[#fb923c]" /> Registrations</span>
-      </p>
-    </div>
+    <ul className="grid gap-2">
+      {slices.map((slice) => {
+        const share = total ? Math.round((slice.value / total) * 100) : 0;
+        return (
+          <li key={slice.label} className="flex items-center justify-between gap-3 text-sm">
+            <span className="flex items-center gap-2 font-medium" style={{ color: "#14211c" }}>
+              <span className="size-3 rounded-full" style={{ background: slice.color }} />
+              {slice.label}
+            </span>
+            <span style={{ color: "#3d4a57" }}>{format(slice.value)} · {share}%</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-function Donut({ programs, total }: { programs: OverviewProgram[]; total: number }) {
-  const radius = 58;
-  const circumference = 2 * Math.PI * radius;
-  const weights = programs.map((item) => item.count + 0.45);
-  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
-  let offset = 0;
+function Donut({ slices, center, caption }: { slices: Slice[]; center: string; caption: string }) {
+  const drawn = ringSlices(slices);
   return (
-    <div className="mx-auto mt-3 grid size-40 place-items-center">
-      <svg viewBox="0 0 160 160" className="col-start-1 row-start-1 size-40" role="img" aria-label={total ? `${total} course registrations` : "No course registrations yet"}>
-        <circle cx="80" cy="80" r={radius} fill="none" stroke="#eeeaf8" strokeWidth="18" />
-        {programs.map((item, index) => {
-          const length = Math.max(8, (weights[index]! / weightTotal) * circumference - 4);
-          const circle = (
-            <circle
-              key={item.slug}
-              cx="80"
-              cy="80"
-              r={radius}
-              fill="none"
-              stroke={item.from}
-              strokeWidth="18"
-              strokeDasharray={`${length} ${circumference - length}`}
-              strokeDashoffset={-offset}
-              transform="rotate(-90 80 80)"
-            />
-          );
-          offset += length + 4;
-          return circle;
-        })}
+    <div className="mx-auto grid size-44 place-items-center">
+      <svg viewBox="0 0 160 160" className="col-start-1 row-start-1 size-44" role="img" aria-label={caption}>
+        <circle cx="80" cy="80" r="58" fill="none" stroke="#e7f6ee" strokeWidth="22" />
+        {drawn.map((slice) => (
+          <circle
+            key={slice.label}
+            cx="80"
+            cy="80"
+            r="58"
+            fill="none"
+            stroke={slice.color}
+            strokeWidth="22"
+            strokeDasharray={`${slice.length} ${slice.rest}`}
+            strokeDashoffset={-slice.offset}
+            transform="rotate(-90 80 80)"
+          />
+        ))}
       </svg>
-      <div className="col-start-1 row-start-1 text-center">
-        <p className="text-2xl font-semibold" style={{ color: "#14211c" }}>{total}</p>
-        <p className="text-xs" style={{ color: "#3d4a57" }}>Registered</p>
+      <div className="col-start-1 row-start-1 px-6 text-center">
+        <p className="text-sm font-semibold leading-5" style={{ color: "#14211c" }}>{center}</p>
+        <p className="text-[0.65rem]" style={{ color: "#3d4a57" }}>{caption}</p>
       </div>
     </div>
   );
 }
 
-type Bucket = { label: string; start: number; end: number; fees: number; leads: number; studentLeads: number; proLeads: number; teacherDue: number };
-
-function buildBuckets(range: "week" | "month" | "year", data: OverviewData): Bucket[] {
-  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Calcutta" }));
-  const buckets: Bucket[] = [];
-  if (range === "week") {
-    for (let index = 6; index >= 0; index -= 1) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - index);
-      const key = date.toLocaleDateString("en-CA", { timeZone: "Asia/Calcutta" });
-      buckets.push({ label: date.toLocaleDateString("en-IN", { weekday: "short", timeZone: "Asia/Calcutta" }), start: startOfDay(key), end: startOfDay(key) + 86400000, fees: 0, leads: 0, studentLeads: 0, proLeads: 0, teacherDue: 0 });
-    }
-  } else if (range === "month") {
-    for (let index = 5; index >= 0; index -= 1) {
-      const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
-      const next = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-      buckets.push({ label: date.toLocaleDateString("en-IN", { month: "short" }), start: date.getTime(), end: next.getTime(), fees: 0, leads: 0, studentLeads: 0, proLeads: 0, teacherDue: 0 });
-    }
-  } else {
-    for (let index = 3; index >= 0; index -= 1) {
-      const year = now.getFullYear() - index;
-      buckets.push({ label: String(year), start: new Date(year, 0, 1).getTime(), end: new Date(year + 1, 0, 1).getTime(), fees: 0, leads: 0, studentLeads: 0, proLeads: 0, teacherDue: 0 });
-    }
-  }
-  const stamp = (value: string) => startOfDay(dayKey(value) || "1970-01-01");
-  for (const fee of data.fees) {
-    const at = stamp(fee.at);
-    const bucket = buckets.find((item) => at >= item.start && at < item.end);
-    if (bucket) bucket.fees += fee.amount;
-  }
-  for (const lead of data.leads) {
-    const at = stamp(lead.at);
-    const bucket = buckets.find((item) => at >= item.start && at < item.end);
-    if (!bucket) continue;
-    bucket.leads += 1;
-    if (lead.learnerType === "student") bucket.studentLeads += 1;
-    else bucket.proLeads += 1;
-  }
-  for (const pay of data.teacherPays) {
-    if (pay.status !== "due") continue;
-    const at = stamp(pay.at);
-    const bucket = buckets.find((item) => at >= item.start && at < item.end);
-    if (bucket) bucket.teacherDue += pay.amount;
-  }
-  return buckets;
+function Pie({ slices }: { slices: Slice[] }) {
+  const drawn = wedgeSlices(slices);
+  return (
+    <div className="mx-auto grid size-44 place-items-center">
+      <svg viewBox="0 0 160 160" className="col-start-1 row-start-1 size-44" role="img" aria-label="Course registrations">
+        <circle cx="80" cy="80" r="68" fill="#e7f6ee" />
+        {drawn.map((slice) => (
+          <path key={slice.label} d={slice.d} fill={slice.color} />
+        ))}
+        <circle cx="80" cy="80" r="28" fill="rgb(255 255 255 / 0.88)" />
+      </svg>
+    </div>
+  );
 }
 
-function smooth(points: (readonly [number, number])[]) {
-  if (points.length === 0) return "";
-  let path = `M ${points[0]![0]} ${points[0]![1]}`;
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const [x1, y1] = points[index]!;
-    const [x2, y2] = points[index + 1]!;
-    const mid = (x1 + x2) / 2;
-    path += ` C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`;
-  }
-  return path;
+function ringSlices(slices: Slice[]) {
+  const active = slices.filter((slice) => slice.value > 0);
+  const total = active.reduce((sum, slice) => sum + slice.value, 0);
+  const circumference = 2 * Math.PI * 58;
+  let offset = 0;
+  return active.map((slice) => {
+    const length = Math.max(6, (slice.value / total) * circumference - 3);
+    const item = { ...slice, length, rest: circumference - length, offset };
+    offset += length + 3;
+    return item;
+  });
+}
+
+function wedgeSlices(slices: Slice[]) {
+  const active = slices.filter((slice) => slice.value > 0);
+  const total = active.reduce((sum, slice) => sum + slice.value, 0);
+  if (!total) return [];
+  let angle = -Math.PI / 2;
+  return active.map((slice) => {
+    const sweep = (slice.value / total) * Math.PI * 2;
+    const start = angle;
+    angle += sweep;
+    const radius = 68;
+    const x1 = 80 + radius * Math.cos(start);
+    const y1 = 80 + radius * Math.sin(start);
+    const x2 = 80 + radius * Math.cos(angle - 0.02);
+    const y2 = 80 + radius * Math.sin(angle - 0.02);
+    const large = sweep > Math.PI ? 1 : 0;
+    const d = sweep > Math.PI * 1.999
+      ? `M 80 ${80 - radius} A ${radius} ${radius} 0 1 1 79.99 ${80 - radius} Z`
+      : `M 80 80 L ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2} Z`;
+    return { ...slice, d };
+  });
 }
 
 function recentActivity(data: OverviewData) {
