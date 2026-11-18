@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, ChevronLeft, ChevronRight, Download, Filter } from "lucide-react";
-import { avatarColor, initials } from "@/lib/batches";
+import { avatarColor, displayPhone, initials } from "@/lib/batches";
 import { todayIST } from "@/lib/dates";
 import type { AttendanceMark, AttendanceStatus, BatchMember, LearnerType, TrainingBatch } from "@/lib/types";
 
@@ -69,6 +69,7 @@ export function AttendanceBoard({
   const today = todayIST();
   const opened = batches.find((batch) => batch.id === initialBatch);
   const [month, setMonth] = useState(today.slice(0, 7));
+  const [day, setDay] = useState(today);
   const [view, setView] = useState<View>("detail");
   const [audience, setAudience] = useState<Audience>(opened?.learnerType || "all");
   const [batchId, setBatchId] = useState(opened?.id || "all");
@@ -81,11 +82,11 @@ export function AttendanceBoard({
 
   const days = useMemo(() => daysOf(month), [month]);
   const monthChoices = useMemo(() => {
-    const keys = new Set<string>([month]);
-    for (let step = -5; step <= 1; step += 1) keys.add(shiftMonth(today.slice(0, 7), step));
+    const keys = new Set<string>([month, day.slice(0, 7)]);
+    for (let step = -11; step <= 1; step += 1) keys.add(shiftMonth(today.slice(0, 7), step));
     for (const mark of marks) if (/^\d{4}-\d{2}-\d{2}$/.test(mark.date)) keys.add(mark.date.slice(0, 7));
-    return [...keys].sort();
-  }, [marks, month, today]);
+    return [...keys].sort().reverse();
+  }, [day, marks, month, today]);
 
   const lookup = useMemo(() => {
     const map = new Map<string, AttendanceStatus>();
@@ -149,8 +150,27 @@ export function AttendanceBoard({
     if (next !== "all" && batchId !== "all" && batchOf.get(batchId)?.learnerType !== next) setBatchId("all");
   }
 
-  async function toggle(member: BatchMember, iso: string, current: Cell) {
-    const status: AttendanceStatus = current === "present" ? "absent" : "present";
+  function chooseMonth(next: string) {
+    setMonth(next);
+    setPage(1);
+    setDay((current) => (current.startsWith(next) ? current : `${next}-01`));
+  }
+
+  function moveDay(delta: number) {
+    const [year, monthPart, date] = day.split("-").map(Number);
+    const next = new Date(Date.UTC(year, (monthPart || 1) - 1, (date || 1) + delta)).toISOString().slice(0, 10);
+    setDay(next);
+    setMonth(next.slice(0, 7));
+    setPage(1);
+  }
+
+  function openDay(iso: string) {
+    setDay(iso);
+    setMonth(iso.slice(0, 7));
+    document.getElementById("daily-attendance")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function saveMark(member: BatchMember, iso: string, status: AttendanceStatus) {
     const key = `${member.id}|${iso}`;
     setPending(key);
     setError("");
@@ -184,35 +204,24 @@ export function AttendanceBoard({
 
   return (
     <div className="grid min-w-0 gap-3 text-white">
-      <section className="min-w-0 overflow-hidden rounded-[28px] bg-[#141824] p-3 sm:p-4">
+      <section className="min-w-0 rounded-[28px] bg-[#141824] p-3 sm:p-4">
         <div className="flex flex-wrap items-start justify-between gap-3 px-1 pt-1">
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#6d5efc]">
               <CalendarDays className="size-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Monthly Attendance Report</h1>
-              <p className="mt-0.5 text-sm text-[#9aa6bd]">Day-by-day attendance for students and professionals</p>
+              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Attendance</h1>
+              <p className="mt-0.5 text-sm text-[#9aa6bd]">Daily list and the monthly grid, together</p>
             </div>
           </div>
-          <div className="flex items-center gap-1 rounded-xl bg-[#232a3d] px-1.5 py-1">
-            <button type="button" aria-label="Previous month" onClick={() => { setMonth((value) => shiftMonth(value, -1)); setPage(1); }} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
-              <ChevronLeft className="size-4" />
-            </button>
-            <CalendarDays className="size-4 text-[#9aa6bd]" aria-hidden="true" />
-            <select
-              aria-label="Month"
-              value={month}
-              onChange={(event) => { setMonth(event.target.value); setPage(1); }}
-              className="h-8 bg-transparent pr-1 text-sm font-medium outline-none"
-              style={{ colorScheme: "dark" }}
-            >
-              {monthChoices.map((key) => <option key={key} value={key}>{monthLabel(key)}</option>)}
-            </select>
-            <button type="button" aria-label="Next month" onClick={() => { setMonth((value) => shiftMonth(value, 1)); setPage(1); }} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
+          <MonthMenu
+            month={month}
+            choices={monthChoices}
+            onPrevious={() => chooseMonth(shiftMonth(month, -1))}
+            onNext={() => chooseMonth(shiftMonth(month, 1))}
+            onChange={chooseMonth}
+          />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
@@ -282,6 +291,18 @@ export function AttendanceBoard({
 
         {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
 
+        <DailyReport
+          day={day}
+          roster={roster}
+          batchOf={batchOf}
+          pending={pending}
+          statusOf={(memberId) => lookup.get(`${memberId}|${day}`) || ""}
+          onPrevious={() => moveDay(-1)}
+          onNext={() => moveDay(1)}
+          onMark={saveMark}
+        />
+
+        <h2 className="mt-5 px-1 text-sm font-semibold text-[#d5dced]">Monthly attendance report</h2>
         {view === "summary" ? (
           <Summary month={monthLabel(month)} days={days} roster={roster} totals={totals} cellOf={cellOf} today={today} batchOf={batchOf} />
         ) : (
@@ -295,15 +316,141 @@ export function AttendanceBoard({
             currentPage={currentPage}
             batchOf={batchOf}
             pending={pending}
+            selected={day}
             cellOf={cellOf}
             onPage={setPage}
-            onToggle={toggle}
+            onToggle={(member, iso, current) => saveMark(member, iso, current === "present" ? "absent" : "present")}
+            onOpenDay={openDay}
           />
         )}
       </section>
 
       {view === "detail" ? <LegendCard /> : null}
     </div>
+  );
+}
+
+function longDay(iso: string) {
+  const [year, month, date] = iso.split("-").map(Number);
+  if (!year || !month || !date) return iso;
+  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function MonthMenu({
+  month,
+  choices,
+  onPrevious,
+  onNext,
+  onChange,
+}: {
+  month: string;
+  choices: string[];
+  onPrevious: () => void;
+  onNext: () => void;
+  onChange: (key: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-1 rounded-xl bg-[#232a3d] px-1.5 py-1">
+        <button type="button" aria-label="Previous month" onClick={onPrevious} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
+          <ChevronLeft className="size-4" />
+        </button>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className="inline-flex h-8 items-center gap-2 rounded-lg px-2 text-sm font-medium text-white">
+          <CalendarDays className="size-4 text-[#c4b5fd]" aria-hidden="true" />
+          {monthLabel(month)}
+        </button>
+        <button type="button" aria-label="Next month" onClick={onNext} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+      {open ? (
+        <>
+          <button type="button" aria-label="Close month list" className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
+          <ul className="absolute right-0 z-50 mt-2 max-h-80 w-56 overflow-auto rounded-2xl bg-[#2c354c] p-1.5 text-white shadow-2xl ring-1 ring-white/15">
+            {choices.map((key) => (
+              <li key={key}>
+                <button
+                  type="button"
+                  onClick={() => { onChange(key); setOpen(false); }}
+                  className={`w-full rounded-xl px-3 py-2.5 text-left text-sm ${key === month ? "bg-[#4f6dff] font-medium" : "hover:bg-white/10"}`}
+                >
+                  {monthLabel(key)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function DailyReport({
+  day,
+  roster,
+  batchOf,
+  pending,
+  statusOf,
+  onPrevious,
+  onNext,
+  onMark,
+}: {
+  day: string;
+  roster: BatchMember[];
+  batchOf: Map<string, TrainingBatch>;
+  pending: string;
+  statusOf: (memberId: string) => AttendanceStatus | "";
+  onPrevious: () => void;
+  onNext: () => void;
+  onMark: (member: BatchMember, iso: string, status: AttendanceStatus) => void;
+}) {
+  const present = roster.filter((member) => statusOf(member.id) === "present").length;
+  const absent = roster.filter((member) => statusOf(member.id) === "absent").length;
+  return (
+    <section id="daily-attendance" className="mt-4 rounded-2xl bg-[#1b2130] p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold">Daily attendance report</h2>
+          <p className="mt-0.5 text-sm text-[#9aa6bd]">{longDay(day)}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button type="button" aria-label="Previous day" onClick={onPrevious} className="grid size-9 place-items-center rounded-lg bg-[#232a3d] text-[#d5dced]">
+            <ChevronLeft className="size-4" />
+          </button>
+          <button type="button" aria-label="Next day" onClick={onNext} className="grid size-9 place-items-center rounded-lg bg-[#232a3d] text-[#d5dced]">
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      </div>
+      <p className="mt-3 text-sm text-[#c5cde0]">{present} present · {absent} absent · {Math.max(roster.length - present - absent, 0)} not marked</p>
+      <ul className="mt-3 grid gap-2">
+        {roster.length === 0 ? <li className="rounded-xl bg-[#232a3d] px-4 py-6 text-sm text-[#c5cde0]">No learners match this filter.</li> : null}
+        {roster.map((member) => {
+          const status = statusOf(member.id);
+          const batch = batchOf.get(member.batchId);
+          return (
+            <li key={member.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-[#232a3d] px-3 py-2.5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full text-xs font-semibold" style={{ background: avatarColor(member.fullName) }}>{initials(member.fullName)}</span>
+              <span className="min-w-0 flex-1">
+                <Link href={`/admin/people/${member.id}`} className="block truncate font-medium hover:underline">{member.fullName}</Link>
+                <span className="block truncate text-sm text-[#9aa6bd]">{displayPhone(member.phone) || "No phone"}{member.note ? ` · ${member.note}` : ""}{batch ? ` · ${batch.name}` : ""}</span>
+              </span>
+              <span className="flex gap-2">
+                <button type="button" disabled={pending === `${member.id}|${day}`} onClick={() => onMark(member, day, "present")} className={`h-9 rounded-full px-3 text-xs font-semibold ${status === "present" ? "bg-[#34d399] text-[#052e16]" : "bg-white/10 text-white"}`}>Present</button>
+                <button type="button" disabled={pending === `${member.id}|${day}`} onClick={() => onMark(member, day, "absent")} className={`h-9 rounded-full px-3 text-xs font-semibold ${status === "absent" ? "bg-[#fb7185] text-[#4c0519]" : "bg-[#fb7185]/15 text-[#fecdd3]"}`}>Absent</button>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -402,9 +549,11 @@ function Detail({
   currentPage,
   batchOf,
   pending,
+  selected,
   cellOf,
   onPage,
   onToggle,
+  onOpenDay,
 }: {
   days: ReturnType<typeof daysOf>;
   today: string;
@@ -415,9 +564,11 @@ function Detail({
   currentPage: number;
   batchOf: Map<string, TrainingBatch>;
   pending: string;
+  selected: string;
   cellOf: (memberId: string, iso: string, off: boolean) => Cell;
   onPage: (page: number) => void;
   onToggle: (member: BatchMember, iso: string, current: Cell) => void;
+  onOpenDay: (iso: string) => void;
 }) {
   const pageNumbers = pageWindow(currentPage, pages);
   return (
@@ -431,9 +582,11 @@ function Detail({
               <th className="sticky top-0 z-30 box-border hidden w-36 min-w-36 bg-[#1b2130] px-3 py-3 text-left font-medium lg:table-cell" style={{ left: 272 }}>Batch</th>
               <th className="sticky top-0 z-30 box-border hidden w-28 min-w-28 bg-[#1b2130] px-3 py-3 text-left font-medium shadow-[8px_0_12px_-10px_rgb(0_0_0/0.8)] lg:table-cell" style={{ left: 416 }}>Status</th>
               {days.map((day) => (
-                <th key={day.iso} className={`sticky top-0 z-20 w-12 px-1 py-2 text-center font-medium ${day.iso === today ? "bg-[#243056] text-white" : "bg-[#1b2130]"}`}>
-                  <span className="block text-xs">{day.day}</span>
-                  <span className={`block text-[10px] font-normal ${day.off ? "text-[#c4b5fd]" : "text-[#7f8aa3]"}`}>{day.weekday}</span>
+                <th key={day.iso} className={`sticky top-0 z-20 w-12 px-1 py-1 text-center font-medium ${day.iso === selected ? "bg-[#4f6dff] text-white" : day.iso === today ? "bg-[#243056] text-white" : "bg-[#1b2130]"}`}>
+                  <button type="button" onClick={() => onOpenDay(day.iso)} className="w-full rounded-lg py-1" aria-label={`Open ${day.iso} in the daily report`}>
+                    <span className="block text-xs">{day.day}</span>
+                    <span className={`block text-[10px] font-normal ${day.off ? "text-[#c4b5fd]" : day.iso === selected ? "text-white/80" : "text-[#7f8aa3]"}`}>{day.weekday}</span>
+                  </button>
                 </th>
               ))}
             </tr>
@@ -464,7 +617,7 @@ function Detail({
                     const look = pill[cell];
                     const key = `${member.id}|${day.iso}`;
                     return (
-                      <td key={day.iso} className={`px-1 py-2 text-center ${day.iso === today ? "bg-[#243056]/80 group-hover:bg-[#2a3864]" : "group-hover:bg-[#232a3d]"}`}>
+                      <td key={day.iso} className={`px-1 py-2 text-center ${day.iso === selected ? "bg-[#4f6dff]/25" : day.iso === today ? "bg-[#243056]/80 group-hover:bg-[#2a3864]" : "group-hover:bg-[#232a3d]"}`}>
                         <button
                           type="button"
                           disabled={pending === key}
@@ -501,7 +654,7 @@ function Detail({
           </button>
         </div>
       </div>
-      <p className="px-4 pb-3 text-xs text-[#7f8aa3]">Click a day to mark present. Click it again to mark absent. Sundays stay week off until you mark them.</p>
+      <p className="px-4 pb-3 text-xs text-[#7f8aa3]">Click a date to open that day in the daily report. Click a circle to mark present, then again for absent.</p>
     </div>
   );
 }

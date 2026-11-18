@@ -254,7 +254,7 @@ export function BatchBoard({ batch, members, batches }: { batch: TrainingBatch; 
               </form>
             </li>
           ) : (
-            <li key={member.id} className="flex items-center gap-3 rounded-xl bg-[var(--desk-card-2)] px-3 py-2.5">
+            <li key={member.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-[var(--desk-card-2)] px-3 py-2.5">
               <span className="grid size-10 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" style={{ background: avatarColor(member.fullName) }}>
                 {initials(member.fullName)}
               </span>
@@ -262,7 +262,7 @@ export function BatchBoard({ batch, members, batches }: { batch: TrainingBatch; 
                 <Link href={`/admin/people/${member.id}`} className="block truncate font-medium hover:underline">{member.fullName}{member.messaged ? <span className="ml-2 text-xs text-[#8ee0c0]">Sent</span> : null}</Link>
                 <span className="block text-sm text-[var(--desk-muted)]">{displayPhone(member.phone)}{member.note ? ` · ${member.note}` : ""}</span>
               </span>
-              <button type="button" onClick={() => void patch(member.id, { absentToday: !member.absentToday })} className={`hidden rounded-full px-2 py-1 text-xs sm:inline ${member.absentToday ? "bg-red-500/20 text-red-200" : "text-[var(--desk-muted)]"}`}>
+              <button type="button" onClick={() => void patch(member.id, { absentToday: !member.absentToday })} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${member.absentToday ? "bg-[#ffe4e6] text-[#9f1239]" : "bg-[#d1fae5] text-[#065f46]"}`}>
                 {member.absentToday ? "Absent" : "Present"}
               </button>
               <button type="button" onClick={() => startEdit(member)} className="rounded-full border border-[var(--desk-line)] px-3 py-1.5 text-sm">Edit</button>
