@@ -8,7 +8,8 @@ import { rupees } from "@/components/admin/desk-charts";
 import { formatStamp, todayIST } from "@/lib/dates";
 import type { CashAccount, CashBook, CashEntry, CashFlow } from "@/lib/types";
 
-const field = "mt-1 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-[#14211c] outline-none";
+const field = "mt-1 h-11 w-full rounded-xl border border-white/10 bg-black px-3 text-sm text-white outline-none placeholder:text-white/35";
+const control = "h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white outline-none placeholder:text-white/35";
 
 const flowLabel: Record<CashFlow, string> = { in: "Inflow", out: "Outflow", transfer: "Transfer" };
 const accountLabel: Record<CashAccount, string> = { cash: "Cash", bank: "Bank" };
@@ -175,13 +176,10 @@ export function CashBoard({
 
       <section
         className="min-w-0 rounded-[28px] p-3 sm:p-5"
-        style={{
-          color: "#14211c",
-          background: "radial-gradient(720px 280px at 0% -10%, rgb(52 211 153 / 0.34), transparent 58%), radial-gradient(560px 260px at 100% 0%, rgb(16 185 129 / 0.2), transparent 54%), #f4fbf6",
-        }}
+        style={{ color: "#f4f7f5", background: "#050505" }}
       >
-        {error ? <p className="mb-3 text-sm text-rose-700">{error}</p> : null}
-        {notice ? <p className="mb-3 text-sm text-emerald-800">{notice}</p> : null}
+        {error ? <p className="mb-3 text-sm text-rose-300">{error}</p> : null}
+        {notice ? <p className="mb-3 text-sm text-emerald-300">{notice}</p> : null}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <MoneyCard title="Cash balance" value={rupees(snapshot.cash)} detail="Current cash in hand" from="#0f766e" to="#5eead4" />
@@ -195,20 +193,20 @@ export function CashBoard({
         <article className="mt-4 rounded-3xl p-4 sm:p-5" style={glass}>
           <div className="flex flex-wrap items-end justify-between gap-2">
             <h2 className="text-lg font-semibold">Opening balances</h2>
-            <p className="text-sm text-[#3d4a57]">Set these once to start the book. They are not counted as income.</p>
+            <p className="text-sm text-white/55">Set these once to start the book. They are not counted as income.</p>
           </div>
           <form onSubmit={saveOpening} className="mt-4 grid gap-3 lg:grid-cols-2">
-            <label className="rounded-2xl border border-black/10 bg-white/70 p-3 text-sm">
+            <label className="rounded-2xl border border-white/10 bg-black p-3 text-sm">
               <span className="flex items-center justify-between gap-3">
                 <span className="font-medium">Cash in hand</span>
-                <span className="text-lg font-semibold text-[#0f766e]">{rupees(snapshot.cash)}</span>
+                <span className="text-lg font-semibold text-[#5eead4]">{rupees(snapshot.cash)}</span>
               </span>
               <input value={openingCash} onChange={(event) => setOpeningCash(event.target.value)} inputMode="decimal" aria-label="Opening cash balance" className={field} />
             </label>
-            <label className="rounded-2xl border border-black/10 bg-white/70 p-3 text-sm">
+            <label className="rounded-2xl border border-white/10 bg-black p-3 text-sm">
               <span className="flex items-center justify-between gap-3">
                 <span className="font-medium">Bank balance</span>
-                <span className="text-lg font-semibold text-[#1d4ed8]">{rupees(snapshot.bank)}</span>
+                <span className="text-lg font-semibold text-[#93c5fd]">{rupees(snapshot.bank)}</span>
               </span>
               <input value={openingBank} onChange={(event) => setOpeningBank(event.target.value)} inputMode="decimal" aria-label="Opening bank balance" className={field} />
             </label>
@@ -223,46 +221,46 @@ export function CashBoard({
         <article className="mt-4 rounded-3xl p-4 sm:p-5" style={glass}>
           <h2 className="text-lg font-semibold">{editing ? "Edit transaction" : "Add transaction"}</h2>
           <form onSubmit={saveEntry} className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <label className="text-xs font-semibold tracking-[0.12em] text-[#3d4a57] uppercase">Date
-              <input type="date" required value={date} onChange={(event) => setDate(event.target.value)} className={field} />
+            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Date
+              <input type="date" required value={date} onChange={(event) => setDate(event.target.value)} className={field} style={{ colorScheme: "dark" }} />
             </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-[#3d4a57] uppercase">Type
-              <select value={flow} onChange={(event) => setFlow(event.target.value as CashFlow)} className={field}>
+            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Type
+              <select value={flow} onChange={(event) => setFlow(event.target.value as CashFlow)} className={field} style={{ colorScheme: "dark" }}>
                 <option value="in">Inflow / Money in</option>
                 <option value="out">Outflow / Money out</option>
                 <option value="transfer">Transfer between cash and bank</option>
               </select>
             </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-[#3d4a57] uppercase">{flow === "transfer" ? "From account" : "Account"}
-              <select value={account} onChange={(event) => setAccount(event.target.value as CashAccount)} className={field}>
+            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">{flow === "transfer" ? "From account" : "Account"}
+              <select value={account} onChange={(event) => setAccount(event.target.value as CashAccount)} className={field} style={{ colorScheme: "dark" }}>
                 <option value="cash">Cash</option>
                 <option value="bank">Bank</option>
               </select>
             </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-[#3d4a57] uppercase">Category
-              <select value={category} onChange={(event) => setCategory(event.target.value)} className={field}>
+            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Category
+              <select value={category} onChange={(event) => setCategory(event.target.value)} className={field} style={{ colorScheme: "dark" }}>
                 {CASH_CATEGORIES.map((item) => <option key={item}>{item}</option>)}
               </select>
             </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-[#3d4a57] uppercase">Amount (₹)
+            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Amount (₹)
               <input required value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="0" className={field} />
             </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-[#3d4a57] uppercase">From / to
+            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">From / to
               <input value={party} onChange={(event) => setParty(event.target.value)} placeholder="Student, teacher, vendor" className={field} />
             </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-[#3d4a57] uppercase">Reference
+            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Reference
               <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Receipt / UTR / invoice no." className={field} />
             </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-[#3d4a57] uppercase">Payment mode
-              <select value={mode} onChange={(event) => setMode(event.target.value)} className={field}>
+            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Payment mode
+              <select value={mode} onChange={(event) => setMode(event.target.value)} className={field} style={{ colorScheme: "dark" }}>
                 {CASH_MODES.map((item) => <option key={item}>{item}</option>)}
               </select>
             </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-[#3d4a57] uppercase sm:col-span-2 xl:col-span-4">Description
+            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase sm:col-span-2 xl:col-span-4">Description
               <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="September course fee, internet bill, teacher payment" className={field} />
             </label>
             <div className="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-4 xl:justify-end">
-              {editing ? <button type="button" onClick={resetForm} className="h-11 rounded-xl border border-black/10 bg-white px-4 text-sm">Cancel edit</button> : null}
+              {editing ? <button type="button" onClick={resetForm} className="h-11 rounded-xl border border-white/15 bg-black px-4 text-sm text-white">Cancel edit</button> : null}
               <button type="submit" disabled={pending !== ""} className="h-11 rounded-xl bg-[#0f766e] px-4 text-sm font-medium text-white disabled:opacity-60">
                 {pending === "entry" ? "Saving…" : editing ? "Save transaction" : "Add transaction"}
               </button>
@@ -273,23 +271,23 @@ export function CashBoard({
         <article className="mt-4 min-w-0 overflow-hidden rounded-3xl" style={glass}>
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
             <h2 className="text-lg font-semibold">Transactions</h2>
-            <a href={`/admin/print?section=cash${month ? `&month=${month}` : ""}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 text-sm font-medium">
+            <a href={`/admin/print?section=cash${month ? `&month=${month}` : ""}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-black px-3 text-sm font-medium text-white">
               <Printer className="size-4" aria-hidden="true" />
               Print
             </a>
           </div>
           <div className="grid gap-2 px-4 pb-4 sm:grid-cols-2 xl:grid-cols-[1.4fr_repeat(3,0.8fr)_auto] sm:px-5">
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search description, party or reference" className="h-11 rounded-xl border border-black/10 bg-white px-3 text-sm outline-none" />
-            <select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Month" className="h-11 rounded-xl border border-black/10 bg-white px-3 text-sm">
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search description, party or reference" className={control} />
+            <select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Month" className={control} style={{ colorScheme: "dark" }}>
               <option value="">All months</option>
               {months.map((key) => <option key={key} value={key}>{monthTitle(key)}</option>)}
             </select>
-            <select value={accountFilter} onChange={(event) => setAccountFilter(event.target.value as "all" | CashAccount)} aria-label="Account" className="h-11 rounded-xl border border-black/10 bg-white px-3 text-sm">
+            <select value={accountFilter} onChange={(event) => setAccountFilter(event.target.value as "all" | CashAccount)} aria-label="Account" className={control} style={{ colorScheme: "dark" }}>
               <option value="all">All accounts</option>
               <option value="cash">Cash</option>
               <option value="bank">Bank</option>
             </select>
-            <select value={flowFilter} onChange={(event) => setFlowFilter(event.target.value as "all" | CashFlow)} aria-label="Type" className="h-11 rounded-xl border border-black/10 bg-white px-3 text-sm">
+            <select value={flowFilter} onChange={(event) => setFlowFilter(event.target.value as "all" | CashFlow)} aria-label="Type" className={control} style={{ colorScheme: "dark" }}>
               <option value="all">All types</option>
               <option value="in">Inflow</option>
               <option value="out">Outflow</option>
@@ -308,7 +306,7 @@ export function CashBoard({
               </thead>
               <tbody>
                 {snapshot.rows.map((row) => (
-                  <tr key={row.entry.id} className="border-t border-black/5">
+                  <tr key={row.entry.id} className="border-t border-white/10">
                     <td className="px-3 py-3 whitespace-nowrap">{dayLabel(row.entry.date)}</td>
                     <td className="px-3 py-3"><Pill flow={row.entry.flow} /></td>
                     <td className="px-3 py-3">{accountLabel[row.entry.account]}{row.entry.flow === "transfer" ? ` → ${accountLabel[row.entry.account === "cash" ? "bank" : "cash"]}` : ""}</td>
@@ -317,22 +315,22 @@ export function CashBoard({
                     <td className="px-3 py-3">{row.entry.party || "—"}</td>
                     <td className="px-3 py-3">{row.entry.reference || "—"}</td>
                     <td className="px-3 py-3">{row.entry.mode}</td>
-                    <td className={`px-3 py-3 font-medium whitespace-nowrap ${row.entry.flow === "out" ? "text-rose-700" : "text-emerald-700"}`}>{signed(row.entry)}</td>
+                    <td className={`px-3 py-3 font-medium whitespace-nowrap ${row.entry.flow === "out" ? "text-rose-300" : "text-emerald-300"}`}>{signed(row.entry)}</td>
                     <td className="px-3 py-3 whitespace-nowrap">{rupees(row.before)}</td>
                     <td className="px-3 py-3 font-medium whitespace-nowrap">{rupees(row.after)}</td>
                     <td className="px-3 py-3">
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => load(row.entry)} className="text-sm font-medium text-[#0f766e]">Edit</button>
-                        <button type="button" disabled={pending !== ""} onClick={() => void remove(row.entry)} className="text-sm font-medium text-rose-700">Delete</button>
+                        <button type="button" onClick={() => load(row.entry)} className="text-sm font-medium text-emerald-300">Edit</button>
+                        <button type="button" disabled={pending !== ""} onClick={() => void remove(row.entry)} className="text-sm font-medium text-rose-300">Delete</button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {snapshot.rows.length === 0 ? <p className="px-5 py-8 text-sm text-[#3d4a57]">No transactions for this filter. Add the first receipt or expense above.</p> : null}
+            {snapshot.rows.length === 0 ? <p className="px-5 py-8 text-sm text-white/55">No transactions for this filter. Add the first receipt or expense above.</p> : null}
           </div>
-          <p className="px-5 py-4 text-xs leading-5 text-[#3d4a57]">Balances follow the selected account. All accounts uses Cash and Bank together. A month starts from the previous month’s closing balance. A transfer moves money between cash and bank and is not income or an expense.</p>
+          <p className="px-5 py-4 text-xs leading-5 text-white/50">Balances follow the selected account. All accounts uses Cash and Bank together. A month starts from the previous month’s closing balance. A transfer moves money between cash and bank and is not income or an expense.</p>
         </article>
       </section>
     </div>
@@ -340,31 +338,22 @@ export function CashBoard({
 }
 
 const glass = {
-  background: "rgb(255 255 255 / 0.72)",
-  border: "1px solid rgb(255 255 255 / 0.9)",
-  boxShadow: "0 18px 40px rgb(16 80 40 / 0.08)",
+  background: "#111111",
+  border: "1px solid rgb(255 255 255 / 0.08)",
 } as const;
 
-function MoneyCard({ title, value, detail, from, to }: { title: string; value: string; detail: string; from: string; to: string }) {
+function MoneyCard({ title, value, detail, to }: { title: string; value: string; detail: string; from: string; to: string }) {
   return (
-    <article
-      className="relative overflow-hidden rounded-3xl p-4"
-      style={{
-        color: from,
-        background: `linear-gradient(165deg, color-mix(in srgb, ${to} 46%, white), color-mix(in srgb, ${from} 18%, white))`,
-        border: "1px solid rgb(255 255 255 / 0.84)",
-        boxShadow: "0 18px 42px rgb(16 80 40 / 0.08)",
-      }}
-    >
-      <p className="text-xs font-semibold tracking-[0.12em] uppercase">{title}</p>
-      <p className="mt-2 text-2xl font-semibold">{value}</p>
-      <p className="mt-2 text-sm">{detail}</p>
+    <article className="rounded-3xl border border-white/10 bg-black p-4">
+      <p className="text-xs font-semibold tracking-[0.12em] text-white/45 uppercase">{title}</p>
+      <p className="mt-2 text-2xl font-semibold" style={{ color: to }}>{value}</p>
+      <p className="mt-2 text-sm text-white/55">{detail}</p>
     </article>
   );
 }
 
 function Pill({ flow }: { flow: CashFlow }) {
-  const tone = flow === "in" ? "bg-emerald-100 text-emerald-800" : flow === "out" ? "bg-rose-100 text-rose-800" : "bg-indigo-100 text-indigo-800";
+  const tone = flow === "in" ? "bg-emerald-400/15 text-emerald-200" : flow === "out" ? "bg-rose-400/15 text-rose-200" : "bg-indigo-400/15 text-indigo-200";
   return <span className={`rounded-full px-2 py-1 text-xs font-semibold ${tone}`}>{flowLabel[flow]}</span>;
 }
 
