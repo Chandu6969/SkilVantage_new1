@@ -19,7 +19,7 @@ export function TeacherDetail({ teacher, days, pays, today }: { teacher: Faculty
   const [view, setView] = useState<"unpaid" | "paid">("unpaid");
   const [error, setError] = useState("");
   const [pending, setPending] = useState("");
-  const owed = pays.filter((pay) => pay.status === "due");
+  const owed = pays.filter((pay) => pay.status === "due" && pay.kind !== "deducted");
   const paid = pays.filter((pay) => pay.status === "paid");
   const rows = view === "unpaid" ? owed : paid;
   const todayMark = days.find((item) => item.date === date)?.status;

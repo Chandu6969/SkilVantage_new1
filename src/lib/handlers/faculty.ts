@@ -1,10 +1,10 @@
-import { DEFAULT_CLASS_PAY } from "@/lib/faculty";
+import { CLASS_SESSIONS, DEFAULT_CLASS_PAY, classPay } from "@/lib/faculty";
 import { facultyDayId, facultyId, facultyPayId } from "@/lib/ids";
-import { programChoices } from "@/lib/palette";
+import { programChoices, programName } from "@/lib/palette";
 import { assertSameOrigin, json, readJson } from "@/lib/security";
 import { getStore } from "@/lib/store";
 import { sessionFromRequest } from "@/lib/auth";
-import type { AttendanceStatus, FacultyPayStatus, ProgramSlug } from "@/lib/types";
+import type { AttendanceStatus, ClassRecordKind, ProgramSlug } from "@/lib/types";
 
 const courses = new Set(programChoices.map((item) => item.slug));
 
@@ -118,29 +118,41 @@ export async function postFacultyPay(req: Request) {
   const access = await guard(req);
   if ("error" in access) return access.error;
   const body = await readJson(req);
-  if (!body.ok || !body.data || typeof body.data !== "object") return json({ ok: false, error: "Check the class payment." }, 400);
-  const data = body.data as { teacherId?: unknown; amount?: unknown; classDate?: unknown; paidOn?: unknown; status?: unknown; note?: unknown };
+  if (!body.ok || !body.data || typeof body.data !== "object") return json({ ok: false, error: "Check the class." }, 400);
+  const data = body.data as { teacherId?: unknown; classDate?: unknown; subject?: unknown; session?: unknown; kind?: unknown };
   const teacherId = String(data.teacherId || "");
-  const amount = money(data.amount);
   const classDate = day(data.classDate);
-  const paidOn = day(data.paidOn);
-  const status: FacultyPayStatus | "" = data.status === "paid" || data.status === "due" ? data.status : "";
-  const note = String(data.note || "").trim().slice(0, 240);
+  const session = String(data.session || "");
+  const kind: ClassRecordKind = data.kind === "deducted" ? "deducted" : "taken";
   const teachers = await getStore().listFaculty();
-  if (!teachers.some((teacher) => teacher.id === teacherId) || amount === null || amount <= 0 || !classDate || !status) {
-    return json({ ok: false, error: "Choose the teacher, class day, and amount to pay." }, 400);
+  const teacher = teachers.find((item) => item.id === teacherId);
+  const subject = String(data.subject || "").trim().slice(0, 80) || (teacher ? programName(teacher.course) : "");
+  if (!teacher || !classDate || !CLASS_SESSIONS.includes(session as (typeof CLASS_SESSIONS)[number]) || !subject) {
+    return json({ ok: false, error: "Choose the teacher, date, course, and class session." }, 400);
   }
   const pay = await getStore().saveFacultyPay({
     id: facultyPayId(),
     teacherId,
-    amount,
+    amount: classPay(teacher.rate),
     classDate,
-    paidOn: status === "paid" ? paidOn || classDate : "",
-    status,
-    note: note || "Class pay",
+    paidOn: "",
+    status: "due",
+    note: subject,
+    subject,
+    session,
+    kind,
     createdAt: new Date().toISOString(),
   });
   return json({ ok: true, pay }, 201);
+}
+
+export async function deleteFacultyPay(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const access = await guard(req);
+  if ("error" in access) return access.error;
+  const { id } = await ctx.params;
+  const removed = await getStore().deleteFacultyPay(id);
+  if (!removed) return json({ ok: false, error: "That class is not on the record." }, 404);
+  return json({ ok: true });
 }
 
 export async function patchFacultyPay(req: Request, ctx: { params: Promise<{ id: string }> }) {

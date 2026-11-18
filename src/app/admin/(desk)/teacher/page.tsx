@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TeacherPage() {
   const store = getStore();
-  const [teachers, days, pays] = await Promise.all([store.listFaculty(), store.listFacultyDays(), store.listFacultyPays()]);
+  const [teachers, pays] = await Promise.all([store.listFaculty(), store.listFacultyPays()]);
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Calcutta" });
   return (
     <div>
@@ -19,7 +19,7 @@ export default async function TeacherPage() {
         </div>
       </div>
       <div className="mt-4">
-        <FacultyBoard teachers={teachers} days={days} pays={pays} today={today} />
+        <FacultyBoard teachers={teachers} pays={pays} today={today} />
       </div>
     </div>
   );

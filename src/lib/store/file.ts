@@ -550,18 +550,32 @@ export class FileStore implements LeadStore {
   async saveFacultyPay(pay: FacultyPay) {
     return this.locked(async () => {
       const body = await this.read();
-      const existing = body.teacherPays.find((item) => item.teacherId === pay.teacherId && item.classDate === pay.classDate);
+      const existing = body.teacherPays.find((item) => item.teacherId === pay.teacherId && item.classDate === pay.classDate && (item.session || "") === (pay.session || ""));
       if (existing) {
         existing.amount = pay.amount;
         existing.status = pay.status;
         existing.note = pay.note || existing.note;
         existing.paidOn = pay.paidOn;
+        if (pay.subject) existing.subject = pay.subject;
+        if (pay.session) existing.session = pay.session;
+        if (pay.kind) existing.kind = pay.kind;
         await this.write(body);
         return existing;
       }
       body.teacherPays.push(pay);
       await this.write(body);
       return pay;
+    });
+  }
+
+  async deleteFacultyPay(id: string) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const before = body.teacherPays.length;
+      body.teacherPays = body.teacherPays.filter((item) => item.id !== id);
+      if (body.teacherPays.length === before) return false;
+      await this.write(body);
+      return true;
     });
   }
 

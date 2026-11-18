@@ -139,6 +139,36 @@ test("student batches start with SASI and WISE and keep an added person", async 
     createdAt: new Date().toISOString(),
   });
   assert.equal((await store.listFacultyPays()).find((pay) => pay.teacherId === "SVQ-TEST02")?.amount, 350);
+  await store.saveFacultyPay({
+    id: "SVK-SESS1",
+    teacherId: "SVQ-TEST02",
+    amount: 350,
+    classDate: "2026-11-18",
+    paidOn: "",
+    status: "due",
+    note: "SQL",
+    subject: "SQL",
+    session: "10:00 PM - 11:00 PM",
+    kind: "taken",
+    createdAt: new Date().toISOString(),
+  });
+  const evening = await store.saveFacultyPay({
+    id: "SVK-SESS2",
+    teacherId: "SVQ-TEST02",
+    amount: 350,
+    classDate: "2026-11-18",
+    paidOn: "",
+    status: "due",
+    note: "SQL",
+    subject: "SQL",
+    session: "9:00 PM - 10:00 PM",
+    kind: "deducted",
+    createdAt: new Date().toISOString(),
+  });
+  const sessions = (await store.listFacultyPays()).filter((pay) => pay.teacherId === "SVQ-TEST02" && pay.session);
+  assert.equal(sessions.length, 2);
+  assert.equal(await store.deleteFacultyPay(evening.id), true);
+  assert.equal((await store.listFacultyPays()).some((pay) => pay.id === evening.id), false);
   const saved = await store.saveFacultyPay({
     id: "SVK-TEST01",
     teacherId: "SVQ-TEST01",

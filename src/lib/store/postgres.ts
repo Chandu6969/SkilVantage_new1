@@ -704,17 +704,26 @@ export class PostgresStore implements LeadStore {
   async saveFacultyPay(pay: FacultyPay) {
     await this.init();
     const pays = await this.deskRows<FacultyPay>("faculty-pay");
-    const existing = pays.find((item) => item.teacherId === pay.teacherId && item.classDate === pay.classDate);
+    const existing = pays.find((item) => item.teacherId === pay.teacherId && item.classDate === pay.classDate && (item.session || "") === (pay.session || ""));
     if (existing) {
       existing.amount = pay.amount;
       existing.status = pay.status;
       existing.note = pay.note || existing.note;
       existing.paidOn = pay.paidOn;
+      if (pay.subject) existing.subject = pay.subject;
+      if (pay.session) existing.session = pay.session;
+      if (pay.kind) existing.kind = pay.kind;
       await pool().query("UPDATE desk_items SET record = $2::jsonb WHERE id = $1", [existing.id, JSON.stringify(existing)]);
       return existing;
     }
     await this.putDesk("faculty-pay", pay.id, pay.teacherId, pay.createdAt, pay);
     return pay;
+  }
+
+  async deleteFacultyPay(id: string) {
+    await this.init();
+    const result = await pool().query("DELETE FROM desk_items WHERE id = $1 AND kind = 'faculty-pay'", [id]);
+    return (result.rowCount ?? 0) > 0;
   }
 
   async settleFacultyPay(id: string, paidOn: string) {

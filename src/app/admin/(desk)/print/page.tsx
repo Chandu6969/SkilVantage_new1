@@ -144,7 +144,8 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
   }
 
   if (section === "teachers") {
-    const [teachers, pays] = await Promise.all([store.listFaculty(), store.listFacultyPays()]);
+    const [teachers, listed] = await Promise.all([store.listFaculty(), store.listFacultyPays()]);
+    const pays = listed.filter((pay) => pay.kind !== "deducted");
     const due = pays.filter((pay) => pay.status === "due").reduce((sum, pay) => sum + pay.amount, 0);
     const paid = pays.filter((pay) => pay.status === "paid").reduce((sum, pay) => sum + pay.amount, 0);
     const report: ReportDocument = {

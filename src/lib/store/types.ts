@@ -77,6 +77,7 @@ export interface LeadStore {
   markFacultyDay(day: FacultyDay): Promise<FacultyDay>;
   listFacultyPays(): Promise<FacultyPay[]>;
   saveFacultyPay(pay: FacultyPay): Promise<FacultyPay>;
+  deleteFacultyPay(id: string): Promise<boolean>;
   settleFacultyPay(id: string, paidOn: string): Promise<FacultyPay | null>;
   createSession(role: Session["role"]): Promise<{ token: string; expiresAt: string }>;
   getSession(token: string): Promise<Session | null>;

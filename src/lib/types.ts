@@ -120,6 +120,7 @@ export interface FacultyDay {
 }
 
 export type FacultyPayStatus = "due" | "paid";
+export type ClassRecordKind = "taken" | "deducted";
 
 export interface FacultyPay {
   id: string;
@@ -129,6 +130,9 @@ export interface FacultyPay {
   paidOn: string;
   status: FacultyPayStatus;
   note: string;
+  subject?: string;
+  session?: string;
+  kind?: ClassRecordKind;
   createdAt: string;
 }
 
