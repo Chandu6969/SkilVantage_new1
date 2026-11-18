@@ -7,7 +7,8 @@ import { assignmentId, batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, RemovedLearner, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
+import { emptyCashBook } from "@/lib/cash-book";
+import type { AnalyticsEvent, AttendanceMark, BatchMember, CashBook, CashEntry, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, RemovedLearner, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
 
 interface FileBody {
   meta: Record<string, string>;
@@ -27,10 +28,12 @@ interface FileBody {
   teachers: Faculty[];
   teacherDays: FacultyDay[];
   teacherPays: FacultyPay[];
+  cashBook: CashBook;
+  cashEntries: CashEntry[];
 }
 
 function emptyBody(): FileBody {
-  return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [], batches: [], learners: [], removed: [], attendance: [], fees: [], assignments: [], teacherNotes: [], teachers: [], teacherDays: [], teacherPays: [] };
+    return { meta: {}, registrations: [], enquiries: [], followups: [], events: [], files: [], sessions: [], batches: [], learners: [], removed: [], attendance: [], fees: [], assignments: [], teacherNotes: [], teachers: [], teacherDays: [], teacherPays: [], cashBook: emptyCashBook(), cashEntries: [] };
 }
 
 export class FileStore implements LeadStore {
@@ -75,6 +78,8 @@ export class FileStore implements LeadStore {
       parsed.teachers ||= [];
       parsed.teacherDays ||= [];
       parsed.teacherPays ||= [];
+      parsed.cashBook ||= emptyCashBook();
+      parsed.cashEntries ||= [];
       return parsed;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -596,6 +601,70 @@ export class FileStore implements LeadStore {
       const before = body.teacherPays.length;
       body.teacherPays = body.teacherPays.filter((item) => item.id !== id);
       if (body.teacherPays.length === before) return false;
+      await this.write(body);
+      return true;
+    });
+  }
+
+  async getCashBook() {
+    const body = await this.read();
+    return body.cashBook || emptyCashBook();
+  }
+
+  async saveCashBook(book: Pick<CashBook, "openingCash" | "openingBank">) {
+    return this.locked(async () => {
+      const body = await this.read();
+      body.cashBook = {
+        openingCash: book.openingCash,
+        openingBank: book.openingBank,
+        updatedAt: new Date().toISOString(),
+        syncedAt: body.cashBook?.syncedAt || "",
+      };
+      await this.write(body);
+      return body.cashBook;
+    });
+  }
+
+  async markCashSynced(at: string) {
+    return this.locked(async () => {
+      const body = await this.read();
+      body.cashBook = { ...(body.cashBook || emptyCashBook()), syncedAt: at };
+      await this.write(body);
+      return body.cashBook;
+    });
+  }
+
+  async listCashEntries() {
+    const body = await this.read();
+    return [...(body.cashEntries || [])].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async addCashEntry(entry: CashEntry) {
+    await this.locked(async () => {
+      const body = await this.read();
+      body.cashEntries ||= [];
+      body.cashEntries.push(entry);
+      await this.write(body);
+    });
+  }
+
+  async updateCashEntry(id: string, patch: Omit<CashEntry, "id" | "createdAt">) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const entry = body.cashEntries.find((item) => item.id === id);
+      if (!entry) return null;
+      Object.assign(entry, patch);
+      await this.write(body);
+      return entry;
+    });
+  }
+
+  async deleteCashEntry(id: string) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const before = body.cashEntries.length;
+      body.cashEntries = body.cashEntries.filter((item) => item.id !== id);
+      if (body.cashEntries.length === before) return false;
       await this.write(body);
       return true;
     });

@@ -44,6 +44,10 @@ export function feeId() {
   return `SVY-${randomCode(6)}`;
 }
 
+export function cashEntryId() {
+  return `SVC-${randomCode(6)}`;
+}
+
 export function assignmentId() {
   return `SVG-${randomCode(6)}`;
 }

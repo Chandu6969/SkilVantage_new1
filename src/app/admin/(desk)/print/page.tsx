@@ -4,6 +4,7 @@ import { displayPhone } from "@/lib/batches";
 import { classPay } from "@/lib/faculty";
 import { programName } from "@/lib/palette";
 import type { ReportDocument, ReportTone } from "@/lib/report-pdf";
+import { settleCash } from "@/lib/cash-book";
 import { getStore } from "@/lib/store";
 import type { ClassDayStatus, FeePayment, LearnerType, TrainingBatch } from "@/lib/types";
 
@@ -70,9 +71,9 @@ function monthsPaid(fees: FeePayment[]) {
   return [...totals.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
 
-export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string; batch?: string; date?: string; id?: string }> }) {
+export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string; batch?: string; date?: string; id?: string; month?: string }> }) {
   const params = await searchParams;
-  const section = params.section === "assignments" || params.section === "teachers" || params.section === "person" ? params.section : "attendance";
+  const section = params.section === "assignments" || params.section === "teachers" || params.section === "person" || params.section === "cash" ? params.section : "attendance";
   const store = getStore();
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Calcutta" });
   const date = /^\d{4}-\d{2}-\d{2}$/.test(params.date || "") ? params.date! : today;
@@ -175,6 +176,43 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
         back="/admin/teacher"
         summary={`Skillvantage teachers\nUnpaid ${rupees(due)}\nPaid ${rupees(paid)}`}
         fileName="Skillvantage-teachers.pdf"
+      />
+    );
+  }
+
+  if (section === "cash") {
+    const month = /^\d{4}-\d{2}$/.test(params.month || "") ? params.month! : "";
+    const [book, entries] = await Promise.all([store.getCashBook(), store.listCashEntries()]);
+    const snapshot = settleCash(book, entries, { month, account: "all", flow: "all", query: "" });
+    const report: ReportDocument = {
+      tone: "student",
+      kicker: "CASH AND BANK BOOK",
+      title: "Cash & Bank",
+      subtitle: month ? monthName(month) : "All months",
+      generated,
+      stats: [
+        { label: "Cash", value: rupees(snapshot.cash) },
+        { label: "Bank", value: rupees(snapshot.bank) },
+        { label: "Inflow", value: rupees(snapshot.periodIn) },
+        { label: "Outflow", value: rupees(snapshot.periodOut) },
+      ],
+      columns: ["S.No", "Date", "Type", "Account", "Party", "Amount"],
+      rows: snapshot.rows.map((row, index) => [
+        String(index + 1),
+        dayStamp(row.entry.date),
+        row.entry.flow === "in" ? "Inflow" : row.entry.flow === "out" ? "Outflow" : "Transfer",
+        row.entry.account === "cash" ? "Cash" : "Bank",
+        row.entry.party || row.entry.description || row.entry.category,
+        rupees(row.entry.amount),
+      ]),
+      footer: "Skillvantage • Cash and bank book • Opening balances are not income",
+    };
+    return (
+      <Letterhead
+        report={report}
+        back="/admin/cash"
+        summary={`Skillvantage cash book\nCash ${rupees(snapshot.cash)}\nBank ${rupees(snapshot.bank)}\nNet ${rupees(snapshot.net)}`}
+        fileName="Skillvantage-cash-book.pdf"
       />
     );
   }

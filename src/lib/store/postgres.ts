@@ -6,7 +6,8 @@ import { assignmentId, batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
-import type { AnalyticsEvent, AttendanceMark, BatchMember, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, RemovedLearner, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
+import { emptyCashBook } from "@/lib/cash-book";
+import type { AnalyticsEvent, AttendanceMark, BatchMember, CashBook, CashEntry, ClassAssignment, Enquiry, Faculty, FacultyDay, FacultyPay, FeePayment, FollowUp, LearnerType, Registration, RemovedLearner, Session, StoredFile, TeacherNote, TrainingBatch } from "@/lib/types";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS registrations (
@@ -757,6 +758,69 @@ export class PostgresStore implements LeadStore {
     item.paidOn = paidOn;
     await pool().query("UPDATE desk_items SET record = $2::jsonb WHERE id = $1", [id, JSON.stringify(item)]);
     return item;
+  }
+
+  async getCashBook() {
+    await this.init();
+    const result = await pool().query<{ record: CashBook }>("SELECT record FROM desk_items WHERE id = 'cash-book' AND kind = 'cash-book'");
+    return result.rows[0]?.record || emptyCashBook();
+  }
+
+  async saveCashBook(book: Pick<CashBook, "openingCash" | "openingBank">) {
+    await this.init();
+    const current = await this.getCashBook();
+    const next: CashBook = {
+      openingCash: book.openingCash,
+      openingBank: book.openingBank,
+      updatedAt: new Date().toISOString(),
+      syncedAt: current.syncedAt || "",
+    };
+    await pool().query(
+      `INSERT INTO desk_items (id, kind, batch_id, member_id, created_at, record)
+       VALUES ('cash-book', 'cash-book', '', '', $1, $2::jsonb)
+       ON CONFLICT (id) DO UPDATE SET record = EXCLUDED.record`,
+      [next.updatedAt, JSON.stringify(next)],
+    );
+    return next;
+  }
+
+  async markCashSynced(at: string) {
+    await this.init();
+    const current = await this.getCashBook();
+    const next = { ...current, syncedAt: at };
+    await pool().query(
+      `INSERT INTO desk_items (id, kind, batch_id, member_id, created_at, record)
+       VALUES ('cash-book', 'cash-book', '', '', $1, $2::jsonb)
+       ON CONFLICT (id) DO UPDATE SET record = EXCLUDED.record`,
+      [current.updatedAt || at, JSON.stringify(next)],
+    );
+    return next;
+  }
+
+  async listCashEntries() {
+    const rows = await this.deskRows<CashEntry>("cash-entry");
+    return rows.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async addCashEntry(entry: CashEntry) {
+    await this.init();
+    await this.putDesk("cash-entry", entry.id, "", entry.createdAt, entry);
+  }
+
+  async updateCashEntry(id: string, patch: Omit<CashEntry, "id" | "createdAt">) {
+    await this.init();
+    const rows = await this.deskRows<CashEntry>("cash-entry");
+    const entry = rows.find((item) => item.id === id);
+    if (!entry) return null;
+    Object.assign(entry, patch);
+    await pool().query("UPDATE desk_items SET record = $2::jsonb WHERE id = $1 AND kind = 'cash-entry'", [id, JSON.stringify(entry)]);
+    return entry;
+  }
+
+  async deleteCashEntry(id: string) {
+    await this.init();
+    const result = await pool().query("DELETE FROM desk_items WHERE id = $1 AND kind = 'cash-entry'", [id]);
+    return (result.rowCount ?? 0) > 0;
   }
 
   async createSession(role: Session["role"]) {

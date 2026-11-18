@@ -8,6 +8,8 @@ import type {
   Faculty,
   FacultyDay,
   FacultyPay,
+  CashBook,
+  CashEntry,
   FeePayment,
   TeacherNote,
   FollowUp,
@@ -64,6 +66,13 @@ export interface LeadStore {
   markAttendance(mark: AttendanceMark): Promise<AttendanceMark>;
   listFees(): Promise<FeePayment[]>;
   addFee(fee: FeePayment): Promise<void>;
+  getCashBook(): Promise<CashBook>;
+  saveCashBook(book: Pick<CashBook, "openingCash" | "openingBank">): Promise<CashBook>;
+  markCashSynced(at: string): Promise<CashBook>;
+  listCashEntries(): Promise<CashEntry[]>;
+  addCashEntry(entry: CashEntry): Promise<void>;
+  updateCashEntry(id: string, patch: Omit<CashEntry, "id" | "createdAt">): Promise<CashEntry | null>;
+  deleteCashEntry(id: string): Promise<boolean>;
   listAssignments(batchId?: string): Promise<ClassAssignment[]>;
   addAssignment(item: ClassAssignment): Promise<void>;
   updateAssignment(id: string, status: ClassAssignment["status"]): Promise<ClassAssignment | null>;

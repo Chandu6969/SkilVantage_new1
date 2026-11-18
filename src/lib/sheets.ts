@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { formatStamp } from "@/lib/dates";
 import { getProgram, programs, trackLabel } from "@/lib/content";
-import type { Enquiry, FollowUp, Registration } from "@/lib/types";
+import type { CashBook, CashEntry, Enquiry, FollowUp, Registration } from "@/lib/types";
 
 const TABS = [
   "Student Registrations",
@@ -9,6 +9,7 @@ const TABS = [
   "Course Enquiries",
   "Course List",
   "Follow-ups",
+  "Cash Book",
 ] as const;
 
 const STUDENT_HEADERS = [
@@ -443,6 +444,42 @@ export function mirrorFollowUp(followUp: FollowUp) {
       cleanError(error);
       return false;
     }
+  });
+}
+
+export async function mirrorCashBook(book: CashBook, entries: CashEntry[]) {
+  if (!sheetsConfigured()) return false;
+  return queued(async () => {
+    const token = await accessToken();
+    if (!token) return false;
+    await ensureTabs(token);
+    const rows = [
+      ["Date", "Type", "Account", "Category", "Party", "Reference", "Mode", "Description", "Amount", "Created"],
+      ["Opening", "", "Cash", "", "", "", "", "Opening cash balance", String(book.openingCash), book.updatedAt],
+      ["Opening", "", "Bank", "", "", "", "", "Opening bank balance", String(book.openingBank), book.updatedAt],
+      ...[...entries]
+        .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))
+        .map((entry) => [
+          entry.date,
+          entry.flow,
+          entry.account,
+          entry.category,
+          entry.party,
+          entry.reference,
+          entry.mode,
+          entry.description,
+          String(entry.flow === "out" || entry.flow === "transfer" ? -entry.amount : entry.amount),
+          entry.createdAt,
+        ]),
+    ];
+    await sheetsFetch(token, `${valuesPath("Cash Book!A1:J2000")}:clear`, { method: "POST" });
+    await sheetsFetch(token, `${valuesPath("Cash Book!A1")}?valueInputOption=RAW`, {
+      method: "PUT",
+      body: JSON.stringify({ values: rows }),
+    });
+    lastSyncAt = new Date().toISOString();
+    lastError = null;
+    return true;
   });
 }
 

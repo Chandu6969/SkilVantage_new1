@@ -83,6 +83,30 @@ export interface FeePayment {
   createdAt: string;
 }
 
+export type CashAccount = "cash" | "bank";
+export type CashFlow = "in" | "out" | "transfer";
+
+export interface CashBook {
+  openingCash: number;
+  openingBank: number;
+  updatedAt: string;
+  syncedAt: string;
+}
+
+export interface CashEntry {
+  id: string;
+  date: string;
+  flow: CashFlow;
+  account: CashAccount;
+  category: string;
+  amount: number;
+  party: string;
+  reference: string;
+  mode: string;
+  description: string;
+  createdAt: string;
+}
+
 export interface ClassAssignment {
   id: string;
   batchId: string;
