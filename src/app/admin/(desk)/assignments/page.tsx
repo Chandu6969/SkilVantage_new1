@@ -13,7 +13,7 @@ export default async function AssignmentsPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="inline-flex items-center gap-1.5 rounded-full bg-[#0f766e] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-white uppercase">Assignments</p>
-        <PrintLink />
+        <PrintLink section="assignments" />
       </div>
       <div className="mt-5"><AssignmentBoard batches={batches} members={members} items={items} /></div>
     </div>

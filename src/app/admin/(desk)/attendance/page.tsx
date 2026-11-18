@@ -14,7 +14,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="inline-flex items-center gap-1.5 rounded-full bg-[#0f766e] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-white uppercase">Attendance</p>
-        <PrintLink />
+        <PrintLink section="attendance" />
       </div>
       <div className="mt-4"><AttendanceBoard batches={batches} members={members} marks={marks} initialBatch={params.batch || ""} /></div>
     </div>

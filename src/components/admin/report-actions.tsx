@@ -2,12 +2,12 @@
 
 import { buildReportPdf } from "@/lib/report-pdf";
 
-export function ReportActions({ lines, summary }: { lines: string[]; summary: string }) {
+export function ReportActions({ lines, summary, fileName }: { lines: string[]; summary: string; fileName: string }) {
   function file() {
     const bytes = buildReportPdf(lines);
     const copy = new ArrayBuffer(bytes.byteLength);
     new Uint8Array(copy).set(bytes);
-    return new File([copy], "SkilVantage-report.pdf", { type: "application/pdf" });
+    return new File([copy], fileName, { type: "application/pdf" });
   }
 
   function download() {
@@ -24,14 +24,14 @@ export function ReportActions({ lines, summary }: { lines: string[]; summary: st
     const pdf = file();
     if (typeof navigator.share === "function" && navigator.canShare?.({ files: [pdf] })) {
       try {
-        await navigator.share({ files: [pdf], title: "SkilVantage report", text: summary });
+        await navigator.share({ files: [pdf], title: summary.split("\n")[0] || "SkilVantage", text: summary });
         return;
       } catch {
         return;
       }
     }
     download();
-    window.open(`https://wa.me/?text=${encodeURIComponent(`${summary}\n\nThe PDF has downloaded. Attach SkilVantage-report.pdf in this chat.`)}`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${summary}\n\nThe PDF has downloaded. Attach ${fileName} in this chat.`)}`, "_blank", "noopener,noreferrer");
   }
 
   return (
