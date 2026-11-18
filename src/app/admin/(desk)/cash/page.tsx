@@ -10,8 +10,7 @@ export default async function CashPage() {
   const fees = await store.listFees();
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Cash and bank</h1>
-      <p className="mt-1 text-sm text-[var(--desk-muted)]">Record cash, bank, or UPI against a student. The total collected sits with their name.</p>
+      <p className="inline-flex items-center gap-1.5 rounded-full bg-[#0f766e] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-white uppercase">Payments</p>
       <div className="mt-5"><FeeBoard batches={batches} members={members} fees={fees} /></div>
     </div>
   );

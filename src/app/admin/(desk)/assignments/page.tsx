@@ -10,8 +10,7 @@ export default async function AssignmentsPage() {
   const items = await store.listAssignments();
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Assignments</h1>
-      <p className="mt-1 text-sm text-[var(--desk-muted)]">Students stay in green and working professionals stay in indigo, the same split as the website. Each person gets their own pending, submitted, or reviewed status.</p>
+      <p className="inline-flex items-center gap-1.5 rounded-full bg-[#0f766e] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-white uppercase">Assignments</p>
       <div className="mt-5"><AssignmentBoard batches={batches} members={members} items={items} /></div>
     </div>
   );

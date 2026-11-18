@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { MESSAGE_TEMPLATES, avatarColor, displayPhone, initials, personalize, whatsAppHref } from "@/lib/batches";
@@ -207,7 +208,7 @@ export function BatchBoard({ batch, members }: { batch: TrainingBatch; members: 
                 {initials(member.fullName)}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{member.fullName}{member.messaged ? <span className="ml-2 text-xs text-[#8ee0c0]">Sent</span> : null}</span>
+                <Link href={`/admin/people/${member.id}`} className="block truncate font-medium hover:underline">{member.fullName}{member.messaged ? <span className="ml-2 text-xs text-[#8ee0c0]">Sent</span> : null}</Link>
                 <span className="block text-sm text-[var(--desk-muted)]">{displayPhone(member.phone)}{member.note ? ` · ${member.note}` : ""}</span>
               </span>
               <button type="button" onClick={() => void patch(member.id, { absentToday: !member.absentToday })} className={`hidden rounded-full px-2 py-1 text-xs sm:inline ${member.absentToday ? "bg-red-500/20 text-red-200" : "text-[var(--desk-muted)]"}`}>
