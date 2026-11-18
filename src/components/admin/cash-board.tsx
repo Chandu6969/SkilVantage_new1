@@ -133,6 +133,11 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
 
   return (
     <div className="grid min-w-0 gap-4">
+      <article className="rounded-[28px] border border-white/10 bg-black px-5 py-6 sm:px-8 sm:py-8">
+        <p className="text-xs font-semibold tracking-[0.16em] text-white/45 uppercase">Total balance</p>
+        <p className="mt-2 text-5xl font-semibold tracking-tight text-[#c4b5fd] sm:text-6xl">{rupees(snapshot.total)}</p>
+        <p className="mt-3 text-sm text-white/55">Cash {rupees(snapshot.cash)} · Bank {rupees(snapshot.bank)}</p>
+      </article>
       <header className="desk-hero" style={{ flexWrap: "wrap" }}>
         <div>
           <p className="desk-pill">Skilvantage · Finance</p>
@@ -148,10 +153,9 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
         {error ? <p className="mb-3 text-sm text-rose-300">{error}</p> : null}
         {notice ? <p className="mb-3 text-sm text-emerald-300">{notice}</p> : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <MoneyCard title="Cash balance" value={rupees(snapshot.cash)} detail="Current cash in hand" from="#0f766e" to="#5eead4" />
           <MoneyCard title="Bank balance" value={rupees(snapshot.bank)} detail="Current bank balance" from="#1e3a8a" to="#93c5fd" />
-          <MoneyCard title="Total balance" value={rupees(snapshot.total)} detail="Cash + Bank" from="#312e81" to="#c4b5fd" />
           <MoneyCard title="This period inflow" value={rupees(snapshot.periodIn)} detail={month ? monthTitle(month) : "All months"} from="#065f46" to="#6ee7b7" />
           <MoneyCard title="This period outflow" value={rupees(snapshot.periodOut)} detail={month ? monthTitle(month) : "All months"} from="#9f1239" to="#fda4af" />
           <MoneyCard title="Net cash flow" value={rupees(snapshot.net)} detail={snapshot.net >= 0 ? "Positive flow" : "More spent than received"} from="#9a3412" to="#fdba74" />
