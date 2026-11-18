@@ -32,6 +32,22 @@ test("a report pdf starts as a pdf document", () => {
   assert.match(text, /38%/);
 });
 
+test("a learner report keeps the monthly payments and the assignment", () => {
+  const text = new TextDecoder().decode(buildReportPdf({
+    ...report,
+    kicker: "STUDENT REPORT",
+    title: "Gopireddy Avinash",
+    tableHeading: "Payments by month",
+    columns: ["S.No", "Month", "Collected"],
+    rows: [["1", "Nov 2026", "Rs 5,000"]],
+    sections: [{ heading: "Assignments", columns: ["S.No", "Work", "Due", "Status"], rows: [["1", "Excel dashboard", "23 Nov 2026", "Pending"]] }],
+  }));
+  assert.match(text, /Payments by month/);
+  assert.match(text, /Nov 2026/);
+  assert.match(text, /Excel dashboard/);
+  assert.match(text, /Pending/);
+});
+
 test("a long report keeps every row across pages", () => {
   const rows = Array.from({ length: 40 }, (_, index) => [String(index + 1), `Learner ${index + 1}`, "Course", index % 2 ? "Absent" : "Present"]);
   const text = new TextDecoder().decode(buildReportPdf({ ...report, rows }));

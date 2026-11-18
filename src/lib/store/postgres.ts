@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { Pool } from "pg";
 import { STARTER_BATCHES, ordinalLabel } from "@/lib/batches";
 import { classPay } from "@/lib/faculty";
-import { batchId, facultyPayId } from "@/lib/ids";
+import { assignmentId, batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
@@ -462,6 +462,7 @@ export class PostgresStore implements LeadStore {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [member.id, member.batchId, member.fullName, member.phone, member.email, member.note, member.messaged, member.absentToday, member.createdAt],
     );
+    await this.syncAssignments(member.batchId);
   }
 
   async removeMember(id: string) {
@@ -516,6 +517,7 @@ export class PostgresStore implements LeadStore {
          WHERE member_id = $1 AND kind = ANY($3)`,
         [id, batchId, ["attendance", "fee", "assignment"]],
       );
+      await this.syncAssignments(batchId);
     }
     return result.rows[0] ? this.mapMember(result.rows[0]) : null;
   }
@@ -584,6 +586,35 @@ export class PostgresStore implements LeadStore {
     item.status = status;
     await pool().query("UPDATE desk_items SET record = $2::jsonb WHERE id = $1", [id, JSON.stringify(item)]);
     return item;
+  }
+
+  async syncAssignments(batchId: string) {
+    await this.init();
+    const members = await this.listMembers(batchId);
+    const all = await this.listAssignments();
+    const templates = new Map<string, { title: string; dueOn: string }>();
+    for (const item of all) {
+      if (item.batchId !== batchId) continue;
+      templates.set(`${item.title}\n${item.dueOn}`, { title: item.title, dueOn: item.dueOn });
+    }
+    const createdAt = new Date().toISOString();
+    for (const member of members) {
+      for (const template of templates.values()) {
+        const has = all.some((item) => item.memberId === member.id && item.title === template.title && item.dueOn === template.dueOn);
+        if (has) continue;
+        const row: ClassAssignment = {
+          id: assignmentId(),
+          batchId,
+          memberId: member.id,
+          title: template.title,
+          dueOn: template.dueOn,
+          status: "pending",
+          createdAt,
+        };
+        await this.addAssignment(row);
+        all.push(row);
+      }
+    }
   }
 
   async listTeacherNotes(batchId?: string) {

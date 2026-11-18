@@ -52,12 +52,18 @@ export function AssignmentBoard({ batches, members, items }: { batches: Training
 
   async function setStatus(id: string, status: AssignmentProgress) {
     setPending(id);
-    await fetch(`/api/v1/admin/assignments/${id}`, {
+    setError("");
+    const response = await fetch(`/api/v1/admin/assignments/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    const data = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setPending("");
+    if (!response.ok || !data.ok) {
+      setError(data.error || "Could not save the assignment.");
+      return;
+    }
     router.refresh();
   }
 
@@ -189,9 +195,12 @@ function AssignmentDesk({
                   <Link href={`/admin/people/${item.memberId}`} className="font-semibold hover:underline">{members.find((member) => member.id === item.memberId)?.fullName || "Learner"}</Link>
                   <span className="text-sm">{item.title} · due {item.dueOn}</span>
                   <span className="flex flex-wrap gap-1">
-                    {(["pending", "submitted", "reviewed"] as const).map((status) => (
-                      <button key={status} type="button" disabled={pending !== ""} onClick={() => onStatus(item.id, status)} className="rounded-full px-2.5 py-1 text-xs font-medium capitalize text-white" style={{ background: item.status === status ? tones[status] : "rgb(20 33 28 / 0.28)" }}>{status}</button>
-                    ))}
+                    {(["pending", "submitted", "reviewed"] as const).map((status) => {
+                      const current = item.status === "submitted" || item.status === "reviewed" ? item.status : "pending";
+                      return (
+                      <button key={status} type="button" disabled={pending !== ""} aria-pressed={current === status} onClick={() => onStatus(item.id, status)} className="rounded-full px-2.5 py-1 text-xs font-medium capitalize" style={{ background: current === status ? tones[status] : "transparent", color: current === status ? "white" : "#14211c", boxShadow: current === status ? "none" : "inset 0 0 0 1px rgb(20 33 28 / 0.18)" }}>{status}</button>
+                      );
+                    })}
                   </span>
                 </li>
               ))}

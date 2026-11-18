@@ -66,6 +66,7 @@ export interface LeadStore {
   listAssignments(batchId?: string): Promise<ClassAssignment[]>;
   addAssignment(item: ClassAssignment): Promise<void>;
   updateAssignment(id: string, status: ClassAssignment["status"]): Promise<ClassAssignment | null>;
+  syncAssignments(batchId: string): Promise<void>;
   listTeacherNotes(batchId?: string): Promise<TeacherNote[]>;
   addTeacherNote(note: TeacherNote): Promise<void>;
   listFaculty(): Promise<Faculty[]>;

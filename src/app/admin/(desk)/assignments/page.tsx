@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function AssignmentsPage() {
   const store = getStore();
   const batches = await store.listBatches();
+  await Promise.all(batches.map((batch) => store.syncAssignments(batch.id)));
   const members = (await Promise.all(batches.map((batch) => store.listMembers(batch.id)))).flat();
   const items = await store.listAssignments();
   return (

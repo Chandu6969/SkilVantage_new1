@@ -12,9 +12,10 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
   const member = members.find((item) => item.id === id);
   const batch = member ? batches.find((item) => item.id === member.batchId) : undefined;
   if (!member || !batch) notFound();
+  await store.syncAssignments(batch.id);
   const marks = (await store.listAttendance(batch.id)).filter((item) => item.memberId === member.id);
   const fees = (await store.listFees()).filter((item) => item.memberId === member.id);
-  const assignments = (await store.listAssignments(batch.id)).filter((item) => item.memberId === member.id);
+  const assignments = (await store.listAssignments()).filter((item) => item.memberId === member.id);
   const peers = batches.filter((item) => item.learnerType === batch.learnerType);
   return <PersonBoard member={member} batch={batch} batches={peers} marks={marks} fees={fees} assignments={assignments} />;
 }

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Letterhead } from "@/components/admin/letterhead";
+import { displayPhone } from "@/lib/batches";
 import { classPay } from "@/lib/faculty";
 import { programName } from "@/lib/palette";
 import type { ReportDocument, ReportTone } from "@/lib/report-pdf";
 import { getStore } from "@/lib/store";
-import type { ClassDayStatus, LearnerType, TrainingBatch } from "@/lib/types";
+import type { ClassDayStatus, FeePayment, LearnerType, TrainingBatch } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -48,13 +49,99 @@ function statusLabel(status: ClassDayStatus | undefined) {
   return "Not marked";
 }
 
-export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string; batch?: string; date?: string }> }) {
+function monthName(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  if (!year || !month) return key;
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+function titleCase(value: string) {
+  return value ? value[0]!.toUpperCase() + value.slice(1) : value;
+}
+
+function monthsPaid(fees: FeePayment[]) {
+  const totals = new Map<string, number>();
+  for (const fee of fees) {
+    const key = fee.paidOn.slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(key)) continue;
+    totals.set(key, (totals.get(key) || 0) + fee.amount);
+  }
+  return [...totals.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string; batch?: string; date?: string; id?: string }> }) {
   const params = await searchParams;
-  const section = params.section === "assignments" || params.section === "teachers" ? params.section : "attendance";
+  const section = params.section === "assignments" || params.section === "teachers" || params.section === "person" ? params.section : "attendance";
   const store = getStore();
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Calcutta" });
   const date = /^\d{4}-\d{2}-\d{2}$/.test(params.date || "") ? params.date! : today;
   const generated = generatedStamp();
+
+  if (section === "person") {
+    const batches = await store.listBatches();
+    const members = (await Promise.all(batches.map((batch) => store.listMembers(batch.id)))).flat();
+    const member = members.find((item) => item.id === params.id);
+    const batch = member ? batches.find((item) => item.id === member.batchId) : undefined;
+    if (!member || !batch) {
+      return (
+        <div className="mx-auto max-w-3xl">
+          <h1 className="text-2xl font-semibold">Learner not found</h1>
+          <Link href="/admin/students" className="mt-3 inline-block text-sm underline">Back to students</Link>
+        </div>
+      );
+    }
+    await store.syncAssignments(batch.id);
+    const marks = (await store.listAttendance(batch.id)).filter((item) => item.memberId === member.id).sort((a, b) => b.date.localeCompare(a.date));
+    const fees = (await store.listFees()).filter((item) => item.memberId === member.id);
+    const assignments = (await store.listAssignments()).filter((item) => item.memberId === member.id).sort((a, b) => b.dueOn.localeCompare(a.dueOn));
+    const present = marks.filter((mark) => mark.status === "present").length;
+    const absent = marks.filter((mark) => mark.status === "absent").length;
+    const leave = marks.filter((mark) => mark.status === "leave").length;
+    const rated = present + absent + leave;
+    const collected = fees.reduce((sum, fee) => sum + fee.amount, 0);
+    const pending = assignments.filter((item) => item.status === "pending").length;
+    const tone = toneOf(batch.learnerType);
+    const noun = batch.learnerType === "professional" ? "Professional" : "Student";
+    const months = monthsPaid(fees);
+    const report: ReportDocument = {
+      tone,
+      kicker: `${noun.toUpperCase()} REPORT`,
+      title: member.fullName,
+      subtitle: `${batch.name} • ${member.note || displayPhone(member.phone) || noun}`,
+      generated,
+      stats: [
+        { label: "Attendance", value: rated ? `${Math.round((present / rated) * 100)}%` : "0%" },
+        { label: "Present", value: String(present) },
+        { label: "Absent", value: String(absent) },
+        { label: "Collected", value: rupees(collected) },
+        { label: "Pending", value: String(pending) },
+      ],
+      tableHeading: "Payments by month",
+      columns: ["S.No", "Month", "Collected"],
+      rows: months.map(([key, amount], index) => [String(index + 1), monthName(key), rupees(amount)]),
+      sections: [
+        {
+          heading: "Attendance",
+          columns: ["S.No", "Date", "Status"],
+          rows: marks.map((mark, index) => [String(index + 1), dayStamp(mark.date), statusLabel(mark.status)]),
+        },
+        {
+          heading: "Assignments",
+          columns: ["S.No", "Work", "Due", "Status"],
+          rows: assignments.map((item, index) => [String(index + 1), item.title, dayStamp(item.dueOn), titleCase(item.status)]),
+        },
+      ],
+      footer: `Skillvantage • ${noun} report • ${member.fullName} • ${batch.name}`,
+    };
+    return (
+      <Letterhead
+        report={report}
+        back={`/admin/people/${member.id}`}
+        summary={`Skillvantage ${member.fullName}\n${batch.name}\nAttendance ${report.stats[0]?.value}\nCollected ${rupees(collected)}\nPending assignments ${pending}`}
+        fileName={`Skillvantage-${safeFile(member.fullName)}.pdf`}
+      />
+    );
+  }
 
   if (section === "teachers") {
     const [teachers, pays] = await Promise.all([store.listFaculty(), store.listFacultyPays()]);

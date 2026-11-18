@@ -3,7 +3,7 @@ import path from "path";
 import crypto from "crypto";
 import { STARTER_BATCHES, ordinalLabel } from "@/lib/batches";
 import { classPay } from "@/lib/faculty";
-import { batchId, facultyPayId } from "@/lib/ids";
+import { assignmentId, batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
 import type { LeadStore } from "@/lib/store/types";
@@ -311,6 +311,7 @@ export class FileStore implements LeadStore {
     await this.locked(async () => {
       const body = await this.read();
       body.learners.push(member);
+      this.fillAssignments(body, member.batchId);
       await this.write(body);
     });
   }
@@ -354,6 +355,7 @@ export class FileStore implements LeadStore {
         for (const row of body.attendance) if (row.memberId === id) row.batchId = next.id;
         for (const row of body.fees) if (row.memberId === id) row.batchId = next.id;
         for (const row of body.assignments) if (row.memberId === id) row.batchId = next.id;
+        this.fillAssignments(body, next.id);
       }
       if (patch.fullName !== undefined) member.fullName = patch.fullName;
       if (patch.phone !== undefined) member.phone = patch.phone;
@@ -420,6 +422,41 @@ export class FileStore implements LeadStore {
       await this.write(body);
       return item;
     });
+  }
+
+  async syncAssignments(batchId: string) {
+    await this.locked(async () => {
+      const body = await this.read();
+      if (this.fillAssignments(body, batchId) > 0) await this.write(body);
+    });
+  }
+
+  private fillAssignments(body: FileBody, batchId: string) {
+    const members = body.learners.filter((item) => item.batchId === batchId);
+    const templates = new Map<string, { title: string; dueOn: string }>();
+    for (const item of body.assignments) {
+      if (item.batchId !== batchId) continue;
+      templates.set(`${item.title}\n${item.dueOn}`, { title: item.title, dueOn: item.dueOn });
+    }
+    const createdAt = new Date().toISOString();
+    let added = 0;
+    for (const member of members) {
+      for (const template of templates.values()) {
+        const has = body.assignments.some((item) => item.memberId === member.id && item.title === template.title && item.dueOn === template.dueOn);
+        if (has) continue;
+        body.assignments.push({
+          id: assignmentId(),
+          batchId,
+          memberId: member.id,
+          title: template.title,
+          dueOn: template.dueOn,
+          status: "pending",
+          createdAt,
+        });
+        added += 1;
+      }
+    }
+    return added;
   }
 
   async listTeacherNotes(batchId?: string) {

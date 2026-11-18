@@ -68,7 +68,7 @@ export function Legend({ slices }: { slices: Slice[] }) {
       {slices.map((slice) => (
         <li key={slice.label} className="flex items-center justify-between gap-3 text-sm">
           <span className="flex items-center gap-2 font-medium"><span className="size-3 rounded-full" style={{ background: slice.color }} />{slice.label}</span>
-          <span>{slice.value}{total ? ` · ${Math.round((slice.value / total) * 100)}%` : ""}</span>
+          <span>{slice.value}{slice.value && total ? ` · ${Math.round((slice.value / total) * 100)}%` : ""}</span>
         </li>
       ))}
     </ul>

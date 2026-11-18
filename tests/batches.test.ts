@@ -66,6 +66,24 @@ test("student batches start with SASI and WISE and keep an added person", async 
   });
   const updated = await store.updateAssignment("SVG-TEST01", "reviewed");
   assert.equal(updated?.status, "reviewed");
+  await store.addMember({
+    id: "SVM-TEST02",
+    batchId: batches[0]!.id,
+    fullName: "Later Student",
+    phone: "9845011133",
+    email: "",
+    note: "",
+    messaged: false,
+    absentToday: false,
+    createdAt: new Date().toISOString(),
+  });
+  const copied = (await store.listAssignments(batches[0]!.id)).filter((item) => item.memberId === "SVM-TEST02");
+  assert.equal(copied.length, 1);
+  assert.equal(copied[0]?.title, "SQL practice");
+  assert.equal(copied[0]?.status, "pending");
+  await store.syncAssignments(batches[0]!.id);
+  assert.equal((await store.listAssignments(batches[0]!.id)).filter((item) => item.memberId === "SVM-TEST02").length, 1);
+  assert.equal((await store.listAssignments(batches[0]!.id)).find((item) => item.id === "SVG-TEST01")?.status, "reviewed");
   await store.addTeacherNote({
     id: "SVT-TEST01",
     batchId: batches[0]!.id,
@@ -146,6 +164,7 @@ test("student batches start with SASI and WISE and keep an added person", async 
   assert.equal(edited?.batchId, batches[1]!.id);
   assert.equal((await store.listAttendance(batches[1]!.id))[0]?.memberId, "SVM-TEST01");
   await store.updateMember("SVM-TEST01", { batchId: batches[0]!.id });
+  await store.removeMember("SVM-TEST02");
   const gone = await store.removeMember("SVM-TEST01");
   assert.equal(gone?.fullName, "Edited Student");
   assert.equal((await store.listMembers(batches[0]!.id)).length, 0);

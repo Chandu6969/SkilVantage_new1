@@ -49,11 +49,7 @@ export function PersonBoard({
     { label: "Leave", value: leave, color: "#f59e0b" },
     { label: "Holiday", value: holiday, color: "#0ea5e9" },
   ];
-  const payments: Slice[] = (["cash", "bank", "upi"] as const).map((item) => ({
-    label: item.toUpperCase(),
-    value: fees.filter((fee) => fee.kind === item).reduce((sum, fee) => sum + fee.amount, 0),
-    color: item === "cash" ? "#10b981" : item === "bank" ? "#3b82f6" : "#8b5cf6",
-  }));
+  const payments = paymentMonths(fees, today);
   const work: Slice[] = [
     { label: "Pending", value: assignments.filter((item) => item.status === "pending").length, color: tones.pending },
     { label: "Submitted", value: assignments.filter((item) => item.status === "submitted").length, color: tones.submitted },
@@ -79,12 +75,18 @@ export function PersonBoard({
 
   async function setStatus(id: string, status: AssignmentProgress) {
     setPending(id);
-    await fetch(`/api/v1/admin/assignments/${id}`, {
+    setError("");
+    const response = await fetch(`/api/v1/admin/assignments/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    const data = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     setPending("");
+    if (!response.ok || !data.ok) {
+      setError(data.error || "Could not save the assignment.");
+      return;
+    }
     router.refresh();
   }
 
@@ -146,6 +148,7 @@ export function PersonBoard({
           <p className="mt-3 text-sm">Today {todayMark || "not marked yet"} · {rupees(collected)} collected</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={() => setEditing((value) => !value)} className="h-10 rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>{editing ? "Close edit" : "Edit details"}</button>
+            <Link href={`/admin/print?section=person&id=${member.id}`} className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>{batch.learnerType === "student" ? "Student report" : "Professional report"}</Link>
             <button type="button" disabled={pending !== ""} onClick={() => mark("present")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "present" ? "white" : "rgb(255 255 255 / 0.16)", color: todayMark === "present" ? theme.from : "white" }}>Present</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("absent")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "absent" ? "#ffe4e6" : "rgb(255 255 255 / 0.16)", color: todayMark === "absent" ? "#9f1239" : "white" }}>Absent</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("leave")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "leave" ? "#fef3c7" : "rgb(255 255 255 / 0.16)", color: todayMark === "leave" ? "#92400e" : "white" }}>Leave</button>
@@ -208,20 +211,50 @@ export function PersonBoard({
         <h2 className="text-lg font-semibold">Assignments</h2>
         <ul className="mt-3 grid gap-2">
           {assignments.length === 0 ? <li className="rounded-2xl bg-white/75 px-3 py-4 text-sm">No assignment yet.</li> : null}
-          {assignments.map((item) => (
+          {[...assignments].sort((a, b) => b.dueOn.localeCompare(a.dueOn) || b.createdAt.localeCompare(a.createdAt)).map((item) => {
+            const current = item.status === "submitted" || item.status === "reviewed" ? item.status : "pending";
+            return (
             <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/80 px-3 py-2 text-sm">
               <span className="font-medium">{item.title} · due {dayLabel(item.dueOn)}</span>
               <span className="flex gap-1">
                 {(["pending", "submitted", "reviewed"] as const).map((status) => (
-                  <button key={status} type="button" disabled={pending !== ""} onClick={() => setStatus(item.id, status)} className="rounded-full px-2.5 py-1 text-xs font-medium capitalize text-white" style={{ background: item.status === status ? tones[status] : "rgb(20 33 28 / 0.28)" }}>{status}</button>
+                  <button key={status} type="button" disabled={pending !== ""} aria-pressed={current === status} onClick={() => setStatus(item.id, status)} className="rounded-full px-2.5 py-1 text-xs font-medium capitalize" style={{ background: current === status ? tones[status] : "transparent", color: current === status ? "white" : "#14211c", boxShadow: current === status ? "none" : "inset 0 0 0 1px rgb(20 33 28 / 0.18)" }}>{status}</button>
                 ))}
               </span>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </section>
     </div>
   );
+}
+
+const monthColors = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#f43f5e", "#0ea5e9", "#14b8a6", "#6366f1"];
+
+function monthName(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  if (!year || !month) return key;
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+function paymentMonths(fees: FeePayment[], today: string): Slice[] {
+  const [year, month] = today.split("-").map(Number);
+  const keys: string[] = [];
+  for (let offset = 5; offset >= 0; offset -= 1) {
+    const date = new Date(Date.UTC(year || 2026, (month || 1) - 1 - offset, 1));
+    keys.push(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+  for (const fee of fees) {
+    const key = fee.paidOn.slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(key) && !keys.includes(key)) keys.push(key);
+  }
+  keys.sort();
+  return keys.map((key, index) => ({
+    label: monthName(key),
+    value: fees.filter((fee) => fee.paidOn.startsWith(key)).reduce((sum, fee) => sum + fee.amount, 0),
+    color: monthColors[index % monthColors.length] || "#10b981",
+  }));
 }
 
 function ChartCard({ title, slices, caption }: { title: string; slices: Slice[]; caption?: string }) {

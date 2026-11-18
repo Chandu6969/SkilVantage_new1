@@ -50,30 +50,52 @@ export function Letterhead({
           </article>
         ))}
       </div>
-      <div className="px-6 pb-4">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="text-xs tracking-wide text-white uppercase" style={{ background: tone.band }}>
-              {report.columns.map((column) => <th key={column} className="px-2 py-2 font-medium">{column}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {report.rows.map((row, index) => (
-              <tr key={`${row[0]}-${index}`} className={index % 2 === 0 ? "bg-[#f8fbfb]" : "bg-white"}>
-                {row.map((cell, cellIndex) => (
-                  <td key={`${columnKey(report.columns, cellIndex)}-${index}`} className={`px-2 py-2 ${cellIndex === row.length - 1 ? `font-medium ${statusClass(cell)}` : ""}`}>{cell}</td>
-                ))}
-              </tr>
-            ))}
-            {report.rows.length === 0 ? (
-              <tr><td className="px-2 py-6 text-[#64748b]" colSpan={report.columns.length}>Nothing to show for this batch.</td></tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+      <ReportTable tone={tone} heading={report.tableHeading} columns={report.columns} rows={report.rows} empty={report.tableHeading ? "Nothing recorded yet." : "Nothing to show for this batch."} />
+      {(report.sections ?? []).map((section) => (
+        <ReportTable key={section.heading} tone={tone} heading={section.heading} columns={section.columns} rows={section.rows} empty="Nothing recorded yet." />
+      ))}
       <footer className="border-t border-black/5 px-6 py-3 text-xs text-[#6b7480]">
         <p>{report.footer}</p>
       </footer>
+    </div>
+  );
+}
+
+function ReportTable({
+  tone,
+  heading,
+  columns,
+  rows,
+  empty,
+}: {
+  tone: { band: string; ink: string };
+  heading?: string;
+  columns: string[];
+  rows: string[][];
+  empty: string;
+}) {
+  return (
+    <div className="px-6 pb-4">
+      {heading ? <h2 className="mb-2 text-sm font-semibold" style={{ color: tone.ink }}>{heading}</h2> : null}
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="text-xs tracking-wide text-white uppercase" style={{ background: tone.band }}>
+            {columns.map((column) => <th key={column} className="px-2 py-2 font-medium">{column}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={`${row[0]}-${index}`} className={index % 2 === 0 ? "bg-[#f8fbfb]" : "bg-white"}>
+              {row.map((cell, cellIndex) => (
+                <td key={`${columnKey(columns, cellIndex)}-${index}`} className={`px-2 py-2 ${cellIndex === row.length - 1 ? `font-medium ${statusClass(cell)}` : ""}`}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+          {rows.length === 0 ? (
+            <tr><td className="px-2 py-6 text-[#64748b]" colSpan={columns.length}>{empty}</td></tr>
+          ) : null}
+        </tbody>
+      </table>
     </div>
   );
 }
