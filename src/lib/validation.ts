@@ -157,7 +157,17 @@ export const memberCreateSchema = z.object({
 export const memberPatchSchema = z.object({
   messaged: z.boolean().optional(),
   absentToday: z.boolean().optional(),
-}).refine((value) => value.messaged !== undefined || value.absentToday !== undefined, {
+  fullName: memberCreateSchema.shape.fullName.optional(),
+  phone: phoneField.optional(),
+  email: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .refine((value) => value === undefined || value === "" || z.string().email().safeParse(value).success, { error: "Enter a valid email, or leave it blank." }),
+  note: z.string().trim().max(300).optional(),
+  batchId: z.string().trim().min(1).max(40).optional(),
+}).refine((value) => Object.values(value).some((item) => item !== undefined), {
   error: "Nothing to update.",
 });
 

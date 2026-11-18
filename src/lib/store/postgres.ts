@@ -442,6 +442,12 @@ export class PostgresStore implements LeadStore {
     return batch;
   }
 
+  async updateBatch(id: string, patch: { name: string }) {
+    await this.init();
+    const result = await pool().query("UPDATE batches SET name = $2 WHERE id = $1 RETURNING *", [id, patch.name.trim()]);
+    return result.rows[0] ? this.mapBatch(result.rows[0]) : null;
+  }
+
   async listMembers(batchId: string) {
     await this.init();
     const result = await pool().query("SELECT * FROM batch_members WHERE batch_id = $1 ORDER BY full_name ASC", [batchId]);
@@ -475,17 +481,41 @@ export class PostgresStore implements LeadStore {
     await this.putDesk("removed", item.id, item.memberId, item.removedAt, item);
   }
 
-  async updateMember(id: string, patch: Partial<Pick<BatchMember, "messaged" | "absentToday">>) {
+  async updateMember(id: string, patch: Partial<Pick<BatchMember, "fullName" | "phone" | "email" | "note" | "batchId" | "messaged" | "absentToday">>) {
     await this.init();
     const current = await pool().query("SELECT * FROM batch_members WHERE id = $1", [id]);
     if (!current.rows[0]) return null;
-    const messaged = patch.messaged ?? current.rows[0].messaged;
-    const absent = patch.absentToday ?? current.rows[0].absent_today;
-    const result = await pool().query("UPDATE batch_members SET messaged = $2, absent_today = $3 WHERE id = $1 RETURNING *", [
-      id,
-      messaged,
-      absent,
-    ]);
+    const row = current.rows[0];
+    const batchId = patch.batchId ?? row.batch_id;
+    if (batchId !== row.batch_id) {
+      const batches = await pool().query("SELECT id, learner_type FROM batches WHERE id = ANY($1)", [[row.batch_id, batchId]]);
+      const from = batches.rows.find((item) => item.id === row.batch_id);
+      const to = batches.rows.find((item) => item.id === batchId);
+      if (!from || !to || from.learner_type !== to.learner_type) return null;
+    }
+    const result = await pool().query(
+      `UPDATE batch_members
+       SET full_name = $2, phone = $3, email = $4, note = $5, batch_id = $6, messaged = $7, absent_today = $8
+       WHERE id = $1 RETURNING *`,
+      [
+        id,
+        patch.fullName ?? row.full_name,
+        patch.phone ?? row.phone,
+        patch.email ?? row.email,
+        patch.note ?? row.note,
+        batchId,
+        patch.messaged ?? row.messaged,
+        patch.absentToday ?? row.absent_today,
+      ],
+    );
+    if (batchId !== row.batch_id) {
+      await pool().query(
+        `UPDATE desk_items
+         SET batch_id = $2, record = jsonb_set(record, '{batchId}', to_jsonb($2::text), false)
+         WHERE member_id = $1 AND kind = ANY($3)`,
+        [id, batchId, ["attendance", "fee", "assignment"]],
+      );
+    }
     return result.rows[0] ? this.mapMember(result.rows[0]) : null;
   }
 

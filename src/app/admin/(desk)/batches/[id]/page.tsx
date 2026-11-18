@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BatchBoard } from "@/components/admin/batch-board";
+import { BatchRename } from "@/components/admin/batch-rename";
 import { DeskHeader } from "@/components/admin/desk-header";
 import { getStore } from "@/lib/store";
 
@@ -12,6 +13,7 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
   const batch = await store.getBatch(id);
   if (!batch) notFound();
   const members = await store.listMembers(id);
+  const peers = await store.listBatches(batch.learnerType);
   const back = batch.learnerType === "student" ? "/admin/students" : "/admin/professionals";
 
   return (
@@ -27,8 +29,9 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
         <Link href="/admin/assignments" className="rounded-xl border border-[var(--desk-line)] bg-[var(--desk-card)] px-3 py-2">Assignments</Link>
         <Link href="/admin/cash" className="rounded-xl border border-[var(--desk-line)] bg-[var(--desk-card)] px-3 py-2">Fee Dues</Link>
         <Link href="/admin/attendance" className="rounded-xl border border-[var(--desk-line)] bg-[var(--desk-card)] px-3 py-2">Attendance Reports</Link>
+        <BatchRename batch={batch} tone="#065f46" />
       </div>
-      <BatchBoard batch={batch} members={members} />
+      <BatchBoard batch={batch} members={members} batches={peers} />
     </div>
   );
 }

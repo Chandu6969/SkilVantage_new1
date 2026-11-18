@@ -290,6 +290,17 @@ export class FileStore implements LeadStore {
     });
   }
 
+  async updateBatch(id: string, patch: { name: string }) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const batch = body.batches.find((item) => item.id === id);
+      if (!batch) return null;
+      batch.name = patch.name.trim();
+      await this.write(body);
+      return batch;
+    });
+  }
+
   async listMembers(batchId: string) {
     const body = await this.read();
     return body.learners.filter((item) => item.batchId === batchId).sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -329,11 +340,24 @@ export class FileStore implements LeadStore {
     });
   }
 
-  async updateMember(id: string, patch: Partial<Pick<BatchMember, "messaged" | "absentToday">>) {
+  async updateMember(id: string, patch: Partial<Pick<BatchMember, "fullName" | "phone" | "email" | "note" | "batchId" | "messaged" | "absentToday">>) {
     return this.locked(async () => {
       const body = await this.read();
       const member = body.learners.find((item) => item.id === id);
       if (!member) return null;
+      if (patch.batchId && patch.batchId !== member.batchId) {
+        const next = body.batches.find((item) => item.id === patch.batchId);
+        const current = body.batches.find((item) => item.id === member.batchId);
+        if (!next || !current || next.learnerType !== current.learnerType) return null;
+        member.batchId = next.id;
+        for (const row of body.attendance) if (row.memberId === id) row.batchId = next.id;
+        for (const row of body.fees) if (row.memberId === id) row.batchId = next.id;
+        for (const row of body.assignments) if (row.memberId === id) row.batchId = next.id;
+      }
+      if (patch.fullName !== undefined) member.fullName = patch.fullName;
+      if (patch.phone !== undefined) member.phone = patch.phone;
+      if (patch.email !== undefined) member.email = patch.email;
+      if (patch.note !== undefined) member.note = patch.note;
       if (patch.messaged !== undefined) member.messaged = patch.messaged;
       if (patch.absentToday !== undefined) member.absentToday = patch.absentToday;
       await this.write(body);

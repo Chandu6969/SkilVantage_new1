@@ -115,8 +115,16 @@ test("student batches start with SASI and WISE and keep an added person", async 
   });
   const settled = await store.settleFacultyPay(saved.id, "2026-11-17");
   assert.equal(settled?.status, "paid");
+  const renamed = await store.updateBatch(batches[0]!.id, { name: "SASI Morning" });
+  assert.equal(renamed?.name, "SASI Morning");
+  await store.updateBatch(batches[0]!.id, { name: "SASI" });
+  const edited = await store.updateMember("SVM-TEST01", { fullName: "Edited Student", phone: "9845099988", batchId: batches[1]!.id });
+  assert.equal(edited?.fullName, "Edited Student");
+  assert.equal(edited?.batchId, batches[1]!.id);
+  assert.equal((await store.listAttendance(batches[1]!.id))[0]?.memberId, "SVM-TEST01");
+  await store.updateMember("SVM-TEST01", { batchId: batches[0]!.id });
   const gone = await store.removeMember("SVM-TEST01");
-  assert.equal(gone?.fullName, "Sample Student");
+  assert.equal(gone?.fullName, "Edited Student");
   assert.equal((await store.listMembers(batches[0]!.id)).length, 0);
   await store.addRemoved({
     id: "SVX-TEST01",

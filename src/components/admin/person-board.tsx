@@ -14,12 +14,14 @@ const tones: Record<AssignmentProgress, string> = { pending: "#f97316", submitte
 export function PersonBoard({
   member,
   batch,
+  batches,
   marks,
   fees,
   assignments,
 }: {
   member: BatchMember;
   batch: TrainingBatch;
+  batches: TrainingBatch[];
   marks: AttendanceMark[];
   fees: FeePayment[];
   assignments: ClassAssignment[];
@@ -33,6 +35,8 @@ export function PersonBoard({
   const [kind, setKind] = useState<FeeKind>("cash");
   const [paidOn, setPaidOn] = useState(today);
   const [note, setNote] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ fullName: member.fullName, phone: member.phone, email: member.email, note: member.note, batchId: member.batchId });
   const present = marks.filter((mark) => mark.status === "present").length;
   const absent = marks.filter((mark) => mark.status === "absent").length;
   const todayMark = marks.find((mark) => mark.date === today)?.status;
@@ -80,6 +84,28 @@ export function PersonBoard({
     router.refresh();
   }
 
+  async function savePerson(event: React.FormEvent) {
+    event.preventDefault();
+    setPending("edit");
+    setError("");
+    const response = await fetch(`/api/v1/admin/batches/${batch.id}/members/${member.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    const data = (await response.json()) as { ok?: boolean; error?: string; fields?: Record<string, string>; member?: BatchMember };
+    setPending("");
+    if (!response.ok || !data.ok || !data.member) {
+      setError(data.fields ? Object.values(data.fields)[0] || data.error || "Check the details." : data.error || "Check the details.");
+      return;
+    }
+    setEditing(false);
+    if (data.member.batchId !== batch.id) {
+      router.push(`/admin/people/${member.id}`);
+    }
+    router.refresh();
+  }
+
   async function pay(event: React.FormEvent) {
     event.preventDefault();
     setPending("pay");
@@ -114,12 +140,27 @@ export function PersonBoard({
           <h1 className="mt-1 text-3xl font-semibold">{member.fullName}</h1>
           <p className="mt-2 text-sm text-white/85">{displayPhone(member.phone) || "No phone"}{member.email ? ` · ${member.email}` : ""}{member.note ? ` · ${member.note}` : ""}</p>
           <p className="mt-3 text-sm">Today {todayMark === "present" ? "present" : todayMark === "absent" ? "absent" : "not marked yet"} · {rupees(collected)} collected</p>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setEditing((value) => !value)} className="h-10 rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>{editing ? "Close edit" : "Edit details"}</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("present")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "present" ? "white" : "rgb(255 255 255 / 0.16)", color: todayMark === "present" ? theme.from : "white" }}>Present</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("absent")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "absent" ? "#ffe4e6" : "rgb(255 255 255 / 0.16)", color: todayMark === "absent" ? "#9f1239" : "white" }}>Absent</button>
           </div>
         </div>
       </header>
+      {editing ? (
+        <form onSubmit={savePerson} className="grid gap-3 rounded-3xl p-4 sm:grid-cols-2" style={{ background: theme.wash, color: theme.from }}>
+          <label className="text-sm">Name<input value={editForm.fullName} onChange={(event) => setEditForm({ ...editForm, fullName: event.target.value })} className={field} /></label>
+          <label className="text-sm">Phone<input value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} className={field} /></label>
+          <label className="text-sm">Email<input value={editForm.email} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} className={field} /></label>
+          <label className="text-sm">Note<input value={editForm.note} onChange={(event) => setEditForm({ ...editForm, note: event.target.value })} className={field} /></label>
+          <label className="text-sm">Batch
+            <select value={editForm.batchId} onChange={(event) => setEditForm({ ...editForm, batchId: event.target.value })} className={field}>
+              {batches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <button type="submit" disabled={pending !== ""} className="h-11 self-end rounded-xl text-sm font-medium text-white disabled:opacity-60" style={{ background: theme.from }}>{pending === "edit" ? "Saving…" : "Save details"}</button>
+        </form>
+      ) : null}
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
       <div className="grid gap-4 lg:grid-cols-3">
         <ChartCard title="Attendance" slices={attendance} caption={present + absent ? `${Math.round((present / (present + absent)) * 100)}%` : "0%"} />

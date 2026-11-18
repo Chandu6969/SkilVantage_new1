@@ -15,5 +15,6 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
   const marks = (await store.listAttendance(batch.id)).filter((item) => item.memberId === member.id);
   const fees = (await store.listFees()).filter((item) => item.memberId === member.id);
   const assignments = (await store.listAssignments(batch.id)).filter((item) => item.memberId === member.id);
-  return <PersonBoard member={member} batch={batch} marks={marks} fees={fees} assignments={assignments} />;
+  const peers = batches.filter((item) => item.learnerType === batch.learnerType);
+  return <PersonBoard member={member} batch={batch} batches={peers} marks={marks} fees={fees} assignments={assignments} />;
 }

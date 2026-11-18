@@ -8,7 +8,7 @@ import type { BatchMember, TrainingBatch } from "@/lib/types";
 
 type Filter = "all" | "unsent" | "absent";
 
-export function BatchBoard({ batch, members }: { batch: TrainingBatch; members: BatchMember[] }) {
+export function BatchBoard({ batch, members, batches }: { batch: TrainingBatch; members: BatchMember[]; batches: TrainingBatch[] }) {
   const router = useRouter();
   const [rows, setRows] = useState(members);
   const [draft, setDraft] = useState("");
@@ -20,6 +20,8 @@ export function BatchBoard({ batch, members }: { batch: TrainingBatch; members: 
   const [form, setForm] = useState({ fullName: "", phone: "", email: "", note: "" });
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(members.length === 0);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ fullName: "", phone: "", email: "", note: "", batchId: batch.id });
   const noun = batch.learnerType === "student" ? "student" : "professional";
 
   const visible = useMemo(() => {
@@ -102,6 +104,38 @@ export function BatchBoard({ batch, members }: { batch: TrainingBatch; members: 
     }
     setRows((current) => current.filter((row) => row.id !== member.id));
     setNotice(`${member.fullName} is back in Registrations.`);
+    router.refresh();
+  }
+
+  function startEdit(member: BatchMember) {
+    setEditing(member.id);
+    setEditForm({ fullName: member.fullName, phone: member.phone, email: member.email, note: member.note, batchId: member.batchId });
+    setError("");
+  }
+
+  async function saveEdit(event: React.FormEvent, member: BatchMember) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const response = await fetch(`/api/v1/admin/batches/${batch.id}/members/${member.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    const data = (await response.json()) as { ok?: boolean; error?: string; fields?: Record<string, string>; member?: BatchMember };
+    setSaving(false);
+    if (!response.ok || !data.ok || !data.member) {
+      setError(data.fields ? Object.values(data.fields)[0] || data.error || "Check the details." : data.error || "Check the details.");
+      return;
+    }
+    if (data.member.batchId !== batch.id) {
+      setRows((current) => current.filter((row) => row.id !== member.id));
+      setNotice(`${data.member.fullName} moved to ${batches.find((item) => item.id === data.member?.batchId)?.name || "the other batch"}.`);
+    } else {
+      setRows((current) => current.map((row) => (row.id === member.id ? data.member! : row)).sort((a, b) => a.fullName.localeCompare(b.fullName)));
+      setNotice(`${data.member.fullName} updated.`);
+    }
+    setEditing(null);
     router.refresh();
   }
 
@@ -202,7 +236,24 @@ export function BatchBoard({ batch, members }: { batch: TrainingBatch; members: 
             <li className="rounded-xl border border-dashed border-[var(--desk-line)] px-4 py-8 text-center text-sm text-[var(--desk-muted)]">
               {rows.length === 0 ? `No ${noun}s yet. Add the first name and phone when you have them.` : "Nothing matches this filter."}
             </li>
-          ) : visible.map((member) => (
+          ) : visible.map((member) => editing === member.id ? (
+            <li key={member.id} className="rounded-xl bg-[var(--desk-card-2)] px-3 py-3">
+              <form onSubmit={(event) => void saveEdit(event, member)} className="grid gap-2">
+                <p className="text-sm font-medium">Edit {member.fullName}</p>
+                <input required value={editForm.fullName} onChange={(event) => setEditForm({ ...editForm, fullName: event.target.value })} placeholder="Full name" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
+                <input required value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} placeholder="Phone number" inputMode="tel" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
+                <input value={editForm.email} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} placeholder="Email, optional" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
+                <input value={editForm.note} onChange={(event) => setEditForm({ ...editForm, note: event.target.value })} placeholder="Note, optional" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
+                <select value={editForm.batchId} onChange={(event) => setEditForm({ ...editForm, batchId: event.target.value })} className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3">
+                  {batches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+                <span className="flex gap-2">
+                  <button type="submit" disabled={saving} className="h-10 rounded-xl bg-[#14967c] px-4 text-sm text-white disabled:opacity-60">{saving ? "Saving…" : "Save"}</button>
+                  <button type="button" onClick={() => setEditing(null)} className="h-10 rounded-xl border border-[var(--desk-line)] px-4 text-sm">Cancel</button>
+                </span>
+              </form>
+            </li>
+          ) : (
             <li key={member.id} className="flex items-center gap-3 rounded-xl bg-[var(--desk-card-2)] px-3 py-2.5">
               <span className="grid size-10 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" style={{ background: avatarColor(member.fullName) }}>
                 {initials(member.fullName)}
@@ -214,6 +265,7 @@ export function BatchBoard({ batch, members }: { batch: TrainingBatch; members: 
               <button type="button" onClick={() => void patch(member.id, { absentToday: !member.absentToday })} className={`hidden rounded-full px-2 py-1 text-xs sm:inline ${member.absentToday ? "bg-red-500/20 text-red-200" : "text-[var(--desk-muted)]"}`}>
                 {member.absentToday ? "Absent" : "Present"}
               </button>
+              <button type="button" onClick={() => startEdit(member)} className="rounded-full border border-[var(--desk-line)] px-3 py-1.5 text-sm">Edit</button>
               <button type="button" onClick={() => openChat(member, true)} className="rounded-full border border-[#1ec9a0] px-3 py-1.5 text-sm text-[#8ee0c0]">
                 WhatsApp
               </button>

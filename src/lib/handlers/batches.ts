@@ -36,6 +36,23 @@ export async function postBatch(req: Request) {
   return json({ ok: true, batch }, 201);
 }
 
+export async function patchBatch(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const access = await guard(req);
+  if ("error" in access) return access.error;
+  const { id } = await ctx.params;
+  const current = await getStore().getBatch(id);
+  if (!current) return json({ ok: false, error: "Batch not found." }, 404);
+  const body = await readJson(req);
+  if (!body.ok) return json({ ok: false, error: body.error }, 400);
+  const parsed = batchCreateSchema.pick({ name: true }).safeParse(body.data);
+  if (!parsed.success) return json({ ok: false, error: "Check the batch name.", fields: zodFieldErrors(parsed.error) }, 400);
+  const peers = await getStore().listBatches(current.learnerType);
+  const taken = peers.some((batch) => batch.id !== id && batch.name.toLowerCase() === parsed.data.name.toLowerCase());
+  if (taken) return json({ ok: false, error: "A batch with that name already exists." }, 400);
+  const batch = await getStore().updateBatch(id, { name: parsed.data.name });
+  return json({ ok: true, batch });
+}
+
 export async function getBatch(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const access = await guard(req);
   if ("error" in access) return access.error;
@@ -78,8 +95,12 @@ export async function patchMember(req: Request, ctx: { params: Promise<{ id: str
   const body = await readJson(req);
   if (!body.ok) return json({ ok: false, error: body.error }, 400);
   const parsed = memberPatchSchema.safeParse(body.data);
-  if (!parsed.success) return json({ ok: false, error: "Check the update." }, 400);
-  const member = await getStore().updateMember(id, parsed.data);
+  if (!parsed.success) return json({ ok: false, error: "Check the update.", fields: zodFieldErrors(parsed.error) }, 400);
+  const patch = {
+    ...parsed.data,
+    ...(parsed.data.email !== undefined ? { email: parsed.data.email.toLowerCase() } : {}),
+  };
+  const member = await getStore().updateMember(id, patch);
   if (!member) return json({ ok: false, error: "Person not found." }, 404);
   return json({ ok: true, member });
 }
