@@ -116,17 +116,17 @@ function Metric({ tint, title, value, of, hint }: { tint: string; title: string;
   const radius = 15;
   const length = 2 * Math.PI * radius;
   return (
-    <article className="relative rounded-[22px] p-4" style={{ background: tint }}>
-      <span className="absolute top-3 right-3 grid size-14 place-items-center">
+    <article className="relative min-h-36 rounded-[22px] p-4" style={{ background: tint }}>
+      <p className="text-sm font-medium text-white/90">{title}</p>
+      <p className="mt-3 pr-16 text-4xl font-semibold tracking-tight">{String(value).padStart(2, "0")}</p>
+      <p className="mt-1 pr-16 text-xs text-white/80">{hint}</p>
+      <span className="absolute right-4 bottom-4 grid size-14 place-items-center">
         <svg viewBox="0 0 44 44" className="size-14 -rotate-90">
           <circle cx="22" cy="22" r={radius} fill="none" stroke="rgb(255 255 255 / 0.28)" strokeWidth="3" />
           <circle cx="22" cy="22" r={radius} fill="none" stroke="white" strokeWidth="3" strokeDasharray={`${(share / 100) * length} ${length}`} strokeLinecap="round" />
         </svg>
         <span className="absolute text-[11px] leading-none font-semibold">{share}%</span>
       </span>
-      <p className="pr-16 text-sm font-medium text-white/90">{title}</p>
-      <p className="mt-4 text-4xl font-semibold tracking-tight">{String(value).padStart(2, "0")}</p>
-      <p className="mt-1 text-xs text-white/80">{hint}</p>
     </article>
   );
 }
