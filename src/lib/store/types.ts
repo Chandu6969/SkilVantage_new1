@@ -70,6 +70,7 @@ export interface LeadStore {
   addTeacherNote(note: TeacherNote): Promise<void>;
   listFaculty(): Promise<Faculty[]>;
   addFaculty(person: Faculty): Promise<void>;
+  updateFaculty(id: string, patch: Partial<Pick<Faculty, "fullName" | "phone" | "email" | "course" | "rate" | "note">>): Promise<Faculty | null>;
   listFacultyDays(): Promise<FacultyDay[]>;
   markFacultyDay(day: FacultyDay): Promise<FacultyDay>;
   listFacultyPays(): Promise<FacultyPay[]>;

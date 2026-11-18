@@ -1,3 +1,4 @@
+import { DEFAULT_CLASS_PAY } from "@/lib/faculty";
 import { facultyDayId, facultyId, facultyPayId } from "@/lib/ids";
 import { programChoices } from "@/lib/palette";
 import { assertSameOrigin, json, readJson } from "@/lib/security";
@@ -51,6 +52,34 @@ export async function postFaculty(req: Request) {
   };
   await getStore().addFaculty(person);
   return json({ ok: true, teacher: person }, 201);
+}
+
+export async function patchFaculty(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const access = await guard(req);
+  if ("error" in access) return access.error;
+  const { id } = await ctx.params;
+  const body = await readJson(req);
+  if (!body.ok || !body.data || typeof body.data !== "object") return json({ ok: false, error: "Check the teacher details." }, 400);
+  const data = body.data as { fullName?: unknown; phone?: unknown; email?: unknown; course?: unknown; rate?: unknown; note?: unknown };
+  const fullName = String(data.fullName || "").trim().slice(0, 80);
+  const phone = String(data.phone || "").trim().slice(0, 20);
+  const email = String(data.email || "").trim().toLowerCase().slice(0, 120);
+  const course = String(data.course || "");
+  const rate = money(data.rate);
+  const note = String(data.note || "").trim().slice(0, 240);
+  if (!fullName || !phone || !courses.has(course as ProgramSlug) || rate === null) {
+    return json({ ok: false, error: "Add the name, phone, course, and class pay." }, 400);
+  }
+  const teacher = await getStore().updateFaculty(id, {
+    fullName,
+    phone,
+    email,
+    course: course as ProgramSlug,
+    rate: rate || DEFAULT_CLASS_PAY,
+    note,
+  });
+  if (!teacher) return json({ ok: false, error: "Teacher not found." }, 404);
+  return json({ ok: true, teacher });
 }
 
 export async function postFacultyDay(req: Request) {

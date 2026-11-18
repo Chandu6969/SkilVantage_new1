@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 import { STARTER_BATCHES, ordinalLabel } from "@/lib/batches";
+import { classPay } from "@/lib/faculty";
 import { batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
@@ -441,6 +442,17 @@ export class FileStore implements LeadStore {
     return body.teachers.sort((a, b) => a.fullName.localeCompare(b.fullName));
   }
 
+  async updateFaculty(id: string, patch: Partial<Pick<Faculty, "fullName" | "phone" | "email" | "course" | "rate" | "note">>) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const teacher = body.teachers.find((item) => item.id === id);
+      if (!teacher) return null;
+      Object.assign(teacher, patch);
+      await this.write(body);
+      return teacher;
+    });
+  }
+
   async addFaculty(person: Faculty) {
     await this.locked(async () => {
       const body = await this.read();
@@ -463,11 +475,11 @@ export class FileStore implements LeadStore {
       const existing = body.teacherPays.find((item) => item.teacherId === day.teacherId && item.classDate === day.date);
       if (day.status === "absent") {
         if (existing?.status === "due") body.teacherPays = body.teacherPays.filter((item) => item.id !== existing.id);
-      } else if (teacher && teacher.rate > 0 && !existing) {
+      } else if (teacher && !existing) {
         body.teacherPays.push({
           id: facultyPayId(),
           teacherId: day.teacherId,
-          amount: teacher.rate,
+          amount: classPay(teacher.rate),
           classDate: day.date,
           paidOn: "",
           status: "due",

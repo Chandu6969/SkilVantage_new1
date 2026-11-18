@@ -103,6 +103,24 @@ test("student batches start with SASI and WISE and keep an added person", async 
     createdAt: new Date().toISOString(),
   });
   assert.equal((await store.listFacultyPays()).length, 0);
+  await store.addFaculty({
+    id: "SVQ-TEST02",
+    fullName: "Rate Default",
+    phone: "9845011111",
+    email: "",
+    course: "data-analyst",
+    rate: 0,
+    note: "",
+    createdAt: new Date().toISOString(),
+  });
+  await store.markFacultyDay({
+    id: "SVD-TEST03",
+    teacherId: "SVQ-TEST02",
+    date: "2026-11-18",
+    status: "present",
+    createdAt: new Date().toISOString(),
+  });
+  assert.equal((await store.listFacultyPays()).find((pay) => pay.teacherId === "SVQ-TEST02")?.amount, 350);
   const saved = await store.saveFacultyPay({
     id: "SVK-TEST01",
     teacherId: "SVQ-TEST01",

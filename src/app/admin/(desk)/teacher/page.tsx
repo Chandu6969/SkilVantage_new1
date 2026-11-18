@@ -1,32 +1,25 @@
+import Link from "next/link";
 import { FacultyBoard } from "@/components/admin/faculty-board";
-import { TeacherBoard } from "@/components/admin/teacher-board";
+import { PrintLink } from "@/components/admin/print-link";
 import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function TeacherPage() {
   const store = getStore();
-  const [teachers, days, pays, batches, notes] = await Promise.all([
-    store.listFaculty(),
-    store.listFacultyDays(),
-    store.listFacultyPays(),
-    store.listBatches(),
-    store.listTeacherNotes(),
-  ]);
+  const [teachers, days, pays] = await Promise.all([store.listFaculty(), store.listFacultyDays(), store.listFacultyPays()]);
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Calcutta" });
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Teachers</h1>
-      <p className="mt-1 text-sm text-[var(--desk-muted)]">Add each teacher, the course they take, whether they attended that calendar day, and the class amount still to pay.</p>
-      <div className="mt-5">
-        <FacultyBoard teachers={teachers} days={days} pays={pays} today={today} />
-      </div>
-      <div className="mt-8">
-        <h2 className="text-lg font-semibold">Class notes</h2>
-        <p className="mt-1 text-sm text-[var(--desk-muted)]">A short note stays with the batch it belongs to.</p>
-        <div className="mt-4">
-          <TeacherBoard batches={batches} notes={notes} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-[#0f766e] px-3 py-1 text-xs font-semibold tracking-[0.14em] text-white uppercase">Teachers</p>
+        <div className="flex flex-wrap gap-2">
+          <PrintLink />
+          <Link href="/admin/teacher/new" className="inline-flex h-10 items-center rounded-full bg-[#14967c] px-4 text-sm font-medium text-white">Add teacher</Link>
         </div>
+      </div>
+      <div className="mt-4">
+        <FacultyBoard teachers={teachers} days={days} pays={pays} today={today} />
       </div>
     </div>
   );

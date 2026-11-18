@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { Pool } from "pg";
 import { STARTER_BATCHES, ordinalLabel } from "@/lib/batches";
+import { classPay } from "@/lib/faculty";
 import { batchId, facultyPayId } from "@/lib/ids";
 import { hashToken } from "@/lib/security";
 import { buildSeed } from "@/lib/store/seed";
@@ -609,6 +610,16 @@ export class PostgresStore implements LeadStore {
     return rows.sort((a, b) => a.fullName.localeCompare(b.fullName));
   }
 
+  async updateFaculty(id: string, patch: Partial<Pick<Faculty, "fullName" | "phone" | "email" | "course" | "rate" | "note">>) {
+    await this.init();
+    const teachers = await this.deskRows<Faculty>("faculty");
+    const teacher = teachers.find((item) => item.id === id);
+    if (!teacher) return null;
+    Object.assign(teacher, patch);
+    await pool().query("UPDATE desk_items SET record = $2::jsonb WHERE id = $1", [id, JSON.stringify(teacher)]);
+    return teacher;
+  }
+
   async addFaculty(person: Faculty) {
     await this.init();
     await this.putDesk("faculty", person.id, person.id, person.createdAt, person);
@@ -629,11 +640,11 @@ export class PostgresStore implements LeadStore {
     const existing = pays.find((item) => item.teacherId === day.teacherId && item.classDate === day.date);
     if (day.status === "absent") {
       if (existing?.status === "due") await pool().query("DELETE FROM desk_items WHERE id = $1", [existing.id]);
-    } else if (teacher && teacher.rate > 0 && !existing) {
+    } else if (teacher && !existing) {
       const pay: FacultyPay = {
         id: facultyPayId(),
         teacherId: day.teacherId,
-        amount: teacher.rate,
+        amount: classPay(teacher.rate),
         classDate: day.date,
         paidOn: "",
         status: "due",

@@ -433,6 +433,25 @@
   box-shadow: 0 0 0 3px rgb(18 163 106 / 0.2);
 }
 
+@media print {
+  .desk {
+    display: block !important;
+    background: white !important;
+    color: black !important;
+  }
+  .desk > aside,
+  .no-print {
+    display: none !important;
+  }
+  .print-sheet,
+  .print-sheet section,
+  .print-sheet header {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+}
+
 .desk {
   --desk-bg: #141a17;
   --desk-side: #101614;
