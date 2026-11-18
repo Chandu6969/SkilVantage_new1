@@ -242,7 +242,9 @@ export class FileStore implements LeadStore {
 
   private ensureBatches(body: FileBody) {
     let changed = false;
+    const retired = new Set((body.meta.retiredBatches || "").split(",").filter(Boolean));
     for (const starter of STARTER_BATCHES) {
+      if (retired.has(starter.id)) continue;
       if (!body.batches.some((item) => item.id === starter.id)) {
         body.batches.push({ ...starter });
         changed = true;
@@ -299,6 +301,26 @@ export class FileStore implements LeadStore {
       batch.name = patch.name.trim();
       await this.write(body);
       return batch;
+    });
+  }
+
+  async deleteBatch(id: string) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const batch = body.batches.find((item) => item.id === id);
+      if (!batch) return false;
+      const memberIds = new Set(body.learners.filter((item) => item.batchId === id).map((item) => item.id));
+      body.batches = body.batches.filter((item) => item.id !== id);
+      body.learners = body.learners.filter((item) => item.batchId !== id);
+      body.attendance = body.attendance.filter((item) => item.batchId !== id && !memberIds.has(item.memberId));
+      body.fees = body.fees.filter((item) => item.batchId !== id && !memberIds.has(item.memberId));
+      body.assignments = body.assignments.filter((item) => item.batchId !== id && !memberIds.has(item.memberId));
+      body.teacherNotes = body.teacherNotes.filter((item) => item.batchId !== id);
+      const retired = new Set((body.meta.retiredBatches || "").split(",").filter(Boolean));
+      retired.add(id);
+      body.meta.retiredBatches = [...retired].join(",");
+      await this.write(body);
+      return true;
     });
   }
 

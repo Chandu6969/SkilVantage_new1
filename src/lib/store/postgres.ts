@@ -97,6 +97,9 @@ CREATE TABLE IF NOT EXISTS desk_items (
   record JSONB NOT NULL
 );
 CREATE INDEX IF NOT EXISTS desk_items_kind_idx ON desk_items (kind, batch_id);
+CREATE TABLE IF NOT EXISTS retired_batches (
+  id TEXT PRIMARY KEY
+);
 `;
 
 const globalPool = globalThis as unknown as { skilVantagePool?: Pool };
@@ -361,7 +364,9 @@ export class PostgresStore implements LeadStore {
     for (const starter of STARTER_BATCHES) {
       await pool().query(
         `INSERT INTO batches (id, name, label, learner_type, sort, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING`,
+         SELECT $1,$2,$3,$4,$5,$6
+         WHERE NOT EXISTS (SELECT 1 FROM retired_batches WHERE id = $1)
+         ON CONFLICT (id) DO NOTHING`,
         [starter.id, starter.name, starter.label, starter.learnerType, starter.sort, starter.createdAt],
       );
     }
@@ -447,6 +452,23 @@ export class PostgresStore implements LeadStore {
     await this.init();
     const result = await pool().query("UPDATE batches SET name = $2 WHERE id = $1 RETURNING *", [id, patch.name.trim()]);
     return result.rows[0] ? this.mapBatch(result.rows[0]) : null;
+  }
+
+  async deleteBatch(id: string) {
+    await this.init();
+    const existing = await pool().query("SELECT id FROM batches WHERE id = $1", [id]);
+    if (!existing.rows[0]) return false;
+    const members = await pool().query<{ id: string }>("SELECT id FROM batch_members WHERE batch_id = $1", [id]);
+    const memberIds = members.rows.map((row) => row.id);
+    await pool().query("INSERT INTO retired_batches (id) VALUES ($1) ON CONFLICT (id) DO NOTHING", [id]);
+    if (memberIds.length) {
+      await pool().query("DELETE FROM desk_items WHERE batch_id = $1 OR member_id = ANY($2)", [id, memberIds]);
+    } else {
+      await pool().query("DELETE FROM desk_items WHERE batch_id = $1", [id]);
+    }
+    await pool().query("DELETE FROM batch_members WHERE batch_id = $1", [id]);
+    await pool().query("DELETE FROM batches WHERE id = $1", [id]);
+    return true;
   }
 
   async listMembers(batchId: string) {

@@ -212,5 +212,21 @@ test("student batches start with SASI and WISE and keep an added person", async 
   });
   const removed = await store.listRemoved("student");
   assert.equal(removed[0]?.fullName, "Sample Student");
+  const extra = await store.createBatch({ name: "Temp Batch", learnerType: "student" });
+  await store.addMember({
+    id: "SVM-TEMP99",
+    batchId: extra.id,
+    fullName: "Temp Person",
+    phone: "9845000000",
+    email: "",
+    note: "",
+    messaged: false,
+    absentToday: false,
+    createdAt: new Date().toISOString(),
+  });
+  assert.equal(await store.deleteBatch(extra.id), true);
+  assert.equal((await store.listBatches("student")).some((batch) => batch.id === extra.id), false);
+  assert.equal((await store.listMembers(extra.id)).length, 0);
+  assert.equal(await store.deleteBatch("SVB-MISSING"), false);
   storeModule.resetStoreForTests();
 });

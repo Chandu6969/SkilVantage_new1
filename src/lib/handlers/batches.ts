@@ -53,6 +53,15 @@ export async function patchBatch(req: Request, ctx: { params: Promise<{ id: stri
   return json({ ok: true, batch });
 }
 
+export async function deleteBatch(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const access = await guard(req);
+  if ("error" in access) return access.error;
+  const { id } = await ctx.params;
+  const removed = await getStore().deleteBatch(id);
+  if (!removed) return json({ ok: false, error: "Batch not found." }, 404);
+  return json({ ok: true });
+}
+
 export async function getBatch(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const access = await guard(req);
   if ("error" in access) return access.error;

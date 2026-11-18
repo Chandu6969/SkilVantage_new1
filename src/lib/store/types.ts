@@ -52,6 +52,7 @@ export interface LeadStore {
   getBatch(id: string): Promise<TrainingBatch | null>;
   createBatch(input: { name: string; learnerType: LearnerType }): Promise<TrainingBatch>;
   updateBatch(id: string, patch: { name: string }): Promise<TrainingBatch | null>;
+  deleteBatch(id: string): Promise<boolean>;
   listMembers(batchId: string): Promise<BatchMember[]>;
   addMember(member: BatchMember): Promise<void>;
   updateMember(id: string, patch: Partial<Pick<BatchMember, "fullName" | "phone" | "email" | "note" | "batchId" | "messaged" | "absentToday">>): Promise<BatchMember | null>;

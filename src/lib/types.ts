@@ -59,7 +59,7 @@ export interface RemovedLearner {
 }
 
 export type AttendanceStatus = "present" | "absent";
-export type ClassDayStatus = AttendanceStatus | "leave" | "holiday";
+export type ClassDayStatus = AttendanceStatus | "leave" | "holiday" | "late";
 export type FeeKind = "cash" | "bank" | "upi";
 export type AssignmentProgress = "pending" | "submitted" | "reviewed";
 

@@ -40,6 +40,7 @@ export function PersonBoard({
   const present = marks.filter((mark) => mark.status === "present").length;
   const absent = marks.filter((mark) => mark.status === "absent").length;
   const leave = marks.filter((mark) => mark.status === "leave").length;
+  const late = marks.filter((mark) => mark.status === "late").length;
   const holiday = marks.filter((mark) => mark.status === "holiday").length;
   const todayMark = marks.find((mark) => mark.date === today)?.status;
   const collected = fees.reduce((sum, fee) => sum + fee.amount, 0);
@@ -47,6 +48,7 @@ export function PersonBoard({
     { label: "Attended", value: present, color: "#10b981" },
     { label: "Absent", value: absent, color: "#f43f5e" },
     { label: "Leave", value: leave, color: "#f59e0b" },
+    { label: "Late join", value: late, color: "#a855f7" },
     { label: "Holiday", value: holiday, color: "#0ea5e9" },
   ];
   const payments = paymentMonths(fees, today);
@@ -158,6 +160,7 @@ export function PersonBoard({
             <button type="button" disabled={pending !== ""} onClick={() => mark("present")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "present" ? "white" : "rgb(255 255 255 / 0.16)", color: todayMark === "present" ? theme.from : "white" }}>Present</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("absent")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "absent" ? "#ffe4e6" : "rgb(255 255 255 / 0.16)", color: todayMark === "absent" ? "#9f1239" : "white" }}>Absent</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("leave")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "leave" ? "#fef3c7" : "rgb(255 255 255 / 0.16)", color: todayMark === "leave" ? "#92400e" : "white" }}>Leave</button>
+            <button type="button" disabled={pending !== ""} onClick={() => mark("late")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "late" ? "#f3e8ff" : "rgb(255 255 255 / 0.16)", color: todayMark === "late" ? "#6b21a8" : "white" }}>Late join</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("holiday")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "holiday" ? "#e0f2fe" : "rgb(255 255 255 / 0.16)", color: todayMark === "holiday" ? "#075985" : "white" }}>Holiday</button>
           </div>
         </div>
@@ -189,7 +192,7 @@ export function PersonBoard({
           {[...marks].sort((a, b) => b.date.localeCompare(a.date)).map((mark) => (
             <li key={mark.id} className="flex items-center justify-between rounded-2xl bg-white/80 px-3 py-2 text-sm">
               <span>{dayLabel(mark.date)}</span>
-              <span className="font-medium capitalize" style={{ color: mark.status === "present" ? "#047857" : mark.status === "leave" ? "#b45309" : mark.status === "holiday" ? "#0369a1" : "#e11d48" }}>{mark.status}</span>
+              <span className="font-medium capitalize" style={{ color: mark.status === "present" ? "#047857" : mark.status === "leave" ? "#b45309" : mark.status === "late" ? "#7e22ce" : mark.status === "holiday" ? "#0369a1" : "#e11d48" }}>{mark.status === "late" ? "late join" : mark.status}</span>
             </li>
           ))}
         </ul>
@@ -245,15 +248,18 @@ function monthName(key: string) {
 }
 
 function paymentMonths(fees: FeePayment[], today: string): Slice[] {
-  const [year, month] = today.split("-").map(Number);
   const keys: string[] = [];
-  for (let offset = 5; offset >= 0; offset -= 1) {
-    const date = new Date(Date.UTC(year || 2026, (month || 1) - 1 - offset, 1));
-    keys.push(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`);
+  let cursor = "2026-09";
+  const end = today.slice(0, 7) > cursor ? today.slice(0, 7) : cursor;
+  while (cursor <= end) {
+    keys.push(cursor);
+    const [year, month] = cursor.split("-").map(Number);
+    const date = new Date(Date.UTC(year || 2026, (month || 1), 1));
+    cursor = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
   }
   for (const fee of fees) {
     const key = fee.paidOn.slice(0, 7);
-    if (/^\d{4}-\d{2}$/.test(key) && !keys.includes(key)) keys.push(key);
+    if (key >= "2026-09" && /^\d{4}-\d{2}$/.test(key) && !keys.includes(key)) keys.push(key);
   }
   keys.sort();
   return keys.map((key, index) => ({

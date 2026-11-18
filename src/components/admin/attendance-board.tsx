@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, ChevronLeft, ChevronRight, Download, Filter } from "lucide-react";
 import { avatarColor, displayPhone, initials } from "@/lib/batches";
@@ -10,7 +10,6 @@ import type { AttendanceMark, BatchMember, ClassDayStatus, LearnerType, Training
 
 const PAGE_SIZE = 6;
 
-type View = "summary" | "detail";
 type Audience = "all" | LearnerType;
 type Cell = ClassDayStatus | "off" | "open";
 
@@ -18,19 +17,21 @@ const pill: Record<Cell, { label: string; className: string }> = {
   present: { label: "P", className: "bg-[#34d399] text-[#052e16]" },
   absent: { label: "A", className: "bg-[#fb7185] text-[#4c0519]" },
   leave: { label: "L", className: "bg-[#fbbf24] text-[#451a03]" },
+  late: { label: "LJ", className: "bg-[#c084fc] text-[#3b0764]" },
   holiday: { label: "H", className: "bg-[#38bdf8] text-[#082f49]" },
   off: { label: "WO", className: "bg-[#c4b5fd] text-[#2e1065]" },
   open: { label: "—", className: "bg-[#31384c] text-[#a7b0c4]" },
 };
 
 function asMark(status: ClassDayStatus | undefined): ClassDayStatus | "" {
-  return status === "present" || status === "absent" || status === "leave" || status === "holiday" ? status : "";
+  return status === "present" || status === "absent" || status === "leave" || status === "late" || status === "holiday" ? status : "";
 }
 
 function nextMark(current: Cell): ClassDayStatus {
   if (current === "present") return "absent";
   if (current === "absent") return "leave";
-  if (current === "leave") return "holiday";
+  if (current === "leave") return "late";
+  if (current === "late") return "present";
   return "present";
 }
 
@@ -83,7 +84,6 @@ export function AttendanceBoard({
   const opened = batches.find((batch) => batch.id === initialBatch);
   const [month, setMonth] = useState(today.slice(0, 7));
   const [day, setDay] = useState(today);
-  const [view, setView] = useState<View>("detail");
   const [audience, setAudience] = useState<Audience>(opened?.learnerType || "all");
   const [batchId, setBatchId] = useState(opened?.id || "all");
   const [query, setQuery] = useState("");
@@ -140,7 +140,7 @@ export function AttendanceBoard({
   }, [audience, batchId, batchOf, members, query]);
 
   const totals = useMemo(() => {
-    const tally = { present: 0, absent: 0, leave: 0, holiday: 0, open: 0, off: 0 };
+    const tally = { present: 0, absent: 0, leave: 0, late: 0, holiday: 0, open: 0, off: 0 };
     for (const member of roster) {
       for (const day of days) {
         if (day.iso > today) continue;
@@ -208,6 +208,31 @@ export function AttendanceBoard({
     router.refresh();
   }
 
+  async function markHoliday() {
+    if (roster.length === 0) return;
+    const sure = window.confirm(`Mark ${longDay(day)} as a holiday for everyone in this list?`);
+    if (!sure) return;
+    setPending("holiday");
+    setError("");
+    const response = await fetch("/api/v1/admin/attendance/holiday", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: day, people: roster.map((member) => ({ batchId: member.batchId, memberId: member.id })) }),
+    });
+    const data = (await response.json()) as { ok?: boolean; error?: string };
+    setPending("");
+    if (!response.ok || !data.ok) {
+      setError(data.error || "Could not mark this day as a holiday.");
+      return;
+    }
+    setOverrides((currentMarks) => {
+      const next = { ...currentMarks };
+      for (const member of roster) next[`${member.id}|${day}`] = "holiday";
+      return next;
+    });
+    router.refresh();
+  }
+
   if (batches.length === 0) {
     return (
       <section className="rounded-[28px] bg-[#141824] p-8 text-sm text-[#c5cde0]">
@@ -238,19 +263,10 @@ export function AttendanceBoard({
           />
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex rounded-xl bg-[#232a3d] p-1 text-sm">
-            {(["summary", "detail"] as const).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setView(item)}
-                className={`h-9 rounded-lg px-4 capitalize ${view === item ? "bg-[#4f6dff] font-medium text-white" : "text-[#c5cde0]"}`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
+        <h2 className="mt-4 px-1 text-sm font-semibold text-[#d5dced]">Monthly attendance report</h2>
+        <Summary month={monthLabel(month)} days={days} roster={roster} totals={totals} cellOf={cellOf} today={today} batchOf={batchOf} />
+
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -314,32 +330,28 @@ export function AttendanceBoard({
           onPrevious={() => moveDay(-1)}
           onNext={() => moveDay(1)}
           onMark={saveMark}
+          onHoliday={() => void markHoliday()}
         />
 
-        <h2 className="mt-5 px-1 text-sm font-semibold text-[#d5dced]">Monthly attendance report</h2>
-        {view === "summary" ? (
-          <Summary month={monthLabel(month)} days={days} roster={roster} totals={totals} cellOf={cellOf} today={today} batchOf={batchOf} />
-        ) : (
-          <Detail
-            days={days}
-            today={today}
-            roster={roster}
-            slice={slice}
-            start={start}
-            pages={pages}
-            currentPage={currentPage}
-            batchOf={batchOf}
-            pending={pending}
-            selected={day}
-            cellOf={cellOf}
-            onPage={setPage}
-            onToggle={(member, iso, current) => saveMark(member, iso, nextMark(current))}
-            onOpenDay={openDay}
-          />
-        )}
+        <Detail
+          days={days}
+          today={today}
+          roster={roster}
+          slice={slice}
+          start={start}
+          pages={pages}
+          currentPage={currentPage}
+          batchOf={batchOf}
+          pending={pending}
+          selected={day}
+          cellOf={cellOf}
+          onPage={setPage}
+          onToggle={(member, iso, current) => saveMark(member, iso, nextMark(current))}
+          onOpenDay={openDay}
+        />
       </section>
 
-      {view === "detail" ? <LegendCard /> : null}
+      <LegendCard />
     </div>
   );
 }
@@ -370,8 +382,24 @@ function MonthMenu({
   onChange: (key: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(event: PointerEvent) {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointer, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
   return (
-    <div className="relative">
+    <div className="relative" ref={root}>
       <div className="flex items-center gap-1 rounded-xl bg-[#232a3d] px-1.5 py-1">
         <button type="button" aria-label="Previous month" onClick={onPrevious} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
           <ChevronLeft className="size-4" />
@@ -385,22 +413,19 @@ function MonthMenu({
         </button>
       </div>
       {open ? (
-        <>
-          <button type="button" aria-label="Close month list" className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-          <ul className="absolute right-0 z-50 mt-2 max-h-80 w-56 overflow-auto rounded-2xl bg-[#2c354c] p-1.5 text-white shadow-2xl ring-1 ring-white/15">
-            {choices.map((key) => (
-              <li key={key}>
-                <button
-                  type="button"
-                  onClick={() => { onChange(key); setOpen(false); }}
-                  className={`w-full rounded-xl px-3 py-2.5 text-left text-sm ${key === month ? "bg-[#4f6dff] font-medium" : "hover:bg-white/10"}`}
-                >
-                  {monthLabel(key)}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
+        <ul className="absolute right-0 z-50 mt-2 max-h-80 w-56 overflow-auto rounded-2xl bg-[#2c354c] p-1.5 text-white shadow-2xl ring-1 ring-white/15">
+          {choices.map((key) => (
+            <li key={key}>
+              <button
+                type="button"
+                onClick={() => { onChange(key); setOpen(false); }}
+                className={`w-full rounded-xl px-3 py-2.5 text-left text-sm ${key === month ? "bg-[#4f6dff] font-medium" : "hover:bg-white/10"}`}
+              >
+                {monthLabel(key)}
+              </button>
+            </li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );
@@ -415,6 +440,7 @@ function DailyReport({
   onPrevious,
   onNext,
   onMark,
+  onHoliday,
 }: {
   day: string;
   roster: BatchMember[];
@@ -424,10 +450,12 @@ function DailyReport({
   onPrevious: () => void;
   onNext: () => void;
   onMark: (member: BatchMember, iso: string, status: ClassDayStatus) => void;
+  onHoliday: () => void;
 }) {
   const present = roster.filter((member) => statusOf(member.id) === "present").length;
   const absent = roster.filter((member) => statusOf(member.id) === "absent").length;
   const leave = roster.filter((member) => statusOf(member.id) === "leave").length;
+  const late = roster.filter((member) => statusOf(member.id) === "late").length;
   const holiday = roster.filter((member) => statusOf(member.id) === "holiday").length;
   return (
     <section id="daily-attendance" className="mt-4 rounded-2xl bg-[#1b2130] p-3 sm:p-4">
@@ -436,7 +464,8 @@ function DailyReport({
           <h2 className="text-base font-semibold">Daily attendance report</h2>
           <p className="mt-0.5 text-sm text-[#9aa6bd]">{longDay(day)}</p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" disabled={pending !== "" || roster.length === 0} onClick={onHoliday} className="h-9 rounded-lg bg-[#38bdf8] px-3 text-xs font-semibold text-[#082f49] disabled:opacity-50">Mark holiday</button>
           <button type="button" aria-label="Previous day" onClick={onPrevious} className="grid size-9 place-items-center rounded-lg bg-[#232a3d] text-[#d5dced]">
             <ChevronLeft className="size-4" />
           </button>
@@ -445,7 +474,7 @@ function DailyReport({
           </button>
         </div>
       </div>
-      <p className="mt-3 text-sm text-[#c5cde0]">{present} present · {absent} absent · {leave} leave · {holiday} holiday · {Math.max(roster.length - present - absent - leave - holiday, 0)} not marked</p>
+      <p className="mt-3 text-sm text-[#c5cde0]">{present} present · {absent} absent · {leave} leave · {late} late join · {holiday} holiday · {Math.max(roster.length - present - absent - leave - late - holiday, 0)} not marked</p>
       <ul className="mt-3 grid gap-2">
         {roster.length === 0 ? <li className="rounded-xl bg-[#232a3d] px-4 py-6 text-sm text-[#c5cde0]">No learners match this filter.</li> : null}
         {roster.map((member) => {
@@ -458,12 +487,24 @@ function DailyReport({
                 <Link href={`/admin/people/${member.id}`} className="block truncate font-medium hover:underline">{member.fullName}</Link>
                 <span className="block truncate text-sm text-[#9aa6bd]">{displayPhone(member.phone) || "No phone"}{member.note ? ` · ${member.note}` : ""}{batch ? ` · ${batch.name}` : ""}</span>
               </span>
-              <span className="flex flex-wrap gap-2">
-                <button type="button" disabled={pending === `${member.id}|${day}`} onClick={() => onMark(member, day, "present")} className={`h-9 rounded-full px-3 text-xs font-semibold ${status === "present" ? "bg-[#34d399] text-[#052e16]" : "bg-white/10 text-white"}`}>Present</button>
-                <button type="button" disabled={pending === `${member.id}|${day}`} onClick={() => onMark(member, day, "absent")} className={`h-9 rounded-full px-3 text-xs font-semibold ${status === "absent" ? "bg-[#fb7185] text-[#4c0519]" : "bg-[#fb7185]/15 text-[#fecdd3]"}`}>Absent</button>
-                <button type="button" disabled={pending === `${member.id}|${day}`} onClick={() => onMark(member, day, "leave")} className={`h-9 rounded-full px-3 text-xs font-semibold ${status === "leave" ? "bg-[#fbbf24] text-[#451a03]" : "bg-[#fbbf24]/15 text-[#fde68a]"}`}>Leave</button>
-                <button type="button" disabled={pending === `${member.id}|${day}`} onClick={() => onMark(member, day, "holiday")} className={`h-9 rounded-full px-3 text-xs font-semibold ${status === "holiday" ? "bg-[#38bdf8] text-[#082f49]" : "bg-[#38bdf8]/15 text-[#bae6fd]"}`}>Holiday</button>
-              </span>
+              <select
+                aria-label={`Attendance for ${member.fullName}`}
+                disabled={pending === `${member.id}|${day}`}
+                value={status}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (next === "present" || next === "absent" || next === "leave" || next === "late") onMark(member, day, next);
+                }}
+                className="h-9 rounded-xl bg-[#141824] px-3 text-sm text-white outline-none"
+                style={{ colorScheme: "dark" }}
+              >
+                <option value="">Mark</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="leave">Leave</option>
+                <option value="late">Late join</option>
+                {status === "holiday" ? <option value="holiday">Holiday</option> : null}
+              </select>
             </li>
           );
         })}
@@ -489,8 +530,9 @@ function Summary({
   today: string;
   batchOf: Map<string, TrainingBatch>;
 }) {
-  const marked = totals.present + totals.absent;
-  const rate = marked ? Math.round((totals.present / marked) * 100) : 0;
+  const attended = totals.present + totals.late;
+  const marked = attended + totals.absent + totals.leave;
+  const rate = marked ? Math.round((attended / marked) * 100) : 0;
   const daily = days.map((day) => ({
     ...day,
     count: day.iso > today ? 0 : roster.filter((member) => cellOf(member.id, day.iso, day.off) === "present").length,
@@ -501,6 +543,7 @@ function Summary({
     let present = 0;
     let absent = 0;
     let leave = 0;
+    let late = 0;
     let holiday = 0;
     for (const member of people) {
       for (const day of days) {
@@ -509,10 +552,11 @@ function Summary({
         if (cell === "present") present += 1;
         if (cell === "absent") absent += 1;
         if (cell === "leave") leave += 1;
+        if (cell === "late") late += 1;
         if (cell === "holiday") holiday += 1;
       }
     }
-    return { key, people: people.length, present, absent, leave, holiday };
+    return { key, people: people.length, present, absent, leave, late, holiday };
   }).filter((group) => group.people > 0);
 
   return (
@@ -521,6 +565,7 @@ function Summary({
         <Stat label="Present" value={totals.present} hint={month} tone="text-emerald-300" />
         <Stat label="Absent" value={totals.absent} hint="Marked days through today" tone="text-rose-300" />
         <Stat label="Leave" value={totals.leave} hint="Approved leave" tone="text-amber-300" />
+        <Stat label="Late join" value={totals.late} hint="Joined after the start" tone="text-fuchsia-300" />
         <Stat label="Holiday" value={totals.holiday} hint="Holiday marks" tone="text-sky-300" />
         <Stat label="Not marked" value={totals.open} hint="Weekdays still open" tone="text-[#d5dced]" />
         <Stat label="Attendance" value={`${rate}%`} hint={marked ? `${marked} class marks` : "No class marks yet"} tone="text-[#c4b5fd]" />
@@ -544,7 +589,7 @@ function Summary({
           <article key={group.key} className="rounded-2xl bg-[#1b2130] p-4">
             <p className="text-xs font-semibold tracking-[0.14em] text-[#9aa6bd] uppercase">{group.key === "student" ? "Students" : "Professionals"}</p>
             <p className="mt-2 text-2xl font-semibold">{group.people} on the roster</p>
-            <p className="mt-1 text-sm text-[#c5cde0]">{group.present} present · {group.absent} absent · {group.leave} leave · {group.holiday} holiday</p>
+            <p className="mt-1 text-sm text-[#c5cde0]">{group.present} present · {group.absent} absent · {group.leave} leave · {group.late} late · {group.holiday} holiday</p>
           </article>
         ))}
         {groups.length === 0 ? <p className="rounded-2xl bg-[#1b2130] px-4 py-6 text-sm text-[#c5cde0]">No learners match this filter.</p> : null}
@@ -678,7 +723,7 @@ function Detail({
           </button>
         </div>
       </div>
-      <p className="px-4 pb-3 text-xs text-[#7f8aa3]">Click a date to open that day in the daily report. Click a circle to move through present, absent, leave, and holiday.</p>
+      <p className="px-4 pb-3 text-xs text-[#7f8aa3]">Click a date to open that day in the daily report. Click a circle to move through present, absent, leave, and late join.</p>
     </div>
   );
 }
@@ -693,6 +738,7 @@ function LegendCard() {
     { label: "P Present", className: "bg-[#34d399]" },
     { label: "A Absent", className: "bg-[#fb7185]" },
     { label: "L Leave", className: "bg-[#fbbf24]" },
+    { label: "LJ Late join", className: "bg-[#c084fc]" },
     { label: "H Holiday", className: "bg-[#38bdf8]" },
     { label: "WO Week off", className: "bg-[#c4b5fd]" },
     { label: "— Not marked", className: "bg-[#31384c]" },

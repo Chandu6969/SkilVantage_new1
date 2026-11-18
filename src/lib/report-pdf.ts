@@ -50,6 +50,7 @@ function statusColor(value: string): Rgb | null {
   const key = value.trim().toLowerCase();
   if (key.startsWith("present") || key === "paid" || key === "reviewed") return hex("047857");
   if (key.startsWith("absent")) return hex("be123c");
+  if (key.startsWith("late")) return hex("7e22ce");
   if (key.startsWith("leave") || key === "pending" || key === "due") return hex("b45309");
   if (key.startsWith("holiday") || key === "submitted") return hex("0369a1");
   if (key.startsWith("not")) return hex("64748b");

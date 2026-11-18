@@ -45,6 +45,7 @@ function statusLabel(status: ClassDayStatus | undefined) {
   if (status === "present") return "Present";
   if (status === "absent") return "Absent";
   if (status === "leave") return "Leave";
+  if (status === "late") return "Late join";
   if (status === "holiday") return "Holiday";
   return "Not marked";
 }

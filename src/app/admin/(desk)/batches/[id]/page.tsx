@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BatchBoard } from "@/components/admin/batch-board";
 import { BatchRename } from "@/components/admin/batch-rename";
+import { DeleteBatch } from "@/components/admin/delete-batch";
 import { DeskHeader } from "@/components/admin/desk-header";
 import { getStore } from "@/lib/store";
 
@@ -30,6 +31,7 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
         <Link href="/admin/cash" className="rounded-xl border border-[var(--desk-line)] bg-[var(--desk-card)] px-3 py-2">Fee Dues</Link>
         <Link href="/admin/attendance" className="rounded-xl border border-[var(--desk-line)] bg-[var(--desk-card)] px-3 py-2">Attendance Reports</Link>
         <BatchRename batch={batch} tone="#065f46" />
+        <DeleteBatch id={batch.id} name={batch.name} count={members.length} back={back} light />
       </div>
       <BatchBoard batch={batch} members={members} batches={peers} />
     </div>

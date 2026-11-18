@@ -12,6 +12,7 @@ function statusClass(value: string) {
   const key = value.trim().toLowerCase();
   if (key.startsWith("present") || key === "paid" || key === "reviewed") return "text-[#047857]";
   if (key.startsWith("absent")) return "text-[#be123c]";
+  if (key.startsWith("late")) return "text-[#7e22ce]";
   if (key.startsWith("leave") || key === "pending" || key === "due") return "text-[#b45309]";
   if (key.startsWith("holiday") || key === "submitted") return "text-[#0369a1]";
   return "text-[#64748b]";

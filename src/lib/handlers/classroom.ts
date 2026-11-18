@@ -24,7 +24,7 @@ export async function postAttendance(req: Request) {
   const batchId = String(data.batchId || "");
   const memberId = String(data.memberId || "");
   const date = day(data.date);
-  const status = data.status === "present" || data.status === "absent" || data.status === "leave" || data.status === "holiday" ? data.status : "";
+  const status = data.status === "present" || data.status === "absent" || data.status === "leave" || data.status === "holiday" || data.status === "late" ? data.status : "";
   const batch = await getStore().getBatch(batchId);
   const members = batch ? await getStore().listMembers(batchId) : [];
   if (!batch || !members.some((member) => member.id === memberId) || !date || !status) {
@@ -39,6 +39,39 @@ export async function postAttendance(req: Request) {
     createdAt: new Date().toISOString(),
   });
   return json({ ok: true, mark });
+}
+
+export async function postHoliday(req: Request) {
+  const access = await guard(req);
+  if ("error" in access) return access.error;
+  const body = await readJson(req);
+  if (!body.ok || !body.data || typeof body.data !== "object") return json({ ok: false, error: "Choose the day to mark as a holiday." }, 400);
+  const data = body.data as { date?: unknown; people?: unknown };
+  const date = day(data.date);
+  const people = Array.isArray(data.people) ? data.people.slice(0, 400) : [];
+  if (!date || people.length === 0) return json({ ok: false, error: "Choose the day and the batch to mark as a holiday." }, 400);
+  const batches = await getStore().listBatches();
+  const members = (await Promise.all(batches.map((batch) => getStore().listMembers(batch.id)))).flat();
+  const allowed = new Set(members.map((member) => `${member.batchId}|${member.id}`));
+  const createdAt = new Date().toISOString();
+  let saved = 0;
+  for (const person of people) {
+    if (!person || typeof person !== "object") continue;
+    const batchId = String((person as { batchId?: unknown }).batchId || "");
+    const memberId = String((person as { memberId?: unknown }).memberId || "");
+    if (!allowed.has(`${batchId}|${memberId}`)) continue;
+    await getStore().markAttendance({
+      id: attendanceId(),
+      batchId,
+      memberId,
+      date,
+      status: "holiday",
+      createdAt,
+    });
+    saved += 1;
+  }
+  if (!saved) return json({ ok: false, error: "No one in this list could be marked." }, 400);
+  return json({ ok: true, saved });
 }
 
 export async function postFee(req: Request) {

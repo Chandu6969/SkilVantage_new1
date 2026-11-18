@@ -40,11 +40,15 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
   const [kind, setKind] = useState<ClassRecordKind>("taken");
   const [error, setError] = useState("");
   const [pending, setPending] = useState("");
-  const teacher = teachers.find((item) => item.id === teacherId);
+  const [focus, setFocus] = useState("");
+  const teacher = teachers.find((item) => item.id === (focus || teacherId));
   const rows = useMemo(
-    () => pays.filter((pay) => pay.classDate.startsWith(month)).sort((a, b) => b.classDate.localeCompare(a.classDate) || b.createdAt.localeCompare(a.createdAt)),
-    [pays, month],
+    () => pays.filter((pay) => pay.classDate.startsWith(month) && (!focus || pay.teacherId === focus)).sort((a, b) => b.classDate.localeCompare(a.classDate) || b.createdAt.localeCompare(a.createdAt)),
+    [focus, pays, month],
   );
+  const payouts = pays.filter((pay) => pay.teacherId === focus && pay.kind !== "deducted");
+  const paidTotal = payouts.filter((pay) => pay.status === "paid").reduce((sum, pay) => sum + pay.amount, 0);
+  const dueTotal = payouts.filter((pay) => pay.status === "due").reduce((sum, pay) => sum + pay.amount, 0);
   const taken = rows.filter((pay) => pay.kind !== "deducted");
   const deducted = rows.filter((pay) => pay.kind === "deducted");
   const gross = taken.reduce((sum, pay) => sum + pay.amount, 0);
@@ -105,12 +109,58 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
       setError(data.error || "Could not delete this teacher.");
       return;
     }
-    if (teacherId === person.id) chooseTeacher(teachers.find((item) => item.id !== person.id)?.id || "");
+    if (teacherId === person.id || focus === person.id) {
+      const next = teachers.find((item) => item.id !== person.id);
+      chooseTeacher(next?.id || "");
+      setFocus("");
+    }
     router.refresh();
+  }
+
+  function openTeacher(person: Faculty) {
+    setFocus(person.id);
+    chooseTeacher(person.id);
+    setError("");
+  }
+
+  if (!focus) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {teachers.length === 0 ? <p className="rounded-3xl border border-dashed border-white/15 p-8 text-sm text-white/70 sm:col-span-2">No teachers yet. Use Add teacher, then open the card to record classes.</p> : null}
+        {teachers.map((person) => (
+          <article key={person.id} className="rounded-3xl border border-white/10 bg-[#161c2b] p-4 text-white">
+            <button type="button" onClick={() => openTeacher(person)} className="block w-full text-left">
+              <p className="text-xs font-semibold tracking-[0.14em] text-emerald-200 uppercase">{programName(person.course)}</p>
+              <h2 className="mt-2 text-2xl font-semibold">{person.fullName}</h2>
+              <p className="mt-2 text-sm text-white/70">{rupees(classPay(person.rate))} a class</p>
+            </button>
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <button type="button" onClick={() => openTeacher(person)} className="h-9 rounded-xl bg-[#0f766e] px-3 text-sm font-medium">Open class record</button>
+              <button type="button" disabled={pending !== ""} onClick={() => void removeTeacher(person)} className="h-9 rounded-xl border border-rose-300/40 px-3 text-sm text-rose-100">Delete</button>
+            </div>
+          </article>
+        ))}
+      </div>
+    );
   }
 
   return (
     <section className="rounded-3xl border border-white/10 bg-[#161c2b] p-4 text-white sm:p-5">
+      <button type="button" onClick={() => setFocus("")} className="mb-3 text-sm text-white/70 hover:underline">All teachers</button>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <article className="rounded-2xl bg-white/5 px-4 py-3">
+          <p className="text-xs tracking-[0.14em] text-white/50 uppercase">Name</p>
+          <p className="mt-1 text-xl font-semibold">{teacher?.fullName || "Teacher"}</p>
+        </article>
+        <article className="rounded-2xl bg-emerald-400/10 px-4 py-3">
+          <p className="text-xs tracking-[0.14em] text-emerald-100/80 uppercase">Payment done</p>
+          <p className="mt-1 text-xl font-semibold">{rupees(paidTotal)}</p>
+        </article>
+        <article className="rounded-2xl bg-amber-400/10 px-4 py-3">
+          <p className="text-xs tracking-[0.14em] text-amber-100/80 uppercase">Payment due</p>
+          <p className="mt-1 text-xl font-semibold">{rupees(dueTotal)}</p>
+        </article>
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -129,8 +179,7 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
         </label>
         <label className="text-xs font-semibold tracking-[0.14em] text-white/60 uppercase">Teacher
           <select required value={teacherId} onChange={(event) => chooseTeacher(event.target.value)} className={field} style={{ colorScheme: "dark" }}>
-            <option value="">Select teacher</option>
-            {teachers.map((item) => <option key={item.id} value={item.id}>{item.fullName}</option>)}
+            {(focus ? teachers.filter((item) => item.id === focus) : teachers).map((item) => <option key={item.id} value={item.id}>{item.fullName}</option>)}
           </select>
         </label>
         <label className="text-xs font-semibold tracking-[0.14em] text-white/60 uppercase">Course / Subject
@@ -198,20 +247,6 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
         </table>
       </div>
 
-      <div className="mt-5 border-t border-white/10 pt-4">
-        <h3 className="text-sm font-semibold">Teacher profiles</h3>
-        <p className="mt-1 text-sm text-white/60">Open a teacher to change the amount saved for each class.</p>
-        {teachers.length === 0 ? <p className="mt-3 text-sm text-white/55">No teachers yet. Use Add teacher, then mark a class here.</p> : null}
-        <ul className="mt-3 grid gap-2">
-          {teachers.map((person) => (
-            <li key={person.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-sm">
-              <Link href={`/admin/teacher/${person.id}`} className="font-medium hover:underline">{person.fullName}</Link>
-              <span className="text-white/60">{programName(person.course)} · {rupees(classPay(person.rate))} a class</span>
-              <button type="button" disabled={pending !== ""} onClick={() => void removeTeacher(person)} className="h-8 rounded-lg border border-rose-300/40 px-3 text-xs text-rose-100">Delete</button>
-            </li>
-          ))}
-        </ul>
-      </div>
     </section>
   );
 }

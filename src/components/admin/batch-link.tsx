@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BatchRename } from "@/components/admin/batch-rename";
+import { DeleteBatch } from "@/components/admin/delete-batch";
 import { batchLook } from "@/lib/batches";
 import type { TrainingBatch } from "@/lib/types";
 
@@ -24,6 +25,7 @@ export function BatchLink({ batch, count, noun }: { batch: TrainingBatch; count:
       <span className="flex shrink-0 flex-col items-end gap-2">
         <Link href={`/admin/batches/${batch.id}`} className="rounded-full px-3 py-1.5 text-sm text-white" style={{ background: look.from }}>Open</Link>
         <BatchRename batch={batch} tone={look.from} />
+        <DeleteBatch id={batch.id} name={batch.name} count={count} back={batch.learnerType === "student" ? "/admin/students" : "/admin/professionals"} />
       </span>
     </article>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { todayIST } from "@/lib/dates";
 import type { AssignmentProgress, BatchMember, ClassAssignment, LearnerType, TrainingBatch } from "@/lib/types";
 import { Legend, Ring, audienceTheme, type Slice } from "@/components/admin/desk-charts";
 
@@ -17,7 +18,7 @@ export function AssignmentBoard({ batches, members, items }: { batches: Training
     professional: batches.find((batch) => batch.learnerType === "professional")?.id || "",
   });
   const [title, setTitle] = useState<Record<LearnerType, string>>({ student: "", professional: "" });
-  const [dueOn, setDueOn] = useState<Record<LearnerType, string>>({ student: "", professional: "" });
+  const [dueOn, setDueOn] = useState<Record<LearnerType, string>>({ student: todayIST(), professional: todayIST() });
   const [error, setError] = useState("");
   const [pending, setPending] = useState("");
 
@@ -155,7 +156,8 @@ function AssignmentDesk({
 }) {
   const theme = audienceTheme[audience];
   const selected = batchId || batches[0]?.id || "";
-  const rows = items.filter((item) => item.batchId === selected);
+  const focusDay = dueOn || todayIST();
+  const rows = items.filter((item) => item.batchId === selected && item.dueOn === focusDay);
   const slices: Slice[] = [
     { label: "Pending", value: rows.filter((item) => item.status === "pending").length, color: tones.pending },
     { label: "Submitted", value: rows.filter((item) => item.status === "submitted").length, color: tones.submitted },
@@ -189,6 +191,7 @@ function AssignmentDesk({
                 {pending === audience ? "Saving…" : "Give to this batch"}
               </button>
             </form>
+            <p className="text-sm">Assignments due {focusDay}</p>
             <ul className="grid gap-2">
               {rows.map((item) => (
                 <li key={item.id} className="grid gap-2 rounded-2xl bg-white/80 px-3 py-3 sm:grid-cols-[1fr_1.2fr_auto] sm:items-center">
@@ -205,7 +208,7 @@ function AssignmentDesk({
                 </li>
               ))}
             </ul>
-            {rows.length === 0 ? <p className="rounded-2xl bg-white/70 px-4 py-6 text-sm">No assignment for this batch yet.</p> : null}
+            {rows.length === 0 ? <p className="rounded-2xl bg-white/70 px-4 py-6 text-sm">No assignment due on this day.</p> : null}
           </>
         )}
       </div>
