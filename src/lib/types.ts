@@ -59,6 +59,7 @@ export interface RemovedLearner {
 }
 
 export type AttendanceStatus = "present" | "absent";
+export type ClassDayStatus = AttendanceStatus | "leave" | "holiday";
 export type FeeKind = "cash" | "bank" | "upi";
 export type AssignmentProgress = "pending" | "submitted" | "reviewed";
 
@@ -67,7 +68,7 @@ export interface AttendanceMark {
   batchId: string;
   memberId: string;
   date: string;
-  status: AttendanceStatus;
+  status: ClassDayStatus;
   createdAt: string;
 }
 

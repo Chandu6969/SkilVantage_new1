@@ -2,7 +2,7 @@ import { assignmentId, attendanceId, feeId, teacherNoteId } from "@/lib/ids";
 import { assertSameOrigin, json, readJson } from "@/lib/security";
 import { getStore } from "@/lib/store";
 import { sessionFromRequest } from "@/lib/auth";
-import type { AssignmentProgress, AttendanceStatus, FeeKind } from "@/lib/types";
+import type { AssignmentProgress, ClassDayStatus, FeeKind } from "@/lib/types";
 
 async function guard(req: Request) {
   if (!assertSameOrigin(req)) return { error: json({ ok: false, error: "This action can only be taken from the SkilVantage site." }, 403) };
@@ -24,7 +24,7 @@ export async function postAttendance(req: Request) {
   const batchId = String(data.batchId || "");
   const memberId = String(data.memberId || "");
   const date = day(data.date);
-  const status = data.status === "present" || data.status === "absent" ? data.status : "";
+  const status = data.status === "present" || data.status === "absent" || data.status === "leave" || data.status === "holiday" ? data.status : "";
   const batch = await getStore().getBatch(batchId);
   const members = batch ? await getStore().listMembers(batchId) : [];
   if (!batch || !members.some((member) => member.id === memberId) || !date || !status) {
@@ -35,7 +35,7 @@ export async function postAttendance(req: Request) {
     batchId,
     memberId,
     date,
-    status: status as AttendanceStatus,
+    status: status as ClassDayStatus,
     createdAt: new Date().toISOString(),
   });
   return json({ ok: true, mark });

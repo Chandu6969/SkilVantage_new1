@@ -92,23 +92,25 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
   const marks = (await Promise.all(batches.map((batch) => store.listAttendance(batch.id)))).flat();
   const presentToday = marks.filter((mark) => mark.date === today && mark.status === "present").length;
   const absentToday = marks.filter((mark) => mark.date === today && mark.status === "absent").length;
-  const lines = ["SkilVantage attendance", `Day ${today}`, "", `Present today ${presentToday}`, `Absent today ${absentToday}`];
+  const leaveToday = marks.filter((mark) => mark.date === today && mark.status === "leave").length;
+  const holidayToday = marks.filter((mark) => mark.date === today && mark.status === "holiday").length;
+  const lines = ["SkilVantage attendance", `Day ${today}`, "", `Present today ${presentToday}`, `Absent today ${absentToday}`, `Leave today ${leaveToday}`, `Holiday today ${holidayToday}`];
   for (const batch of batches) {
     const roster = members.filter((member) => member.batchId === batch.id);
     lines.push("", `${batch.name} (${batch.learnerType === "student" ? "students" : "professionals"})`);
     if (roster.length === 0) lines.push("  No names yet");
     for (const member of roster) {
       const rows = marks.filter((mark) => mark.memberId === member.id);
-      lines.push(`  ${member.fullName}  present ${rows.filter((mark) => mark.status === "present").length}  absent ${rows.filter((mark) => mark.status === "absent").length}  today ${rows.find((mark) => mark.date === today)?.status || "not marked"}`);
+      lines.push(`  ${member.fullName}  present ${rows.filter((mark) => mark.status === "present").length}  absent ${rows.filter((mark) => mark.status === "absent").length}  leave ${rows.filter((mark) => mark.status === "leave").length}  holiday ${rows.filter((mark) => mark.status === "holiday").length}  today ${rows.find((mark) => mark.date === today)?.status || "not marked"}`);
     }
   }
   return (
     <Sheet
       back="/admin/attendance"
       title="Attendance"
-      note={`${today} · present ${presentToday} · absent ${absentToday}`}
+      note={`${today} · present ${presentToday} · absent ${absentToday} · leave ${leaveToday} · holiday ${holidayToday}`}
       lines={lines}
-      summary={`SkilVantage attendance\nPresent today ${presentToday}\nAbsent today ${absentToday}`}
+      summary={`SkilVantage attendance\nPresent today ${presentToday}\nAbsent today ${absentToday}\nLeave today ${leaveToday}\nHoliday today ${holidayToday}`}
       fileName="SkilVantage-attendance.pdf"
     >
       {batches.map((batch) => {
@@ -117,7 +119,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
           <div key={batch.id} className="mt-4">
             <h2 className="font-medium">{batch.name} · {batch.learnerType === "student" ? "Students" : "Professionals"}</h2>
             <table className="mt-2 w-full text-left text-sm">
-              <thead><tr className="text-[#3d4a57]"><th className="py-1 font-medium">Name</th><th className="py-1 font-medium">Present</th><th className="py-1 font-medium">Absent</th><th className="py-1 font-medium">Today</th></tr></thead>
+              <thead><tr className="text-[#3d4a57]"><th className="py-1 font-medium">Name</th><th className="py-1 font-medium">Present</th><th className="py-1 font-medium">Absent</th><th className="py-1 font-medium">Leave</th><th className="py-1 font-medium">Holiday</th><th className="py-1 font-medium">Today</th></tr></thead>
               <tbody>
                 {roster.map((member) => {
                   const rows = marks.filter((mark) => mark.memberId === member.id);
@@ -126,11 +128,13 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
                       <td className="py-1">{member.fullName}</td>
                       <td className="py-1">{rows.filter((mark) => mark.status === "present").length}</td>
                       <td className="py-1">{rows.filter((mark) => mark.status === "absent").length}</td>
+                      <td className="py-1">{rows.filter((mark) => mark.status === "leave").length}</td>
+                      <td className="py-1">{rows.filter((mark) => mark.status === "holiday").length}</td>
                       <td className="py-1 capitalize">{rows.find((mark) => mark.date === today)?.status || "Not marked"}</td>
                     </tr>
                   );
                 })}
-                {roster.length === 0 ? <tr><td className="py-2 text-[#3d4a57]" colSpan={4}>No names yet.</td></tr> : null}
+                {roster.length === 0 ? <tr><td className="py-2 text-[#3d4a57]" colSpan={6}>No names yet.</td></tr> : null}
               </tbody>
             </table>
           </div>

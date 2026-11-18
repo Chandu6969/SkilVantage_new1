@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { displayPhone } from "@/lib/batches";
 import { todayIST } from "@/lib/dates";
-import type { AssignmentProgress, AttendanceMark, BatchMember, ClassAssignment, FeeKind, FeePayment, TrainingBatch } from "@/lib/types";
+import type { AssignmentProgress, AttendanceMark, BatchMember, ClassAssignment, ClassDayStatus, FeeKind, FeePayment, TrainingBatch } from "@/lib/types";
 import { Legend, Ring, audienceTheme, dayLabel, rupees, type Slice } from "@/components/admin/desk-charts";
 
 const field = "mt-1 h-11 w-full rounded-xl border border-black/10 bg-white/80 px-3 text-sm text-[#14211c] outline-none";
@@ -39,11 +39,15 @@ export function PersonBoard({
   const [editForm, setEditForm] = useState({ fullName: member.fullName, phone: member.phone, email: member.email, note: member.note, batchId: member.batchId });
   const present = marks.filter((mark) => mark.status === "present").length;
   const absent = marks.filter((mark) => mark.status === "absent").length;
+  const leave = marks.filter((mark) => mark.status === "leave").length;
+  const holiday = marks.filter((mark) => mark.status === "holiday").length;
   const todayMark = marks.find((mark) => mark.date === today)?.status;
   const collected = fees.reduce((sum, fee) => sum + fee.amount, 0);
   const attendance: Slice[] = [
     { label: "Attended", value: present, color: "#10b981" },
     { label: "Absent", value: absent, color: "#f43f5e" },
+    { label: "Leave", value: leave, color: "#f59e0b" },
+    { label: "Holiday", value: holiday, color: "#0ea5e9" },
   ];
   const payments: Slice[] = (["cash", "bank", "upi"] as const).map((item) => ({
     label: item.toUpperCase(),
@@ -56,7 +60,7 @@ export function PersonBoard({
     { label: "Reviewed", value: assignments.filter((item) => item.status === "reviewed").length, color: tones.reviewed },
   ];
 
-  async function mark(status: "present" | "absent") {
+  async function mark(status: ClassDayStatus) {
     setPending(status);
     setError("");
     const response = await fetch("/api/v1/admin/attendance", {
@@ -139,11 +143,13 @@ export function PersonBoard({
           <p className="text-xs font-semibold tracking-[0.16em] uppercase">{theme.noun} · {batch.name}</p>
           <h1 className="mt-1 text-3xl font-semibold">{member.fullName}</h1>
           <p className="mt-2 text-sm text-white/85">{displayPhone(member.phone) || "No phone"}{member.email ? ` · ${member.email}` : ""}{member.note ? ` · ${member.note}` : ""}</p>
-          <p className="mt-3 text-sm">Today {todayMark === "present" ? "present" : todayMark === "absent" ? "absent" : "not marked yet"} · {rupees(collected)} collected</p>
+          <p className="mt-3 text-sm">Today {todayMark || "not marked yet"} · {rupees(collected)} collected</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={() => setEditing((value) => !value)} className="h-10 rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>{editing ? "Close edit" : "Edit details"}</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("present")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "present" ? "white" : "rgb(255 255 255 / 0.16)", color: todayMark === "present" ? theme.from : "white" }}>Present</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("absent")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "absent" ? "#ffe4e6" : "rgb(255 255 255 / 0.16)", color: todayMark === "absent" ? "#9f1239" : "white" }}>Absent</button>
+            <button type="button" disabled={pending !== ""} onClick={() => mark("leave")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "leave" ? "#fef3c7" : "rgb(255 255 255 / 0.16)", color: todayMark === "leave" ? "#92400e" : "white" }}>Leave</button>
+            <button type="button" disabled={pending !== ""} onClick={() => mark("holiday")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "holiday" ? "#e0f2fe" : "rgb(255 255 255 / 0.16)", color: todayMark === "holiday" ? "#075985" : "white" }}>Holiday</button>
           </div>
         </div>
       </header>
@@ -174,7 +180,7 @@ export function PersonBoard({
           {[...marks].sort((a, b) => b.date.localeCompare(a.date)).map((mark) => (
             <li key={mark.id} className="flex items-center justify-between rounded-2xl bg-white/80 px-3 py-2 text-sm">
               <span>{dayLabel(mark.date)}</span>
-              <span className="font-medium capitalize" style={{ color: mark.status === "present" ? "#047857" : "#e11d48" }}>{mark.status}</span>
+              <span className="font-medium capitalize" style={{ color: mark.status === "present" ? "#047857" : mark.status === "leave" ? "#b45309" : mark.status === "holiday" ? "#0369a1" : "#e11d48" }}>{mark.status}</span>
             </li>
           ))}
         </ul>
