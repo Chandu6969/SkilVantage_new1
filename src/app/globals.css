@@ -443,12 +443,10 @@
   .no-print {
     display: none !important;
   }
-  .print-sheet,
-  .print-sheet section,
-  .print-sheet header {
-    background: white !important;
-    color: black !important;
-    box-shadow: none !important;
+  .print-letter,
+  .print-letter * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 

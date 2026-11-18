@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { ReportActions } from "@/components/admin/report-actions";
+import { Letterhead } from "@/components/admin/letterhead";
 import { classPay } from "@/lib/faculty";
 import { programName } from "@/lib/palette";
+import type { ReportDocument, ReportTone } from "@/lib/report-pdf";
 import { getStore } from "@/lib/store";
+import type { ClassDayStatus, LearnerType, TrainingBatch } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -10,187 +12,194 @@ function rupees(value: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value);
 }
 
-export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {
-  const section = (await searchParams).section;
-  const kind = section === "assignments" || section === "teachers" ? section : "attendance";
+function dayStamp(iso: string) {
+  const [year, month, date] = iso.split("-").map(Number);
+  if (!year || !month || !date) return iso;
+  const value = new Date(Date.UTC(year, month - 1, date));
+  const long = value.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const weekday = value.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" });
+  return `${long} • ${weekday}`;
+}
+
+function generatedStamp() {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date());
+}
+
+function safeFile(value: string) {
+  return value.replace(/[^\w.-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "batch";
+}
+
+function toneOf(learnerType: LearnerType): ReportTone {
+  return learnerType === "professional" ? "professional" : "student";
+}
+
+function statusLabel(status: ClassDayStatus | undefined) {
+  if (status === "present") return "Present";
+  if (status === "absent") return "Absent";
+  if (status === "leave") return "Leave";
+  if (status === "holiday") return "Holiday";
+  return "Not marked";
+}
+
+export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string; batch?: string; date?: string }> }) {
+  const params = await searchParams;
+  const section = params.section === "assignments" || params.section === "teachers" ? params.section : "attendance";
   const store = getStore();
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Calcutta" });
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(params.date || "") ? params.date! : today;
+  const generated = generatedStamp();
 
-  if (kind === "teachers") {
+  if (section === "teachers") {
     const [teachers, pays] = await Promise.all([store.listFaculty(), store.listFacultyPays()]);
     const due = pays.filter((pay) => pay.status === "due").reduce((sum, pay) => sum + pay.amount, 0);
     const paid = pays.filter((pay) => pay.status === "paid").reduce((sum, pay) => sum + pay.amount, 0);
-    const lines = ["SkilVantage teachers", `Day ${today}`, "", `Unpaid ${rupees(due)}`, `Paid ${rupees(paid)}`];
-    for (const teacher of teachers) {
-      const owed = pays.filter((pay) => pay.teacherId === teacher.id && pay.status === "due").reduce((sum, pay) => sum + pay.amount, 0);
-      const settled = pays.filter((pay) => pay.teacherId === teacher.id && pay.status === "paid").reduce((sum, pay) => sum + pay.amount, 0);
-      lines.push("", `${teacher.fullName}  ${programName(teacher.course)}  ${rupees(classPay(teacher.rate))} a class`, `Unpaid ${rupees(owed)}  Paid ${rupees(settled)}`);
-      const rows = pays.filter((pay) => pay.teacherId === teacher.id);
-      if (rows.length === 0) lines.push("  No class pay yet");
-      for (const pay of rows) lines.push(`  ${pay.classDate}  ${rupees(pay.amount)}  ${pay.status}${pay.paidOn ? ` ${pay.paidOn}` : ""}`);
-    }
+    const report: ReportDocument = {
+      tone: "teacher",
+      kicker: "TEACHER PAY REPORT",
+      title: "Teachers",
+      subtitle: dayStamp(today),
+      generated,
+      stats: [
+        { label: "Teachers", value: String(teachers.length) },
+        { label: "Unpaid", value: rupees(due) },
+        { label: "Paid", value: rupees(paid) },
+        { label: "Classes", value: String(pays.length) },
+      ],
+      columns: ["S.No", "Teacher", "Course", "Unpaid", "Paid"],
+      rows: teachers.map((teacher, index) => {
+        const owed = pays.filter((pay) => pay.teacherId === teacher.id && pay.status === "due").reduce((sum, pay) => sum + pay.amount, 0);
+        const settled = pays.filter((pay) => pay.teacherId === teacher.id && pay.status === "paid").reduce((sum, pay) => sum + pay.amount, 0);
+        return [String(index + 1), teacher.fullName, `${programName(teacher.course)} • ${rupees(classPay(teacher.rate))}`, rupees(owed), rupees(settled)];
+      }),
+      footer: "Skillvantage • Teacher pay report • Unpaid is still due for class",
+    };
     return (
-      <Sheet
+      <Letterhead
+        report={report}
         back="/admin/teacher"
-        title="Teachers"
-        note={`${today} · unpaid ${rupees(due)} · paid ${rupees(paid)}`}
-        lines={lines}
-        summary={`SkilVantage teachers\nUnpaid ${rupees(due)}\nPaid ${rupees(paid)}`}
-        fileName="SkilVantage-teachers.pdf"
-      >
-        {teachers.map((teacher) => (
-          <div key={teacher.id} className="mt-4">
-            <h2 className="font-medium">{teacher.fullName} · {programName(teacher.course)} · {rupees(classPay(teacher.rate))} a class</h2>
-            <PayTable pays={pays.filter((pay) => pay.teacherId === teacher.id)} />
-          </div>
-        ))}
-        {teachers.length === 0 ? <p className="mt-3 text-sm text-[#3d4a57]">No teachers yet.</p> : null}
-      </Sheet>
+        summary={`Skillvantage teachers\nUnpaid ${rupees(due)}\nPaid ${rupees(paid)}`}
+        fileName="Skillvantage-teachers.pdf"
+      />
     );
   }
 
   const batches = await store.listBatches();
-  const members = (await Promise.all(batches.map((batch) => store.listMembers(batch.id)))).flat();
+  const batch = batches.find((item) => item.id === params.batch);
+  if (!batch) {
+    return <BatchChooser section={section} batches={batches} date={date} />;
+  }
 
-  if (kind === "assignments") {
-    const assignments = await store.listAssignments();
-    const lines = ["SkilVantage assignments", `Day ${today}`, ""];
-    if (assignments.length === 0) lines.push("No assignments yet");
-    for (const item of assignments) {
-      const member = members.find((row) => row.id === item.memberId);
-      const batch = batches.find((row) => row.id === item.batchId);
-      lines.push(`${member?.fullName || "Learner"}  ${batch?.name || ""}  ${item.title}  due ${item.dueOn}  ${item.status}`);
-    }
+  const members = (await store.listMembers(batch.id)).sort((a, b) => a.fullName.localeCompare(b.fullName));
+  const tone = toneOf(batch.learnerType);
+  const audience = batch.learnerType === "professional" ? "Professionals" : "Students";
+  const fileName = `Skillvantage-${safeFile(batch.name)}-${date}.pdf`;
+
+  if (section === "assignments") {
+    const items = (await store.listAssignments(batch.id)).filter((item) => item.batchId === batch.id);
+    const pending = items.filter((item) => item.status === "pending").length;
+    const submitted = items.filter((item) => item.status === "submitted").length;
+    const reviewed = items.filter((item) => item.status === "reviewed").length;
+    const report: ReportDocument = {
+      tone,
+      kicker: "ASSIGNMENT REPORT",
+      title: batch.name,
+      subtitle: `${audience} • ${dayStamp(date)}`,
+      generated,
+      stats: [
+        { label: "Work", value: String(items.length) },
+        { label: "Pending", value: String(pending) },
+        { label: "Submitted", value: String(submitted) },
+        { label: "Reviewed", value: String(reviewed) },
+      ],
+      columns: ["S.No", audience === "Students" ? "Student Name" : "Professional", "Work", "Due", "Status"],
+      rows: items.map((item, index) => [
+        String(index + 1),
+        members.find((member) => member.id === item.memberId)?.fullName || "Learner",
+        item.title,
+        item.dueOn,
+        item.status[0]?.toUpperCase() + item.status.slice(1),
+      ]),
+      footer: `Skillvantage • ${batch.name} • Assignment report`,
+    };
     return (
-      <Sheet
+      <Letterhead
+        report={report}
         back="/admin/assignments"
-        title="Assignments"
-        note={`${today} · ${assignments.length} assignments`}
-        lines={lines}
-        summary={`SkilVantage assignments\n${assignments.length} assignments`}
-        fileName="SkilVantage-assignments.pdf"
-      >
-        <table className="mt-3 w-full text-left text-sm">
-          <thead><tr className="text-[#3d4a57]"><th className="py-1 font-medium">Name</th><th className="py-1 font-medium">Batch</th><th className="py-1 font-medium">Work</th><th className="py-1 font-medium">Due</th><th className="py-1 font-medium">Status</th></tr></thead>
-          <tbody>
-            {assignments.map((item) => (
-              <tr key={item.id} className="border-t border-black/10">
-                <td className="py-1">{members.find((member) => member.id === item.memberId)?.fullName || "Learner"}</td>
-                <td className="py-1">{batches.find((batch) => batch.id === item.batchId)?.name || ""}</td>
-                <td className="py-1">{item.title}</td>
-                <td className="py-1">{item.dueOn}</td>
-                <td className="py-1 capitalize">{item.status}</td>
-              </tr>
-            ))}
-            {assignments.length === 0 ? <tr><td className="py-2 text-[#3d4a57]" colSpan={5}>No assignments yet.</td></tr> : null}
-          </tbody>
-        </table>
-      </Sheet>
+        summary={`Skillvantage ${batch.name} assignments\n${items.length} pieces of work`}
+        fileName={fileName}
+      />
     );
   }
 
-  const marks = (await Promise.all(batches.map((batch) => store.listAttendance(batch.id)))).flat();
-  const presentToday = marks.filter((mark) => mark.date === today && mark.status === "present").length;
-  const absentToday = marks.filter((mark) => mark.date === today && mark.status === "absent").length;
-  const leaveToday = marks.filter((mark) => mark.date === today && mark.status === "leave").length;
-  const holidayToday = marks.filter((mark) => mark.date === today && mark.status === "holiday").length;
-  const lines = ["SkilVantage attendance", `Day ${today}`, "", `Present today ${presentToday}`, `Absent today ${absentToday}`, `Leave today ${leaveToday}`, `Holiday today ${holidayToday}`];
-  for (const batch of batches) {
-    const roster = members.filter((member) => member.batchId === batch.id);
-    lines.push("", `${batch.name} (${batch.learnerType === "student" ? "students" : "professionals"})`);
-    if (roster.length === 0) lines.push("  No names yet");
-    for (const member of roster) {
-      const rows = marks.filter((mark) => mark.memberId === member.id);
-      lines.push(`  ${member.fullName}  present ${rows.filter((mark) => mark.status === "present").length}  absent ${rows.filter((mark) => mark.status === "absent").length}  leave ${rows.filter((mark) => mark.status === "leave").length}  holiday ${rows.filter((mark) => mark.status === "holiday").length}  today ${rows.find((mark) => mark.date === today)?.status || "not marked"}`);
-    }
-  }
+  const marks = (await store.listAttendance(batch.id)).filter((mark) => mark.batchId === batch.id && mark.date === date);
+  const count = (status: ClassDayStatus) => marks.filter((mark) => mark.status === status).length;
+  const present = count("present");
+  const absent = count("absent");
+  const leave = count("leave");
+  const holiday = count("holiday");
+  const rated = present + absent + leave;
+  const rate = rated ? `${Math.round((present / rated) * 100)}%` : "0%";
+  const report: ReportDocument = {
+    tone,
+    kicker: "DAILY ATTENDANCE REPORT",
+    title: batch.name,
+    subtitle: `${audience} • ${dayStamp(date)}`,
+    generated,
+    stats: [
+      { label: "Present", value: String(present) },
+      { label: "Absent", value: String(absent) },
+      { label: "Leave", value: String(leave) },
+      { label: "Holiday", value: String(holiday) },
+      { label: "Attendance", value: rate },
+    ],
+    columns: ["S.No", audience === "Students" ? "Student Name" : "Professional", "Year / Course", "Status"],
+    rows: members.map((member, index) => [
+      String(index + 1),
+      member.fullName,
+      member.note || "—",
+      statusLabel(marks.find((mark) => mark.memberId === member.id)?.status),
+    ]),
+    footer: "P = Present • A = Absent • L = Leave • H = Holiday • Skillvantage • Daily Attendance Report",
+  };
   return (
-    <Sheet
+    <Letterhead
+      report={report}
       back="/admin/attendance"
-      title="Attendance"
-      note={`${today} · present ${presentToday} · absent ${absentToday} · leave ${leaveToday} · holiday ${holidayToday}`}
-      lines={lines}
-      summary={`SkilVantage attendance\nPresent today ${presentToday}\nAbsent today ${absentToday}\nLeave today ${leaveToday}\nHoliday today ${holidayToday}`}
-      fileName="SkilVantage-attendance.pdf"
-    >
-      {batches.map((batch) => {
-        const roster = members.filter((member) => member.batchId === batch.id);
-        return (
-          <div key={batch.id} className="mt-4">
-            <h2 className="font-medium">{batch.name} · {batch.learnerType === "student" ? "Students" : "Professionals"}</h2>
-            <table className="mt-2 w-full text-left text-sm">
-              <thead><tr className="text-[#3d4a57]"><th className="py-1 font-medium">Name</th><th className="py-1 font-medium">Present</th><th className="py-1 font-medium">Absent</th><th className="py-1 font-medium">Leave</th><th className="py-1 font-medium">Holiday</th><th className="py-1 font-medium">Today</th></tr></thead>
-              <tbody>
-                {roster.map((member) => {
-                  const rows = marks.filter((mark) => mark.memberId === member.id);
-                  return (
-                    <tr key={member.id} className="border-t border-black/10">
-                      <td className="py-1">{member.fullName}</td>
-                      <td className="py-1">{rows.filter((mark) => mark.status === "present").length}</td>
-                      <td className="py-1">{rows.filter((mark) => mark.status === "absent").length}</td>
-                      <td className="py-1">{rows.filter((mark) => mark.status === "leave").length}</td>
-                      <td className="py-1">{rows.filter((mark) => mark.status === "holiday").length}</td>
-                      <td className="py-1 capitalize">{rows.find((mark) => mark.date === today)?.status || "Not marked"}</td>
-                    </tr>
-                  );
-                })}
-                {roster.length === 0 ? <tr><td className="py-2 text-[#3d4a57]" colSpan={6}>No names yet.</td></tr> : null}
-              </tbody>
-            </table>
-          </div>
-        );
-      })}
-    </Sheet>
+      summary={`Skillvantage ${batch.name}\n${dayStamp(date)}\nPresent ${present}\nAbsent ${absent}\nLeave ${leave}\nHoliday ${holiday}\nAttendance ${rate}`}
+      fileName={fileName}
+    />
   );
 }
 
-function PayTable({ pays }: { pays: { id: string; classDate: string; amount: number; status: string; paidOn: string }[] }) {
-  if (pays.length === 0) return <p className="mt-2 text-sm text-[#3d4a57]">No class pay yet.</p>;
+function BatchChooser({ section, batches, date }: { section: "attendance" | "assignments"; batches: TrainingBatch[]; date: string }) {
+  const title = section === "assignments" ? "assignment" : "attendance";
   return (
-    <table className="mt-2 w-full text-left text-sm">
-      <thead><tr className="text-[#3d4a57]"><th className="py-1 font-medium">Class day</th><th className="py-1 font-medium">Amount</th><th className="py-1 font-medium">Status</th></tr></thead>
-      <tbody>
-        {pays.map((pay) => (
-          <tr key={pay.id} className="border-t border-black/10">
-            <td className="py-1">{pay.classDate}</td>
-            <td className="py-1">{rupees(pay.amount)}</td>
-            <td className="py-1 capitalize">{pay.status}{pay.paidOn ? ` ${pay.paidOn}` : ""}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function Sheet({
-  back,
-  title,
-  note,
-  lines,
-  summary,
-  fileName,
-  children,
-}: {
-  back: string;
-  title: string;
-  note: string;
-  lines: string[];
-  summary: string;
-  fileName: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="print-sheet grid gap-4 text-[#14211c]">
-      <div className="no-print flex flex-wrap items-center justify-between gap-3">
-        <Link href={back} className="text-sm text-[var(--desk-muted)] hover:underline">Back</Link>
-        <ReportActions lines={lines} summary={summary} fileName={fileName} />
+    <div className="mx-auto grid max-w-3xl gap-3">
+      <div>
+        <h1 className="text-2xl font-semibold">Choose one batch</h1>
+        <p className="mt-1 text-sm text-[var(--desk-muted)]">The {title} PDF includes only the batch you open, for {dayStamp(date)}.</p>
       </div>
-      <header className="rounded-3xl bg-white p-5">
-        <p className="text-xs font-semibold tracking-[0.16em] text-[#065f46] uppercase">SkilVantage</p>
-        <h1 className="mt-1 text-3xl font-semibold">{title}</h1>
-        <p className="mt-2 text-sm text-[#3d4a57]">{note}</p>
-      </header>
-      <section className="rounded-3xl bg-white p-5">{children}</section>
+      {batches.length === 0 ? <p className="rounded-2xl border border-dashed border-[var(--desk-line)] p-8 text-sm text-[var(--desk-muted)]">Add a batch first.</p> : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {batches.map((batch) => {
+          const tone = toneOf(batch.learnerType);
+          const color = tone === "professional" ? "#312e81" : "#065f46";
+          return (
+            <Link key={batch.id} href={`/admin/print?section=${section}&batch=${batch.id}&date=${date}`} className="rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4">
+              <p className="text-xs font-semibold tracking-[0.14em] uppercase" style={{ color }}>{batch.learnerType === "professional" ? "Professionals" : "Students"}</p>
+              <p className="mt-1 text-xl font-semibold">{batch.name}</p>
+              <p className="mt-1 text-sm text-[var(--desk-muted)]">{batch.label}</p>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

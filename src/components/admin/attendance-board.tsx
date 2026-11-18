@@ -260,7 +260,7 @@ export function AttendanceBoard({
               <Filter className="size-4" aria-hidden="true" />
               Filter
             </button>
-            <Link href="/admin/print?section=attendance" className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-400/10 px-3 text-sm font-medium text-emerald-300">
+            <Link href={batchId === "all" ? `/admin/print?section=attendance&date=${day}` : `/admin/print?section=attendance&batch=${batchId}&date=${day}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-400/10 px-3 text-sm font-medium text-emerald-300">
               <Download className="size-4" aria-hidden="true" />
               Attendance export
             </Link>

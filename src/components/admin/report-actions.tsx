@@ -1,10 +1,10 @@
 "use client";
 
-import { buildReportPdf } from "@/lib/report-pdf";
+import { buildReportPdf, type ReportDocument } from "@/lib/report-pdf";
 
-export function ReportActions({ lines, summary, fileName }: { lines: string[]; summary: string; fileName: string }) {
+export function ReportActions({ report, summary, fileName }: { report: ReportDocument; summary: string; fileName: string }) {
   function file() {
-    const bytes = buildReportPdf(lines);
+    const bytes = buildReportPdf(report);
     const copy = new ArrayBuffer(bytes.byteLength);
     new Uint8Array(copy).set(bytes);
     return new File([copy], fileName, { type: "application/pdf" });
@@ -24,7 +24,7 @@ export function ReportActions({ lines, summary, fileName }: { lines: string[]; s
     const pdf = file();
     if (typeof navigator.share === "function" && navigator.canShare?.({ files: [pdf] })) {
       try {
-        await navigator.share({ files: [pdf], title: summary.split("\n")[0] || "SkilVantage", text: summary });
+        await navigator.share({ files: [pdf], title: summary.split("\n")[0] || "Skillvantage", text: summary });
         return;
       } catch {
         return;
