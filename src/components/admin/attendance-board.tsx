@@ -3,12 +3,56 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { displayPhone } from "@/lib/batches";
+import { CalendarDays, ChevronLeft, ChevronRight, Download, Filter } from "lucide-react";
+import { avatarColor, initials } from "@/lib/batches";
 import { todayIST } from "@/lib/dates";
-import type { AttendanceMark, BatchMember, LearnerType, TrainingBatch } from "@/lib/types";
-import { Legend, Ring, audienceTheme, dayLabel, type Slice } from "@/components/admin/desk-charts";
+import type { AttendanceMark, AttendanceStatus, BatchMember, LearnerType, TrainingBatch } from "@/lib/types";
 
-const field = "mt-1 h-11 w-full rounded-xl border border-black/10 bg-white/80 px-3 text-sm text-[#14211c] outline-none";
+const PAGE_SIZE = 6;
+
+type View = "summary" | "detail";
+type Audience = "all" | LearnerType;
+type Cell = AttendanceStatus | "off" | "open";
+
+const pill: Record<Cell, { label: string; className: string }> = {
+  present: { label: "P", className: "bg-[#34d399] text-[#052e16]" },
+  absent: { label: "A", className: "bg-[#fb7185] text-[#4c0519]" },
+  off: { label: "WO", className: "bg-[#c4b5fd] text-[#2e1065]" },
+  open: { label: "—", className: "bg-[#31384c] text-[#a7b0c4]" },
+};
+
+function shiftMonth(key: string, delta: number) {
+  const [year, month] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, (month || 1) - 1 + delta, 1)).toISOString().slice(0, 7);
+}
+
+function monthLabel(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, (month || 1) - 1, 1)).toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function daysOf(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  const count = new Date(Date.UTC(year, month || 1, 0)).getUTCDate();
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.UTC(year, (month || 1) - 1, index + 1));
+    return {
+      iso: date.toISOString().slice(0, 10),
+      day: index + 1,
+      weekday: date.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
+      off: date.getUTCDay() === 0,
+    };
+  });
+}
+
+function learnerCode(member: BatchMember, batch?: TrainingBatch) {
+  const tail = member.id.replace(/\W/g, "").slice(-4).toUpperCase() || "0000";
+  return `${(batch?.name || "BATCH").slice(0, 12).toUpperCase()}/${tail}`;
+}
 
 export function AttendanceBoard({
   batches,
@@ -22,36 +66,108 @@ export function AttendanceBoard({
   initialBatch?: string;
 }) {
   const router = useRouter();
+  const today = todayIST();
   const opened = batches.find((batch) => batch.id === initialBatch);
-  const [date, setDate] = useState(todayIST());
-  const [focus, setFocus] = useState<LearnerType | "dashboard">(opened?.learnerType || "dashboard");
-  const [batchId, setBatchId] = useState<Record<LearnerType, string>>({
-    student: opened?.learnerType === "student" ? opened.id : batches.find((batch) => batch.learnerType === "student")?.id || "",
-    professional: opened?.learnerType === "professional" ? opened.id : batches.find((batch) => batch.learnerType === "professional")?.id || "",
-  });
-  const [error, setError] = useState("");
+  const [month, setMonth] = useState(today.slice(0, 7));
+  const [view, setView] = useState<View>("detail");
+  const [audience, setAudience] = useState<Audience>(opened?.learnerType || "all");
+  const [batchId, setBatchId] = useState(opened?.id || "all");
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState(Boolean(opened));
+  const [page, setPage] = useState(1);
+  const [overrides, setOverrides] = useState<Record<string, AttendanceStatus>>({});
   const [pending, setPending] = useState("");
+  const [error, setError] = useState("");
 
-  const summary = useMemo(() => {
-    return (["student", "professional"] as const).map((key) => {
-      const roster = members.filter((member) => batches.some((batch) => batch.id === member.batchId && batch.learnerType === key));
-      const present = roster.filter((member) => marks.some((mark) => mark.memberId === member.id && mark.date === date && mark.status === "present")).length;
-      const absent = roster.filter((member) => marks.some((mark) => mark.memberId === member.id && mark.date === date && mark.status === "absent")).length;
-      return { key, roster, present, absent, open: Math.max(roster.length - present - absent, 0) };
-    });
-  }, [batches, date, marks, members]);
+  const days = useMemo(() => daysOf(month), [month]);
+  const monthChoices = useMemo(() => {
+    const keys = new Set<string>([month]);
+    for (let step = -5; step <= 1; step += 1) keys.add(shiftMonth(today.slice(0, 7), step));
+    for (const mark of marks) if (/^\d{4}-\d{2}-\d{2}$/.test(mark.date)) keys.add(mark.date.slice(0, 7));
+    return [...keys].sort();
+  }, [marks, month, today]);
 
-  async function mark(batch: string, memberId: string, status: "present" | "absent") {
-    setPending(memberId + status);
+  const lookup = useMemo(() => {
+    const map = new Map<string, AttendanceStatus>();
+    for (const mark of marks) {
+      if (mark.date.startsWith(month)) map.set(`${mark.memberId}|${mark.date}`, mark.status);
+    }
+    for (const [key, status] of Object.entries(overrides)) {
+      if (key.includes(`|${month}`)) map.set(key, status);
+    }
+    return map;
+  }, [marks, month, overrides]);
+
+  function cellOf(memberId: string, iso: string, off: boolean): Cell {
+    const status = lookup.get(`${memberId}|${iso}`);
+    if (status === "present" || status === "absent") return status;
+    return off ? "off" : "open";
+  }
+
+  const batchOf = useMemo(() => new Map(batches.map((batch) => [batch.id, batch])), [batches]);
+  const visibleBatches = batches.filter((batch) => audience === "all" || batch.learnerType === audience);
+
+  const roster = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return members
+      .filter((member) => {
+        const batch = batchOf.get(member.batchId);
+        if (!batch) return false;
+        if (audience !== "all" && batch.learnerType !== audience) return false;
+        if (batchId !== "all" && member.batchId !== batchId) return false;
+        if (needle && !member.fullName.toLowerCase().includes(needle)) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const order = (batchOf.get(a.batchId)?.sort || 0) - (batchOf.get(b.batchId)?.sort || 0);
+        return order || a.fullName.localeCompare(b.fullName);
+      });
+  }, [audience, batchId, batchOf, members, query]);
+
+  const totals = useMemo(() => {
+    const tally = { present: 0, absent: 0, open: 0, off: 0 };
+    for (const member of roster) {
+      for (const day of days) {
+        if (day.iso > today) continue;
+        const status = lookup.get(`${member.id}|${day.iso}`);
+        const cell: Cell = status === "present" || status === "absent" ? status : day.off ? "off" : "open";
+        tally[cell] += 1;
+      }
+    }
+    return tally;
+  }, [days, lookup, roster, today]);
+
+  const pages = Math.max(1, Math.ceil(roster.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const slice = roster.slice(start, start + PAGE_SIZE);
+  const filtering = audience !== "all" || batchId !== "all" || query.trim() !== "";
+
+  function chooseAudience(next: Audience) {
+    setAudience(next);
+    setPage(1);
+    if (next !== "all" && batchId !== "all" && batchOf.get(batchId)?.learnerType !== next) setBatchId("all");
+  }
+
+  async function toggle(member: BatchMember, iso: string, current: Cell) {
+    const status: AttendanceStatus = current === "present" ? "absent" : "present";
+    const key = `${member.id}|${iso}`;
+    setPending(key);
     setError("");
+    setOverrides((currentMarks) => ({ ...currentMarks, [key]: status }));
     const response = await fetch("/api/v1/admin/attendance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ batchId: batch, memberId, date, status }),
+      body: JSON.stringify({ batchId: member.batchId, memberId: member.id, date: iso, status }),
     });
     const data = (await response.json()) as { ok?: boolean; error?: string };
     setPending("");
     if (!response.ok || !data.ok) {
+      setOverrides((currentMarks) => {
+        const next = { ...currentMarks };
+        delete next[key];
+        return next;
+      });
       setError(data.error || "Could not save attendance.");
       return;
     }
@@ -59,141 +175,360 @@ export function AttendanceBoard({
   }
 
   if (batches.length === 0) {
-    return <p className="rounded-2xl border border-dashed border-[var(--desk-line)] p-8 text-sm text-[var(--desk-muted)]">Add a batch under Students or Professionals first. Attendance uses those names.</p>;
+    return (
+      <section className="rounded-[28px] bg-[#141824] p-8 text-sm text-[#c5cde0]">
+        Add a batch under Students or Professionals first. Attendance uses those names.
+      </section>
+    );
   }
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-[var(--desk-text)]">{dayLabel(date)}</p>
-          <p className="text-sm text-[var(--desk-muted)]">Present and absent, split by students and professionals.</p>
+    <div className="grid min-w-0 gap-3 text-white">
+      <section className="min-w-0 overflow-hidden rounded-[28px] bg-[#141824] p-3 sm:p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3 px-1 pt-1">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#6d5efc]">
+              <CalendarDays className="size-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Monthly Attendance Report</h1>
+              <p className="mt-0.5 text-sm text-[#9aa6bd]">Day-by-day attendance for students and professionals</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 rounded-xl bg-[#232a3d] px-1.5 py-1">
+            <button type="button" aria-label="Previous month" onClick={() => { setMonth((value) => shiftMonth(value, -1)); setPage(1); }} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
+              <ChevronLeft className="size-4" />
+            </button>
+            <CalendarDays className="size-4 text-[#9aa6bd]" aria-hidden="true" />
+            <select
+              aria-label="Month"
+              value={month}
+              onChange={(event) => { setMonth(event.target.value); setPage(1); }}
+              className="h-8 bg-transparent pr-1 text-sm font-medium outline-none"
+              style={{ colorScheme: "dark" }}
+            >
+              {monthChoices.map((key) => <option key={key} value={key}>{monthLabel(key)}</option>)}
+            </select>
+            <button type="button" aria-label="Next month" onClick={() => { setMonth((value) => shiftMonth(value, 1)); setPage(1); }} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
         </div>
-        <label className="text-sm text-[var(--desk-text)]">
-          Class day
-          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1 h-11 rounded-xl border border-[var(--desk-line)] bg-[var(--desk-card)] px-3" />
-        </label>
-      </div>
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
-      {focus === "dashboard" ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {summary.map((item) => {
-            const theme = audienceTheme[item.key];
-            const slices: Slice[] = [
-              { label: "Attended", value: item.present, color: "#10b981" },
-              { label: "Absent", value: item.absent, color: "#f43f5e" },
-              { label: "Not marked", value: item.open, color: "#94a3b8" },
-            ];
-            return (
-              <article key={item.key} className="overflow-hidden rounded-3xl" style={{ background: theme.wash, color: theme.from }}>
-                <div className="px-4 py-4 text-white" style={{ background: theme.band }}>
-                  <p className="text-xs font-semibold tracking-[0.16em] uppercase">{theme.title}</p>
-                  <h2 className="mt-1 text-2xl font-semibold">{item.present} attended · {item.absent} absent</h2>
-                </div>
-                <div className="grid items-center gap-3 p-4 sm:grid-cols-[150px_1fr]">
-                  <Ring slices={slices} />
-                  <Legend slices={slices} />
-                </div>
-                <div className="px-4 pb-4">
-                  <button type="button" onClick={() => setFocus(item.key)} className="h-11 rounded-xl px-4 text-sm font-medium text-white" style={{ background: theme.from }}>
-                    Open {theme.title.toLowerCase()}
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex rounded-xl bg-[#232a3d] p-1 text-sm">
+            {(["summary", "detail"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setView(item)}
+                className={`h-9 rounded-lg px-4 capitalize ${view === item ? "bg-[#4f6dff] font-medium text-white" : "text-[#c5cde0]"}`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setFilters((open) => !open)}
+              className={`inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm ${filters || filtering ? "bg-[#4f6dff] text-white" : "bg-[#232a3d] text-[#d5dced]"}`}
+            >
+              <Filter className="size-4" aria-hidden="true" />
+              Filter
+            </button>
+            <Link href="/admin/print?section=attendance" className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-400/10 px-3 text-sm font-medium text-emerald-300">
+              <Download className="size-4" aria-hidden="true" />
+              Attendance export
+            </Link>
+          </div>
+        </div>
+
+        {filters ? (
+          <div className="mt-3 grid gap-3 rounded-2xl bg-[#1b2130] p-3 sm:grid-cols-3">
+            <div>
+              <p className="text-xs text-[#9aa6bd]">Group</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {([["all", "All"], ["student", "Students"], ["professional", "Professionals"]] as const).map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => chooseAudience(key)} className={`h-9 rounded-lg px-3 text-sm ${audience === key ? "bg-[#4f6dff] text-white" : "bg-[#232a3d] text-[#d5dced]"}`}>
+                    {label}
                   </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      ) : (
-        <AudienceDay
-          audience={focus}
-          batches={batches.filter((batch) => batch.learnerType === focus)}
-          members={members}
-          marks={marks}
-          date={date}
-          batchId={batchId[focus]}
-          onBatch={(id) => setBatchId((current) => ({ ...current, [focus]: id }))}
-          onBack={() => setFocus("dashboard")}
-          pending={pending}
-          onMark={mark}
-        />
-      )}
+                ))}
+              </div>
+            </div>
+            <label className="text-xs text-[#9aa6bd]">
+              Batch
+              <select
+                value={visibleBatches.some((batch) => batch.id === batchId) ? batchId : "all"}
+                onChange={(event) => { setBatchId(event.target.value); setPage(1); }}
+                className="mt-1 h-10 w-full rounded-xl bg-[#232a3d] px-3 text-sm text-white outline-none"
+                style={{ colorScheme: "dark" }}
+              >
+                <option value="all">All batches</option>
+                {visibleBatches.map((batch) => <option key={batch.id} value={batch.id}>{batch.label} · {batch.name}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-[#9aa6bd]">
+              Name
+              <input
+                value={query}
+                onChange={(event) => { setQuery(event.target.value); setPage(1); }}
+                placeholder="Search a learner"
+                className="mt-1 h-10 w-full rounded-xl bg-[#232a3d] px-3 text-sm text-white outline-none placeholder:text-[#7f8aa3]"
+              />
+            </label>
+          </div>
+        ) : null}
+
+        {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
+
+        {view === "summary" ? (
+          <Summary month={monthLabel(month)} days={days} roster={roster} totals={totals} cellOf={cellOf} today={today} batchOf={batchOf} />
+        ) : (
+          <Detail
+            days={days}
+            today={today}
+            roster={roster}
+            slice={slice}
+            start={start}
+            pages={pages}
+            currentPage={currentPage}
+            batchOf={batchOf}
+            pending={pending}
+            cellOf={cellOf}
+            onPage={setPage}
+            onToggle={toggle}
+          />
+        )}
+      </section>
+
+      {view === "detail" ? <LegendCard /> : null}
     </div>
   );
 }
 
-function AudienceDay({
-  audience,
-  batches,
-  members,
-  marks,
-  date,
-  batchId,
-  onBatch,
-  onBack,
-  pending,
-  onMark,
+function Summary({
+  month,
+  days,
+  roster,
+  totals,
+  cellOf,
+  today,
+  batchOf,
 }: {
-  audience: LearnerType;
-  batches: TrainingBatch[];
-  members: BatchMember[];
-  marks: AttendanceMark[];
-  date: string;
-  batchId: string;
-  onBatch: (id: string) => void;
-  onBack: () => void;
-  pending: string;
-  onMark: (batchId: string, memberId: string, status: "present" | "absent") => void;
+  month: string;
+  days: ReturnType<typeof daysOf>;
+  roster: BatchMember[];
+  totals: Record<Cell, number>;
+  cellOf: (memberId: string, iso: string, off: boolean) => Cell;
+  today: string;
+  batchOf: Map<string, TrainingBatch>;
 }) {
-  const theme = audienceTheme[audience];
-  const selected = batchId || batches[0]?.id || "";
-  const roster = members.filter((member) => member.batchId === selected);
-  const present = roster.filter((member) => marks.some((mark) => mark.memberId === member.id && mark.date === date && mark.status === "present")).length;
-  const absent = roster.filter((member) => marks.some((mark) => mark.memberId === member.id && mark.date === date && mark.status === "absent")).length;
-  const slices: Slice[] = [
-    { label: "Attended", value: present, color: "#10b981" },
-    { label: "Absent", value: absent, color: "#f43f5e" },
-    { label: "Not marked", value: Math.max(roster.length - present - absent, 0), color: "#94a3b8" },
-  ];
+  const marked = totals.present + totals.absent;
+  const rate = marked ? Math.round((totals.present / marked) * 100) : 0;
+  const daily = days.map((day) => ({
+    ...day,
+    count: day.iso > today ? 0 : roster.filter((member) => cellOf(member.id, day.iso, day.off) === "present").length,
+  }));
+  const peak = Math.max(1, ...daily.map((day) => day.count));
+  const groups = (["student", "professional"] as const).map((key) => {
+    const people = roster.filter((member) => batchOf.get(member.batchId)?.learnerType === key);
+    let present = 0;
+    let absent = 0;
+    for (const member of people) {
+      for (const day of days) {
+        if (day.iso > today) continue;
+        const cell = cellOf(member.id, day.iso, day.off);
+        if (cell === "present") present += 1;
+        if (cell === "absent") absent += 1;
+      }
+    }
+    return { key, people: people.length, present, absent };
+  }).filter((group) => group.people > 0);
 
   return (
-    <section className="overflow-hidden rounded-3xl" style={{ background: theme.wash, color: theme.from }}>
-      <div className="flex flex-wrap items-end justify-between gap-3 px-4 py-4 text-white sm:px-5" style={{ background: theme.band }}>
-        <div>
-          <p className="text-xs font-semibold tracking-[0.16em] uppercase">{theme.title}</p>
-          <h2 className="mt-1 text-2xl font-semibold">Mark {dayLabel(date)}</h2>
-        </div>
-        <button type="button" onClick={onBack} className="h-10 rounded-xl bg-white/15 px-3 text-sm">Back to dashboard</button>
+    <div className="mt-4 grid gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Present" value={totals.present} hint={month} tone="text-emerald-300" />
+        <Stat label="Absent" value={totals.absent} hint="Marked days through today" tone="text-rose-300" />
+        <Stat label="Not marked" value={totals.open} hint="Weekdays still open" tone="text-[#d5dced]" />
+        <Stat label="Attendance" value={`${rate}%`} hint={marked ? `${marked} marks` : "No marks yet"} tone="text-[#c4b5fd]" />
       </div>
-      <div className="grid gap-4 p-4 sm:p-5">
-        {batches.length === 0 ? <p className="rounded-2xl bg-white/70 px-4 py-6 text-sm">No {theme.title.toLowerCase()} batch yet.</p> : (
-          <>
-            <div className="grid items-center gap-4 rounded-2xl bg-white/75 p-4 lg:grid-cols-[180px_1fr_220px]">
-              <Ring slices={slices} />
-              <Legend slices={slices} />
-              <label className="text-sm">
-                Batch
-                <select value={selected} onChange={(event) => onBatch(event.target.value)} className={field}>
-                  {batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.label} · {batch.name}</option>)}
-                </select>
-              </label>
+      <div className="rounded-2xl bg-[#1b2130] p-4">
+        <p className="text-sm font-medium">Present each day</p>
+        <div className="mt-4 flex h-28 items-end gap-1">
+          {daily.map((day) => (
+            <div key={day.iso} className="flex h-full min-w-0 flex-1 flex-col justify-end" title={`${day.day} ${day.weekday}: ${day.iso > today ? "ahead" : `${day.count} present`}`}>
+              <div className={`w-full rounded-t ${day.off ? "bg-[#6d5efc]/70" : "bg-emerald-400"}`} style={{ height: `${day.iso > today ? 4 : Math.max(4, (day.count / peak) * 100)}%` }} />
             </div>
-            <ul className="grid gap-2">
-              {roster.map((member) => {
-                const current = marks.find((mark) => mark.memberId === member.id && mark.date === date)?.status;
-                return (
-                  <li key={member.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-white/80 px-3 py-2.5">
-                    <Link href={`/admin/people/${member.id}`} className="min-w-0 flex-1 font-semibold hover:underline">{member.fullName}</Link>
-                    <span className="text-sm opacity-70">{displayPhone(member.phone) || "No phone"}</span>
-                    <button type="button" disabled={pending !== ""} onClick={() => onMark(selected, member.id, "present")} className="h-9 rounded-lg px-3 text-xs font-medium" style={{ background: current === "present" ? "#10b981" : "white", color: current === "present" ? "white" : theme.from, border: "1px solid rgb(0 0 0 / 0.08)" }}>Present</button>
-                    <button type="button" disabled={pending !== ""} onClick={() => onMark(selected, member.id, "absent")} className="h-9 rounded-lg px-3 text-xs font-medium" style={{ background: current === "absent" ? "#f43f5e" : "white", color: current === "absent" ? "white" : theme.from, border: "1px solid rgb(0 0 0 / 0.08)" }}>Absent</button>
-                  </li>
-                );
-              })}
-            </ul>
-            {roster.length === 0 ? <p className="rounded-2xl bg-white/70 px-4 py-6 text-sm">This batch has no names yet.</p> : null}
-          </>
-        )}
+          ))}
+        </div>
+        <div className="mt-2 flex justify-between text-[10px] text-[#9aa6bd]">
+          <span>1</span>
+          <span>{days.length}</span>
+        </div>
       </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {groups.map((group) => (
+          <article key={group.key} className="rounded-2xl bg-[#1b2130] p-4">
+            <p className="text-xs font-semibold tracking-[0.14em] text-[#9aa6bd] uppercase">{group.key === "student" ? "Students" : "Professionals"}</p>
+            <p className="mt-2 text-2xl font-semibold">{group.people} on the roster</p>
+            <p className="mt-1 text-sm text-[#c5cde0]">{group.present} present · {group.absent} absent</p>
+          </article>
+        ))}
+        {groups.length === 0 ? <p className="rounded-2xl bg-[#1b2130] px-4 py-6 text-sm text-[#c5cde0]">No learners match this filter.</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, hint, tone }: { label: string; value: number | string; hint: string; tone: string }) {
+  return (
+    <article className="rounded-2xl bg-[#1b2130] px-4 py-3">
+      <p className="text-xs text-[#9aa6bd]">{label}</p>
+      <p className={`mt-1 text-3xl font-semibold tracking-tight ${tone}`}>{value}</p>
+      <p className="mt-1 text-xs text-[#7f8aa3]">{hint}</p>
+    </article>
+  );
+}
+
+function Detail({
+  days,
+  today,
+  roster,
+  slice,
+  start,
+  pages,
+  currentPage,
+  batchOf,
+  pending,
+  cellOf,
+  onPage,
+  onToggle,
+}: {
+  days: ReturnType<typeof daysOf>;
+  today: string;
+  roster: BatchMember[];
+  slice: BatchMember[];
+  start: number;
+  pages: number;
+  currentPage: number;
+  batchOf: Map<string, TrainingBatch>;
+  pending: string;
+  cellOf: (memberId: string, iso: string, off: boolean) => Cell;
+  onPage: (page: number) => void;
+  onToggle: (member: BatchMember, iso: string, current: Cell) => void;
+}) {
+  const pageNumbers = pageWindow(currentPage, pages);
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl bg-[#1b2130]">
+      <div className="max-h-[70vh] overflow-auto">
+        <table className="min-w-max border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="text-[#9aa6bd]">
+              <th className="sticky top-0 left-0 z-30 box-border hidden w-12 min-w-12 bg-[#1b2130] px-3 py-3 text-left font-medium lg:table-cell">#</th>
+              <th className="sticky top-0 left-0 z-30 box-border w-40 min-w-40 bg-[#1b2130] px-3 py-3 text-left font-medium shadow-[8px_0_12px_-10px_rgb(0_0_0/0.8)] lg:w-56 lg:min-w-56 lg:shadow-none lg:left-12">Learner</th>
+              <th className="sticky top-0 z-30 box-border hidden w-36 min-w-36 bg-[#1b2130] px-3 py-3 text-left font-medium lg:table-cell" style={{ left: 272 }}>Batch</th>
+              <th className="sticky top-0 z-30 box-border hidden w-28 min-w-28 bg-[#1b2130] px-3 py-3 text-left font-medium shadow-[8px_0_12px_-10px_rgb(0_0_0/0.8)] lg:table-cell" style={{ left: 416 }}>Status</th>
+              {days.map((day) => (
+                <th key={day.iso} className={`sticky top-0 z-20 w-12 px-1 py-2 text-center font-medium ${day.iso === today ? "bg-[#243056] text-white" : "bg-[#1b2130]"}`}>
+                  <span className="block text-xs">{day.day}</span>
+                  <span className={`block text-[10px] font-normal ${day.off ? "text-[#c4b5fd]" : "text-[#7f8aa3]"}`}>{day.weekday}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {slice.map((member, index) => {
+              const batch = batchOf.get(member.batchId);
+              return (
+                <tr key={member.id} className="group">
+                  <td className="sticky left-0 z-10 box-border hidden w-12 min-w-12 bg-[#1b2130] px-3 py-3 text-[#9aa6bd] group-hover:bg-[#232a3d] lg:table-cell">{start + index + 1}</td>
+                  <td className="sticky left-0 z-10 box-border w-40 min-w-40 max-w-40 bg-[#1b2130] px-3 py-2.5 shadow-[8px_0_12px_-10px_rgb(0_0_0/0.8)] group-hover:bg-[#232a3d] lg:w-56 lg:min-w-56 lg:max-w-56 lg:shadow-none lg:left-12">
+                    <Link href={`/admin/people/${member.id}`} className="flex items-center gap-2.5">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full text-[11px] font-semibold" style={{ background: avatarColor(member.fullName) }}>{initials(member.fullName)}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{member.fullName}</span>
+                        <span className="block truncate text-[11px] text-[#7f8aa3]">{learnerCode(member, batch)}</span>
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="sticky z-10 box-border hidden w-36 min-w-36 bg-[#1b2130] px-3 py-3 group-hover:bg-[#232a3d] lg:table-cell" style={{ left: 272 }}>
+                    <span className="text-xs tracking-wide text-[#d5dced] uppercase">{batch?.name || "Batch"}</span>
+                  </td>
+                  <td className="sticky z-10 box-border hidden w-28 min-w-28 bg-[#1b2130] px-3 py-3 shadow-[8px_0_12px_-10px_rgb(0_0_0/0.8)] group-hover:bg-[#232a3d] lg:table-cell" style={{ left: 416 }}>
+                    <span className="inline-flex rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">Active</span>
+                  </td>
+                  {days.map((day) => {
+                    const cell = cellOf(member.id, day.iso, day.off);
+                    const look = pill[cell];
+                    const key = `${member.id}|${day.iso}`;
+                    return (
+                      <td key={day.iso} className={`px-1 py-2 text-center ${day.iso === today ? "bg-[#243056]/80 group-hover:bg-[#2a3864]" : "group-hover:bg-[#232a3d]"}`}>
+                        <button
+                          type="button"
+                          disabled={pending === key}
+                          onClick={() => onToggle(member, day.iso, cell)}
+                          aria-label={`${member.fullName} ${day.iso} ${look.label === "—" ? "not marked" : look.label}`}
+                          className={`inline-grid h-7 min-w-7 place-items-center rounded-full px-1 text-[10px] font-bold disabled:opacity-50 ${look.className}`}
+                        >
+                          {look.label}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {slice.length === 0 ? <p className="px-4 py-8 text-sm text-[#c5cde0]">No learners match this filter.</p> : null}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 px-4 py-3 text-sm text-[#9aa6bd]">
+        <p>Showing {roster.length === 0 ? 0 : start + 1}–{Math.min(start + PAGE_SIZE, roster.length)} of {roster.length}</p>
+        <div className="flex items-center gap-1">
+          <button type="button" disabled={currentPage === 1} onClick={() => onPage(currentPage - 1)} className="grid size-8 place-items-center rounded-lg hover:bg-white/10 disabled:opacity-30">
+            <ChevronLeft className="size-4" />
+          </button>
+          {pageNumbers.map((item, index) => (
+            <span key={`${item}-${index}`} className="contents">
+              {index > 0 && item - pageNumbers[index - 1]! > 1 ? <span className="px-1">…</span> : null}
+              <button type="button" onClick={() => onPage(item)} className={`grid size-8 place-items-center rounded-lg text-xs ${item === currentPage ? "bg-[#4f6dff] text-white" : "hover:bg-white/10"}`}>{item}</button>
+            </span>
+          ))}
+          <button type="button" disabled={currentPage === pages} onClick={() => onPage(currentPage + 1)} className="grid size-8 place-items-center rounded-lg hover:bg-white/10 disabled:opacity-30">
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      </div>
+      <p className="px-4 pb-3 text-xs text-[#7f8aa3]">Click a day to mark present. Click it again to mark absent. Sundays stay week off until you mark them.</p>
+    </div>
+  );
+}
+
+function pageWindow(current: number, total: number) {
+  const pages = new Set<number>([1, total, current - 1, current, current + 1]);
+  return [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b);
+}
+
+function LegendCard() {
+  const items = [
+    { label: "P Present", className: "bg-[#34d399]" },
+    { label: "A Absent", className: "bg-[#fb7185]" },
+    { label: "WO Week off", className: "bg-[#c4b5fd]" },
+    { label: "— Not marked", className: "bg-[#31384c]" },
+  ];
+  return (
+    <section className="rounded-[24px] bg-[#141824] px-4 py-4 sm:px-5">
+      <h2 className="text-sm font-semibold">Attendance status legend</h2>
+      <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[#d5dced]">
+        {items.map((item) => (
+          <li key={item.label} className="flex items-center gap-2">
+            <span className={`size-3 rounded-full ${item.className}`} />
+            {item.label}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
