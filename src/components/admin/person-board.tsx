@@ -142,13 +142,19 @@ export function PersonBoard({
       </div>
       <header className="overflow-hidden rounded-3xl text-white" style={{ background: theme.band }}>
         <div className="px-5 py-5">
-          <p className="text-xs font-semibold tracking-[0.16em] uppercase">{theme.noun} · {batch.name}</p>
-          <h1 className="mt-1 text-3xl font-semibold">{member.fullName}</h1>
-          <p className="mt-2 text-sm text-white/85">{displayPhone(member.phone) || "No phone"}{member.email ? ` · ${member.email}` : ""}{member.note ? ` · ${member.note}` : ""}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold tracking-[0.16em] uppercase">{theme.noun} · {batch.name}</p>
+              <h1 className="mt-1 text-3xl font-semibold">{member.fullName}</h1>
+              <p className="mt-2 text-sm text-white/85">{displayPhone(member.phone) || "No phone"}{member.email ? ` · ${member.email}` : ""}{member.note ? ` · ${member.note}` : ""}</p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button type="button" onClick={() => setEditing((value) => !value)} className="h-10 rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>{editing ? "Close" : "Edit"}</button>
+              <Link href={`/admin/print?section=person&id=${member.id}`} className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>Print</Link>
+            </div>
+          </div>
           <p className="mt-3 text-sm">Today {todayMark || "not marked yet"} · {rupees(collected)} collected</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={() => setEditing((value) => !value)} className="h-10 rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>{editing ? "Close edit" : "Edit details"}</button>
-            <Link href={`/admin/print?section=person&id=${member.id}`} className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>{batch.learnerType === "student" ? "Student report" : "Professional report"}</Link>
             <button type="button" disabled={pending !== ""} onClick={() => mark("present")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "present" ? "white" : "rgb(255 255 255 / 0.16)", color: todayMark === "present" ? theme.from : "white" }}>Present</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("absent")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "absent" ? "#ffe4e6" : "rgb(255 255 255 / 0.16)", color: todayMark === "absent" ? "#9f1239" : "white" }}>Absent</button>
             <button type="button" disabled={pending !== ""} onClick={() => mark("leave")} className="h-10 rounded-xl px-3 text-sm font-medium" style={{ background: todayMark === "leave" ? "#fef3c7" : "rgb(255 255 255 / 0.16)", color: todayMark === "leave" ? "#92400e" : "white" }}>Leave</button>
