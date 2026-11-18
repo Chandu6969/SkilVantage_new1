@@ -170,6 +170,12 @@ export function AttendanceBoard({
     setDay((current) => (current.startsWith(next) ? current : `${next}-01`));
   }
 
+  function chooseDate(iso: string) {
+    setDay(iso);
+    setMonth(iso.slice(0, 7));
+    setPage(1);
+  }
+
   function moveDay(delta: number) {
     const [year, monthPart, date] = day.split("-").map(Number);
     const next = new Date(Date.UTC(year, (monthPart || 1) - 1, (date || 1) + delta)).toISOString().slice(0, 10);
@@ -254,13 +260,16 @@ export function AttendanceBoard({
               <p className="mt-0.5 text-sm text-[#9aa6bd]">Daily list and the monthly grid, together</p>
             </div>
           </div>
-          <MonthMenu
-            month={month}
-            choices={monthChoices}
-            onPrevious={() => chooseMonth(shiftMonth(month, -1))}
-            onNext={() => chooseMonth(shiftMonth(month, 1))}
-            onChange={chooseMonth}
-          />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <MonthMenu
+              month={month}
+              choices={monthChoices}
+              onPrevious={() => chooseMonth(shiftMonth(month, -1))}
+              onNext={() => chooseMonth(shiftMonth(month, 1))}
+              onChange={chooseMonth}
+            />
+            <DateMenu day={day} today={today} onChange={chooseDate} />
+          </div>
         </div>
 
         <h2 className="mt-4 px-1 text-sm font-semibold text-[#d5dced]">Monthly attendance report</h2>
@@ -356,6 +365,22 @@ export function AttendanceBoard({
   );
 }
 
+function shortDay(iso: string) {
+  const [year, month, date] = iso.split("-").map(Number);
+  if (!year || !month || !date) return iso;
+  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function shiftDay(iso: string, delta: number) {
+  const [year, month, date] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year, (month || 1) - 1, (date || 1) + delta)).toISOString().slice(0, 10);
+}
+
 function longDay(iso: string) {
   const [year, month, date] = iso.split("-").map(Number);
   if (!year || !month || !date) return iso;
@@ -426,6 +451,82 @@ function MonthMenu({
             </li>
           ))}
         </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function DateMenu({ day, today, onChange }: { day: string; today: string; onChange: (iso: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(day.slice(0, 7));
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (open) setVisible(day.slice(0, 7));
+  }, [day, open]);
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(event: PointerEvent) {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointer, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const days = daysOf(visible);
+  const [year, month] = visible.split("-").map(Number);
+  const lead = (new Date(Date.UTC(year || 2026, (month || 1) - 1, 1)).getUTCDay() + 6) % 7;
+  return (
+    <div className="relative" ref={root}>
+      <div className="flex items-center gap-1 rounded-xl bg-[#232a3d] px-1.5 py-1">
+        <button type="button" aria-label="Previous day" onClick={() => onChange(shiftDay(day, -1))} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
+          <ChevronLeft className="size-4" />
+        </button>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className="inline-flex h-8 items-center gap-2 rounded-lg px-2 text-sm font-medium text-white">
+          <CalendarDays className="size-4 text-[#86efac]" aria-hidden="true" />
+          {shortDay(day)}
+        </button>
+        <button type="button" aria-label="Next day" onClick={() => onChange(shiftDay(day, 1))} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+      {open ? (
+        <div className="absolute right-0 z-50 mt-2 w-[280px] rounded-2xl bg-[#2c354c] p-3 text-white shadow-2xl ring-1 ring-white/15">
+          <div className="flex items-center justify-between gap-2">
+            <button type="button" aria-label="Previous month" onClick={() => setVisible(shiftMonth(visible, -1))} className="grid size-8 place-items-center rounded-lg hover:bg-white/10">
+              <ChevronLeft className="size-4" />
+            </button>
+            <p className="text-sm font-medium">{monthLabel(visible)}</p>
+            <button type="button" aria-label="Next month" onClick={() => setVisible(shiftMonth(visible, 1))} className="grid size-8 place-items-center rounded-lg hover:bg-white/10">
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[11px] text-[#9aa6bd]">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => <span key={label}>{label}</span>)}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {Array.from({ length: lead }, (_, index) => <span key={`blank-${index}`} />)}
+            {days.map((item) => {
+              const selected = item.iso === day;
+              const current = item.iso === today;
+              return (
+                <button
+                  key={item.iso}
+                  type="button"
+                  onClick={() => { onChange(item.iso); setOpen(false); }}
+                  className={`h-8 rounded-lg text-sm ${selected ? "bg-[#4f6dff] font-semibold text-white" : current ? "bg-white/15 text-white" : item.off ? "text-[#9aa6bd] hover:bg-white/10" : "hover:bg-white/10"}`}
+                >
+                  {item.day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       ) : null}
     </div>
   );
