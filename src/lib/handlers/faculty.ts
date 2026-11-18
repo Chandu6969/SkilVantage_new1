@@ -82,6 +82,15 @@ export async function patchFaculty(req: Request, ctx: { params: Promise<{ id: st
   return json({ ok: true, teacher });
 }
 
+export async function deleteFaculty(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const access = await guard(req);
+  if ("error" in access) return access.error;
+  const { id } = await ctx.params;
+  const removed = await getStore().deleteFaculty(id);
+  if (!removed) return json({ ok: false, error: "That teacher is not on the list." }, 404);
+  return json({ ok: true });
+}
+
 export async function postFacultyDay(req: Request) {
   const access = await guard(req);
   if ("error" in access) return access.error;

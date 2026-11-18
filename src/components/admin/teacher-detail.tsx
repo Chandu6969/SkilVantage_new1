@@ -42,6 +42,22 @@ export function TeacherDetail({ teacher, days, pays, today }: { teacher: Faculty
     router.refresh();
   }
 
+  async function remove() {
+    const sure = window.confirm(`Delete ${teacher.fullName}? Their attendance and class pay will be removed too.`);
+    if (!sure) return;
+    setPending("delete");
+    setError("");
+    const response = await fetch(`/api/v1/admin/faculty/${teacher.id}`, { method: "DELETE" });
+    const data = (await response.json()) as { ok?: boolean; error?: string };
+    setPending("");
+    if (!response.ok || !data.ok) {
+      setError(data.error || "Could not delete this teacher.");
+      return;
+    }
+    router.push("/admin/teacher");
+    router.refresh();
+  }
+
   async function settle(id: string) {
     setPending(id);
     const response = await fetch(`/api/v1/admin/faculty/pay/${id}`, {
@@ -66,7 +82,10 @@ export function TeacherDetail({ teacher, days, pays, today }: { teacher: Faculty
         <h1 className="mt-1 text-3xl font-semibold">{teacher.fullName}</h1>
         <p className="mt-2 text-sm text-white/85">{teacher.phone}{teacher.email ? ` · ${teacher.email}` : ""}{teacher.note ? ` · ${teacher.note}` : ""}</p>
         <p className="mt-3 text-sm">Unpaid {rupees(owed.reduce((sum, pay) => sum + pay.amount, 0))} · Paid {rupees(paid.reduce((sum, pay) => sum + pay.amount, 0))} · {rupees(classPay(teacher.rate))} a class</p>
-        <button type="button" onClick={() => setEditing((value) => !value)} className="mt-4 h-10 rounded-xl bg-white px-4 text-sm font-medium text-[#065f46]">{editing ? "Close" : "Edit details"}</button>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setEditing((value) => !value)} className="h-10 rounded-xl bg-white px-4 text-sm font-medium text-[#065f46]">{editing ? "Close" : "Edit details"}</button>
+          <button type="button" disabled={pending !== ""} onClick={() => void remove()} className="h-10 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">Delete teacher</button>
+        </div>
       </header>
       {editing ? <TeacherForm teacher={teacher} /> : null}
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4">

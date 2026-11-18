@@ -625,6 +625,15 @@ export class PostgresStore implements LeadStore {
     await this.putDesk("faculty", person.id, person.id, person.createdAt, person);
   }
 
+  async deleteFaculty(id: string) {
+    await this.init();
+    const removed = await pool().query("DELETE FROM desk_items WHERE id = $1 AND kind = 'faculty' RETURNING id", [id]);
+    if (!removed.rowCount) return false;
+    await pool().query("DELETE FROM desk_items WHERE kind = 'faculty-day' AND member_id = $1", [id]);
+    await pool().query("DELETE FROM desk_items WHERE kind = 'faculty-pay' AND member_id = $1", [id]);
+    return true;
+  }
+
   async listFacultyDays() {
     const rows = await this.deskRows<FacultyDay>("faculty-day");
     return rows.sort((a, b) => b.date.localeCompare(a.date));

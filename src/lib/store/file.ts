@@ -461,6 +461,19 @@ export class FileStore implements LeadStore {
     });
   }
 
+  async deleteFaculty(id: string) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const teacher = body.teachers.find((item) => item.id === id);
+      if (!teacher) return false;
+      body.teachers = body.teachers.filter((item) => item.id !== id);
+      body.teacherDays = body.teacherDays.filter((item) => item.teacherId !== id);
+      body.teacherPays = body.teacherPays.filter((item) => item.teacherId !== id);
+      await this.write(body);
+      return true;
+    });
+  }
+
   async listFacultyDays() {
     const body = await this.read();
     return body.teacherDays.sort((a, b) => b.date.localeCompare(a.date));

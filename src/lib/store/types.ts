@@ -71,6 +71,7 @@ export interface LeadStore {
   listFaculty(): Promise<Faculty[]>;
   addFaculty(person: Faculty): Promise<void>;
   updateFaculty(id: string, patch: Partial<Pick<Faculty, "fullName" | "phone" | "email" | "course" | "rate" | "note">>): Promise<Faculty | null>;
+  deleteFaculty(id: string): Promise<boolean>;
   listFacultyDays(): Promise<FacultyDay[]>;
   markFacultyDay(day: FacultyDay): Promise<FacultyDay>;
   listFacultyPays(): Promise<FacultyPay[]>;

@@ -133,6 +133,11 @@ test("student batches start with SASI and WISE and keep an added person", async 
   });
   const settled = await store.settleFacultyPay(saved.id, "2026-11-17");
   assert.equal(settled?.status, "paid");
+  assert.equal(await store.deleteFaculty("SVQ-TEST01"), true);
+  assert.equal((await store.listFaculty()).some((item) => item.id === "SVQ-TEST01"), false);
+  assert.equal((await store.listFacultyDays()).some((item) => item.teacherId === "SVQ-TEST01"), false);
+  assert.equal((await store.listFacultyPays()).some((item) => item.teacherId === "SVQ-TEST01"), false);
+  assert.equal(await store.deleteFaculty("SVQ-MISSING"), false);
   const renamed = await store.updateBatch(batches[0]!.id, { name: "SASI Morning" });
   assert.equal(renamed?.name, "SASI Morning");
   await store.updateBatch(batches[0]!.id, { name: "SASI" });

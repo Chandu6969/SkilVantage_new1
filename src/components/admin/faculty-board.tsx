@@ -52,6 +52,21 @@ export function FacultyBoard({
     router.refresh();
   }
 
+  async function remove(teacher: Faculty) {
+    const sure = window.confirm(`Delete ${teacher.fullName}? Their attendance and class pay will be removed too.`);
+    if (!sure) return;
+    setPending(teacher.id);
+    setError("");
+    const response = await fetch(`/api/v1/admin/faculty/${teacher.id}`, { method: "DELETE" });
+    const data = (await response.json()) as { ok?: boolean; error?: string };
+    setPending("");
+    if (!response.ok || !data.ok) {
+      setError(data.error || "Could not delete this teacher.");
+      return;
+    }
+    router.refresh();
+  }
+
   async function settle(id: string) {
     setPending(id);
     setError("");
@@ -110,9 +125,10 @@ export function FacultyBoard({
                     <p className="mt-1 text-sm text-[var(--desk-muted)]">{teacher.phone}{teacher.email ? ` · ${teacher.email}` : ""} · {rupees(classPay(teacher.rate))} a class</p>
                     <p className="mt-1 text-sm">Unpaid {rupees(owed)}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button type="button" disabled={pending !== ""} onClick={() => mark(teacher.id, "present")} className={`h-10 rounded-xl px-4 text-sm font-medium ${status === "present" ? "bg-emerald-400 text-[#06281c]" : "border border-[var(--desk-line)]"}`}>Present</button>
                     <button type="button" disabled={pending !== ""} onClick={() => mark(teacher.id, "absent")} className={`h-10 rounded-xl px-4 text-sm font-medium ${status === "absent" ? "bg-rose-400 text-[#3b1020]" : "border border-[var(--desk-line)]"}`}>Absent</button>
+                    <button type="button" disabled={pending !== ""} onClick={() => void remove(teacher)} className="h-10 rounded-xl border border-rose-400/70 px-4 text-sm font-medium text-rose-300">Delete</button>
                   </div>
                 </div>
               </article>
