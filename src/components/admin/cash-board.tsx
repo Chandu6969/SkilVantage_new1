@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Printer, RefreshCw } from "lucide-react";
+import { Printer } from "lucide-react";
 import { CASH_CATEGORIES, CASH_MODES, settleCash } from "@/lib/cash-book";
 import { rupees } from "@/components/admin/desk-charts";
-import { formatStamp, todayIST } from "@/lib/dates";
+import { todayIST } from "@/lib/dates";
 import type { CashAccount, CashBook, CashEntry, CashFlow } from "@/lib/types";
 
 const field = "mt-1 h-11 w-full rounded-xl border border-white/10 bg-black px-3 text-sm text-white outline-none placeholder:text-white/35";
@@ -14,15 +14,7 @@ const control = "h-11 rounded-xl border border-white/10 bg-black px-3 text-sm te
 const flowLabel: Record<CashFlow, string> = { in: "Inflow", out: "Outflow", transfer: "Transfer" };
 const accountLabel: Record<CashAccount, string> = { cash: "Cash", bank: "Bank" };
 
-export function CashBoard({
-  book,
-  entries,
-  sheetsConfigured,
-}: {
-  book: CashBook;
-  entries: CashEntry[];
-  sheetsConfigured: boolean;
-}) {
+export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntry[] }) {
   const router = useRouter();
   const today = todayIST();
   const [openingCash, setOpeningCash] = useState(String(book.openingCash));
@@ -139,23 +131,6 @@ export function CashBoard({
     router.refresh();
   }
 
-  async function sync() {
-    setPending("sync");
-    setError("");
-    setNotice("");
-    const response = await fetch("/api/v1/admin/cash/sync", { method: "POST" });
-    const data = (await response.json()) as { ok?: boolean; error?: string; configured?: boolean };
-    setPending("");
-    if (!response.ok || !data.ok) {
-      setError(data.error || "Could not sync the cash book.");
-      return;
-    }
-    setNotice(data.configured ? "Cash book copied to the Google Sheet." : "Saved on this desk. Google Sheets is not connected yet.");
-    if (data.configured) router.refresh();
-  }
-
-  const synced = book.syncedAt ? `Google Sheets data loaded · ${formatStamp(book.syncedAt)}` : "Saved on this desk";
-
   return (
     <div className="grid min-w-0 gap-4">
       <header className="desk-hero" style={{ flexWrap: "wrap" }}>
@@ -163,14 +138,6 @@ export function CashBoard({
           <p className="desk-pill">Skilvantage · Finance</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Cash & Bank Book</h1>
           <p className="mt-2 max-w-xl text-sm text-white/85">Track money received, money spent, and the current Cash and Bank balances without changing your existing student records.</p>
-        </div>
-        <div className="flex flex-col items-stretch gap-2 sm:items-end">
-          <p className="text-sm text-white/90">{synced}</p>
-          <p className="w-fit rounded-full bg-black/20 px-3 py-1 text-xs font-medium text-white">{sheetsConfigured ? "Sheets sync: connected" : "Central copy: this desk"}</p>
-          <button type="button" disabled={pending !== ""} onClick={() => void sync()} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-black/25 px-4 text-sm font-medium text-white disabled:opacity-60">
-            <RefreshCw className="size-4" aria-hidden="true" />
-            {pending === "sync" ? "Syncing…" : "Sync now"}
-          </button>
         </div>
       </header>
 
