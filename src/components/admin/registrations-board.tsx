@@ -113,22 +113,22 @@ export function RegistrationsBoard({ rows }: { rows: Registration[] }) {
 
 function Metric({ tint, title, value, of, hint }: { tint: string; title: string; value: number; of: number; hint: string }) {
   const share = percent(value, of);
-  const radius = 16;
+  const radius = 15;
   const length = 2 * Math.PI * radius;
   return (
-    <article className="relative overflow-hidden rounded-[22px] p-4" style={{ background: tint }}>
+    <article className="rounded-[22px] p-4" style={{ background: tint }}>
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-medium text-white/90">{title}</p>
           <p className="mt-3 text-4xl font-semibold tracking-tight">{String(value).padStart(2, "0")}</p>
           <p className="mt-1 text-xs text-white/80">{hint}</p>
         </div>
-        <span className="relative grid size-12 place-items-center">
-          <svg viewBox="0 0 40 40" className="size-12 -rotate-90">
-            <circle cx="20" cy="20" r={radius} fill="none" stroke="rgb(255 255 255 / 0.25)" strokeWidth="3" />
-            <circle cx="20" cy="20" r={radius} fill="none" stroke="white" strokeWidth="3" strokeDasharray={`${(share / 100) * length} ${length}`} strokeLinecap="round" />
+        <span className="relative mt-0.5 grid size-14 shrink-0 place-items-center">
+          <svg viewBox="0 0 44 44" className="size-14 -rotate-90">
+            <circle cx="22" cy="22" r={radius} fill="none" stroke="rgb(255 255 255 / 0.28)" strokeWidth="3" />
+            <circle cx="22" cy="22" r={radius} fill="none" stroke="white" strokeWidth="3" strokeDasharray={`${(share / 100) * length} ${length}`} strokeLinecap="round" />
           </svg>
-          <span className="absolute text-[10px] font-semibold">{share}%</span>
+          <span className="absolute text-[11px] leading-none font-semibold">{share}%</span>
         </span>
       </div>
     </article>
