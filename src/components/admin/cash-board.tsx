@@ -6,15 +6,26 @@ import { Printer } from "lucide-react";
 import { CASH_CATEGORIES, CASH_MODES, settleCash } from "@/lib/cash-book";
 import { rupees } from "@/components/admin/desk-charts";
 import { todayIST } from "@/lib/dates";
-import type { CashAccount, CashBook, CashEntry, CashFlow } from "@/lib/types";
+import type { CashAccount, CashBook, CashEntry, CashFlow, LearnerType } from "@/lib/types";
 
-const field = "mt-1 h-11 w-full rounded-xl border border-white/10 bg-black px-3 text-sm text-white outline-none placeholder:text-white/35";
-const control = "h-11 rounded-xl border border-white/10 bg-black px-3 text-sm text-white outline-none placeholder:text-white/35";
+const field = "mt-1 h-11 w-full rounded-xl border border-[#b7e0cc] bg-white px-3 text-sm text-[#134e4a] outline-none placeholder:text-[#7aa894]";
+const control = "h-11 rounded-xl border border-[#b7e0cc] bg-white px-3 text-sm text-[#134e4a] outline-none placeholder:text-[#7aa894]";
+
+type BatchOption = { id: string; name: string; learnerType: LearnerType };
+type PersonOption = { id: string; batchId: string; fullName: string };
+type TeacherOption = { id: string; fullName: string };
+
+function categoryKind(category: string): "student" | "professional" | "teacher" | "other" {
+  if (category === "Student Fee") return "student";
+  if (category === "Professional Fee") return "professional";
+  if (category === "Teacher Payment") return "teacher";
+  return "other";
+}
 
 const flowLabel: Record<CashFlow, string> = { in: "Inflow", out: "Outflow", transfer: "Transfer" };
 const accountLabel: Record<CashAccount, string> = { cash: "Cash", bank: "Bank" };
 
-export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntry[] }) {
+export function CashBoard({ book, entries, batches, people, teachers }: { book: CashBook; entries: CashEntry[]; batches: BatchOption[]; people: PersonOption[]; teachers: TeacherOption[] }) {
   const router = useRouter();
   const today = todayIST();
   const [openingCash, setOpeningCash] = useState(String(book.openingCash));
@@ -24,6 +35,8 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
   const [flow, setFlow] = useState<CashFlow>("in");
   const [account, setAccount] = useState<CashAccount>("bank");
   const [category, setCategory] = useState<string>(CASH_CATEGORIES[0]);
+  const [batchId, setBatchId] = useState("");
+  const [partyId, setPartyId] = useState("");
   const [amount, setAmount] = useState("");
   const [party, setParty] = useState("");
   const [reference, setReference] = useState("");
@@ -48,12 +61,47 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
     [accountFilter, book, entries, flowFilter, month, query],
   );
 
+  const kind = categoryKind(category);
+  const batchChoices = batches.filter((batch) => batch.learnerType === kind);
+  const roster = people
+    .filter((person) => person.batchId === batchId)
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+  const teacherChoices = [...teachers].sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+  function chooseCategory(next: string) {
+    const nextKind = categoryKind(next);
+    setCategory(next);
+    setBatchId("");
+    setPartyId("");
+    setParty("");
+    if (nextKind === "student" || nextKind === "professional") setFlow("in");
+    if (nextKind === "teacher") setFlow("out");
+  }
+
+  function chooseBatch(next: string) {
+    setBatchId(next);
+    setPartyId("");
+    setParty("");
+  }
+
+  function choosePerson(id: string, list: { id: string; fullName: string }[]) {
+    if (id === "kept") return;
+    const person = list.find((item) => item.id === id);
+    setPartyId(id);
+    setParty(person?.fullName || "");
+  }
+
   function load(entry: CashEntry) {
+    const entryKind = categoryKind(entry.category);
+    const person = people.find((item) => item.fullName === entry.party && batches.find((batch) => batch.id === item.batchId)?.learnerType === entryKind);
+    const teacher = teachers.find((item) => item.fullName === entry.party);
     setEditing(entry);
     setDate(entry.date);
     setFlow(entry.flow);
     setAccount(entry.account);
     setCategory(entry.category);
+    setBatchId(person?.batchId || "");
+    setPartyId(entryKind === "teacher" ? teacher?.id || "" : person?.id || "");
     setAmount(String(entry.amount));
     setParty(entry.party);
     setReference(entry.reference);
@@ -68,6 +116,8 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
     setFlow("in");
     setAccount("bank");
     setCategory(CASH_CATEGORIES[0]);
+    setBatchId("");
+    setPartyId("");
     setAmount("");
     setParty("");
     setReference("");
@@ -96,8 +146,16 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
 
   async function saveEntry(event: React.FormEvent) {
     event.preventDefault();
-    setPending("entry");
     setError("");
+    if ((kind === "student" || kind === "professional") && !batchId) {
+      setError("Choose the batch first.");
+      return;
+    }
+    if (kind !== "other" && !party.trim()) {
+      setError(kind === "teacher" ? "Choose the teacher." : "Choose the name.");
+      return;
+    }
+    setPending("entry");
     const payload = { date, flow, account, category, amount: Number(amount), party, reference, mode, description };
     const response = await fetch(editing ? `/api/v1/admin/cash/entries/${editing.id}` : "/api/v1/admin/cash/entries", {
       method: editing ? "PATCH" : "POST",
@@ -131,53 +189,52 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
     router.refresh();
   }
 
+  const asksBatch = kind === "student" || kind === "professional";
+  const noun = kind === "professional" ? "professional" : "student";
+
   return (
-    <div className="grid min-w-0 gap-4">
-      <article className="rounded-[28px] border border-white/10 bg-black px-5 py-6 sm:px-8 sm:py-8">
-        <p className="text-xs font-semibold tracking-[0.16em] text-white/45 uppercase">Total balance</p>
-        <p className="mt-2 text-5xl font-semibold tracking-tight text-[#c4b5fd] sm:text-6xl">{rupees(snapshot.total)}</p>
-        <p className="mt-3 text-sm text-white/55">Cash {rupees(snapshot.cash)} · Bank {rupees(snapshot.bank)}</p>
-      </article>
+    <div className="-mx-3 -my-4 grid min-h-[calc(100dvh-2rem)] min-w-0 content-start gap-4 bg-[#e7f6ee] px-3 py-4 text-[#134e4a] sm:-mx-5 sm:-my-5 sm:px-5 sm:py-5 lg:-mx-6 lg:px-6">
       <header className="desk-hero" style={{ flexWrap: "wrap" }}>
         <div>
-          <p className="desk-pill">Skilvantage · Finance</p>
+          <p className="desk-pill">SkilVantage · Finance</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Cash & Bank Book</h1>
           <p className="mt-2 max-w-xl text-sm text-white/85">Track money received, money spent, and the current Cash and Bank balances without changing your existing student records.</p>
         </div>
       </header>
+      <article className="rounded-[28px] border border-[#c9ead8] bg-white px-5 py-6 sm:px-8 sm:py-8">
+        <p className="text-xs font-semibold tracking-[0.16em] text-[#5d8572] uppercase">Total balance</p>
+        <p className="mt-2 text-5xl font-semibold tracking-tight text-[#047857] sm:text-6xl">{rupees(snapshot.total)}</p>
+        <p className="mt-3 text-sm text-[#5d8572]">Cash {rupees(snapshot.cash)} · Bank {rupees(snapshot.bank)}</p>
+      </article>
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <MoneyCard title="Cash balance" value={rupees(snapshot.cash)} detail="Current cash in hand" to="#0f766e" />
+        <MoneyCard title="Bank balance" value={rupees(snapshot.bank)} detail="Current bank balance" to="#1d4ed8" />
+        <MoneyCard title="This period inflow" value={rupees(snapshot.periodIn)} detail={month ? monthTitle(month) : "All months"} to="#047857" />
+        <MoneyCard title="This period outflow" value={rupees(snapshot.periodOut)} detail={month ? monthTitle(month) : "All months"} to="#be123c" />
+        <MoneyCard title="Net cash flow" value={rupees(snapshot.net)} detail={snapshot.net >= 0 ? "Positive flow" : "More spent than received"} to="#c2410c" />
+      </div>
 
-      <section
-        className="min-w-0 rounded-[28px] p-3 sm:p-5"
-        style={{ color: "#f4f7f5", background: "#050505" }}
-      >
-        {error ? <p className="mb-3 text-sm text-rose-300">{error}</p> : null}
-        {notice ? <p className="mb-3 text-sm text-emerald-300">{notice}</p> : null}
+      <section className="min-w-0 rounded-[28px] border border-[#c9ead8] bg-[#f4fbf7] p-3 sm:p-5">
+        {error ? <p className="mb-3 text-sm text-rose-700">{error}</p> : null}
+        {notice ? <p className="mb-3 text-sm text-emerald-800">{notice}</p> : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <MoneyCard title="Cash balance" value={rupees(snapshot.cash)} detail="Current cash in hand" from="#0f766e" to="#5eead4" />
-          <MoneyCard title="Bank balance" value={rupees(snapshot.bank)} detail="Current bank balance" from="#1e3a8a" to="#93c5fd" />
-          <MoneyCard title="This period inflow" value={rupees(snapshot.periodIn)} detail={month ? monthTitle(month) : "All months"} from="#065f46" to="#6ee7b7" />
-          <MoneyCard title="This period outflow" value={rupees(snapshot.periodOut)} detail={month ? monthTitle(month) : "All months"} from="#9f1239" to="#fda4af" />
-          <MoneyCard title="Net cash flow" value={rupees(snapshot.net)} detail={snapshot.net >= 0 ? "Positive flow" : "More spent than received"} from="#9a3412" to="#fdba74" />
-        </div>
-
-        <article className="mt-4 rounded-3xl p-4 sm:p-5" style={glass}>
+        <article className="rounded-3xl p-4 sm:p-5" style={glass}>
           <div className="flex flex-wrap items-end justify-between gap-2">
             <h2 className="text-lg font-semibold">Opening balances</h2>
-            <p className="text-sm text-white/55">Set these once to start the book. They are not counted as income.</p>
+            <p className="text-sm text-[#5d8572]">Set these once to start the book. They are not counted as income.</p>
           </div>
           <form onSubmit={saveOpening} className="mt-4 grid gap-3 lg:grid-cols-2">
-            <label className="rounded-2xl border border-white/10 bg-black p-3 text-sm">
+            <label className="rounded-2xl border border-[#c9ead8] bg-white p-3 text-sm">
               <span className="flex items-center justify-between gap-3">
                 <span className="font-medium">Cash in hand</span>
-                <span className="text-lg font-semibold text-[#5eead4]">{rupees(snapshot.cash)}</span>
+                <span className="text-lg font-semibold text-[#0f766e]">{rupees(snapshot.cash)}</span>
               </span>
               <input value={openingCash} onChange={(event) => setOpeningCash(event.target.value)} inputMode="decimal" aria-label="Opening cash balance" className={field} />
             </label>
-            <label className="rounded-2xl border border-white/10 bg-black p-3 text-sm">
+            <label className="rounded-2xl border border-[#c9ead8] bg-white p-3 text-sm">
               <span className="flex items-center justify-between gap-3">
                 <span className="font-medium">Bank balance</span>
-                <span className="text-lg font-semibold text-[#93c5fd]">{rupees(snapshot.bank)}</span>
+                <span className="text-lg font-semibold text-[#1d4ed8]">{rupees(snapshot.bank)}</span>
               </span>
               <input value={openingBank} onChange={(event) => setOpeningBank(event.target.value)} inputMode="decimal" aria-label="Opening bank balance" className={field} />
             </label>
@@ -191,47 +248,67 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
 
         <article className="mt-4 rounded-3xl p-4 sm:p-5" style={glass}>
           <h2 className="text-lg font-semibold">{editing ? "Edit transaction" : "Add transaction"}</h2>
-          <form onSubmit={saveEntry} className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Date
-              <input type="date" required value={date} onChange={(event) => setDate(event.target.value)} className={field} style={{ colorScheme: "dark" }} />
-            </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Type
-              <select value={flow} onChange={(event) => setFlow(event.target.value as CashFlow)} className={field} style={{ colorScheme: "dark" }}>
+          <form onSubmit={saveEntry} className="mt-4 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Field label="Date">
+              <input type="date" required value={date} onChange={(event) => setDate(event.target.value)} className={field} />
+            </Field>
+            <Field label="Type">
+              <select value={flow} onChange={(event) => setFlow(event.target.value as CashFlow)} className={field}>
                 <option value="in">Inflow / Money in</option>
                 <option value="out">Outflow / Money out</option>
                 <option value="transfer">Transfer between cash and bank</option>
               </select>
-            </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">{flow === "transfer" ? "From account" : "Account"}
-              <select value={account} onChange={(event) => setAccount(event.target.value as CashAccount)} className={field} style={{ colorScheme: "dark" }}>
+            </Field>
+            <Field label={flow === "transfer" ? "From account" : "Account"}>
+              <select value={account} onChange={(event) => setAccount(event.target.value as CashAccount)} className={field}>
                 <option value="cash">Cash</option>
                 <option value="bank">Bank</option>
               </select>
-            </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Category
-              <select value={category} onChange={(event) => setCategory(event.target.value)} className={field} style={{ colorScheme: "dark" }}>
+            </Field>
+            <Field label="Category">
+              <select value={category} onChange={(event) => chooseCategory(event.target.value)} className={field}>
                 {CASH_CATEGORIES.map((item) => <option key={item}>{item}</option>)}
               </select>
-            </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Amount (₹)
+            </Field>
+            <Field label="Batch">
+              <select value={asksBatch ? batchId : ""} disabled={!asksBatch} onChange={(event) => chooseBatch(event.target.value)} aria-label="Batch" className={`${field} disabled:bg-[#f3faf6] disabled:text-[#7aa894]`}>
+                <option value="">{asksBatch ? "Choose a batch" : "Not used for this category"}</option>
+                {asksBatch ? batchChoices.map((batch) => <option key={batch.id} value={batch.id}>{batch.name}</option>) : null}
+              </select>
+            </Field>
+            <Field label="From / to">
+              {kind === "teacher" ? (
+                <select required value={partyId || (party ? "kept" : "")} onChange={(event) => choosePerson(event.target.value, teacherChoices)} aria-label="Teacher" className={field}>
+                  <option value="">{teacherChoices.length ? "Choose a teacher" : "No teachers yet"}</option>
+                  {teacherChoices.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.fullName}</option>)}
+                  {party && !partyId ? <option value="kept">{party}</option> : null}
+                </select>
+              ) : asksBatch ? (
+                <select required={Boolean(batchId)} value={partyId || (party ? "kept" : "")} disabled={!batchId} onChange={(event) => choosePerson(event.target.value, roster)} aria-label={noun === "student" ? "Student" : "Professional"} className={`${field} disabled:bg-[#f3faf6] disabled:text-[#7aa894]`}>
+                  <option value="">{batchId ? `Choose a ${noun}` : "Choose a batch first"}</option>
+                  {roster.map((person) => <option key={person.id} value={person.id}>{person.fullName}</option>)}
+                  {party && !partyId ? <option value="kept">{party}</option> : null}
+                </select>
+              ) : (
+                <input value={party} onChange={(event) => { setPartyId(""); setParty(event.target.value); }} placeholder="Student, teacher, vendor" className={field} />
+              )}
+            </Field>
+            <Field label="Amount (₹)">
               <input required value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="0" className={field} />
-            </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">From / to
-              <input value={party} onChange={(event) => setParty(event.target.value)} placeholder="Student, teacher, vendor" className={field} />
-            </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Reference
-              <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Receipt / UTR / invoice no." className={field} />
-            </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase">Payment mode
-              <select value={mode} onChange={(event) => setMode(event.target.value)} className={field} style={{ colorScheme: "dark" }}>
+            </Field>
+            <Field label="Payment mode">
+              <select value={mode} onChange={(event) => setMode(event.target.value)} className={field}>
                 {CASH_MODES.map((item) => <option key={item}>{item}</option>)}
               </select>
-            </label>
-            <label className="text-xs font-semibold tracking-[0.12em] text-white/55 uppercase sm:col-span-2 xl:col-span-4">Description
+            </Field>
+            <Field label="Reference">
+              <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Receipt / UTR / invoice no." className={field} />
+            </Field>
+            <Field label="Description" className="sm:col-span-2 xl:col-span-3">
               <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="September course fee, internet bill, teacher payment" className={field} />
-            </label>
+            </Field>
             <div className="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-4 xl:justify-end">
-              {editing ? <button type="button" onClick={resetForm} className="h-11 rounded-xl border border-white/15 bg-black px-4 text-sm text-white">Cancel edit</button> : null}
+              {editing ? <button type="button" onClick={resetForm} className="h-11 rounded-xl border border-[#b7e0cc] bg-white px-4 text-sm text-[#134e4a]">Cancel edit</button> : null}
               <button type="submit" disabled={pending !== ""} className="h-11 rounded-xl bg-[#0f766e] px-4 text-sm font-medium text-white disabled:opacity-60">
                 {pending === "entry" ? "Saving…" : editing ? "Save transaction" : "Add transaction"}
               </button>
@@ -242,23 +319,23 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
         <article className="mt-4 min-w-0 overflow-hidden rounded-3xl" style={glass}>
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
             <h2 className="text-lg font-semibold">Transactions</h2>
-            <a href={`/admin/print?section=cash${month ? `&month=${month}` : ""}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/15 bg-black px-3 text-sm font-medium text-white">
+            <a href={`/admin/print?section=cash${month ? `&month=${month}` : ""}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#b7e0cc] bg-white px-3 text-sm font-medium text-[#134e4a]">
               <Printer className="size-4" aria-hidden="true" />
               Print
             </a>
           </div>
           <div className="grid gap-2 px-4 pb-4 sm:grid-cols-2 xl:grid-cols-[1.4fr_repeat(3,0.8fr)_auto] sm:px-5">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search description, party or reference" className={control} />
-            <select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Month" className={control} style={{ colorScheme: "dark" }}>
+            <select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Month" className={control}>
               <option value="">All months</option>
               {months.map((key) => <option key={key} value={key}>{monthTitle(key)}</option>)}
             </select>
-            <select value={accountFilter} onChange={(event) => setAccountFilter(event.target.value as "all" | CashAccount)} aria-label="Account" className={control} style={{ colorScheme: "dark" }}>
+            <select value={accountFilter} onChange={(event) => setAccountFilter(event.target.value as "all" | CashAccount)} aria-label="Account" className={control}>
               <option value="all">All accounts</option>
               <option value="cash">Cash</option>
               <option value="bank">Bank</option>
             </select>
-            <select value={flowFilter} onChange={(event) => setFlowFilter(event.target.value as "all" | CashFlow)} aria-label="Type" className={control} style={{ colorScheme: "dark" }}>
+            <select value={flowFilter} onChange={(event) => setFlowFilter(event.target.value as "all" | CashFlow)} aria-label="Type" className={control}>
               <option value="all">All types</option>
               <option value="in">Inflow</option>
               <option value="out">Outflow</option>
@@ -268,7 +345,7 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1080px] text-left text-sm">
-              <thead className="bg-[#0f766e] text-xs tracking-wide text-white uppercase">
+              <thead className="bg-[#14967c] text-xs tracking-wide text-white uppercase">
                 <tr>
                   {["Date", "Type", "Account", "Category", "Description", "From / to", "Reference", "Payment mode", "Amount", "Balance before", "Running balance", "Action"].map((heading) => (
                     <th key={heading} className="px-3 py-3 font-medium">{heading}</th>
@@ -277,7 +354,7 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
               </thead>
               <tbody>
                 {snapshot.rows.map((row) => (
-                  <tr key={row.entry.id} className="border-t border-white/10">
+                  <tr key={row.entry.id} className="border-t border-[#d7efe4]">
                     <td className="px-3 py-3 whitespace-nowrap">{dayLabel(row.entry.date)}</td>
                     <td className="px-3 py-3"><Pill flow={row.entry.flow} /></td>
                     <td className="px-3 py-3">{accountLabel[row.entry.account]}{row.entry.flow === "transfer" ? ` → ${accountLabel[row.entry.account === "cash" ? "bank" : "cash"]}` : ""}</td>
@@ -286,22 +363,22 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
                     <td className="px-3 py-3">{row.entry.party || "—"}</td>
                     <td className="px-3 py-3">{row.entry.reference || "—"}</td>
                     <td className="px-3 py-3">{row.entry.mode}</td>
-                    <td className={`px-3 py-3 font-medium whitespace-nowrap ${row.entry.flow === "out" ? "text-rose-300" : "text-emerald-300"}`}>{signed(row.entry)}</td>
+                    <td className={`px-3 py-3 font-medium whitespace-nowrap ${row.entry.flow === "out" ? "text-rose-700" : "text-emerald-700"}`}>{signed(row.entry)}</td>
                     <td className="px-3 py-3 whitespace-nowrap">{rupees(row.before)}</td>
                     <td className="px-3 py-3 font-medium whitespace-nowrap">{rupees(row.after)}</td>
                     <td className="px-3 py-3">
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => load(row.entry)} className="text-sm font-medium text-emerald-300">Edit</button>
-                        <button type="button" disabled={pending !== ""} onClick={() => void remove(row.entry)} className="text-sm font-medium text-rose-300">Delete</button>
+                        <button type="button" onClick={() => load(row.entry)} className="text-sm font-medium text-emerald-800">Edit</button>
+                        <button type="button" disabled={pending !== ""} onClick={() => void remove(row.entry)} className="text-sm font-medium text-rose-700">Delete</button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {snapshot.rows.length === 0 ? <p className="px-5 py-8 text-sm text-white/55">No transactions for this filter. Add the first receipt or expense above.</p> : null}
+            {snapshot.rows.length === 0 ? <p className="px-5 py-8 text-sm text-[#5d8572]">No transactions for this filter. Add the first receipt or expense above.</p> : null}
           </div>
-          <p className="px-5 py-4 text-xs leading-5 text-white/50">Balances follow the selected account. All accounts uses Cash and Bank together. A month starts from the previous month’s closing balance. A transfer moves money between cash and bank and is not income or an expense.</p>
+          <p className="px-5 py-4 text-xs leading-5 text-[#5d8572]">Balances follow the selected account. All accounts uses Cash and Bank together. A month starts from the previous month’s closing balance. A transfer moves money between cash and bank and is not income or an expense.</p>
         </article>
       </section>
     </div>
@@ -309,22 +386,31 @@ export function CashBoard({ book, entries }: { book: CashBook; entries: CashEntr
 }
 
 const glass = {
-  background: "#111111",
-  border: "1px solid rgb(255 255 255 / 0.08)",
+  background: "#ffffff",
+  border: "1px solid #c9ead8",
 } as const;
 
-function MoneyCard({ title, value, detail, to }: { title: string; value: string; detail: string; from: string; to: string }) {
+function Field({ label, className = "", children }: { label: string; className?: string; children: React.ReactNode }) {
   return (
-    <article className="rounded-3xl border border-white/10 bg-black p-4">
-      <p className="text-xs font-semibold tracking-[0.12em] text-white/45 uppercase">{title}</p>
-      <p className="mt-2 text-2xl font-semibold" style={{ color: to }}>{value}</p>
-      <p className="mt-2 text-sm text-white/55">{detail}</p>
+    <label className={`flex h-full flex-col justify-end text-xs font-semibold tracking-[0.12em] text-[#3d6b58] uppercase ${className}`}>
+      <span className="min-h-4">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function MoneyCard({ title, value, detail, to }: { title: string; value: string; detail: string; to: string }) {
+  return (
+    <article className="flex h-full flex-col rounded-3xl border border-[#c9ead8] bg-white p-4">
+      <p className="text-xs font-semibold tracking-[0.12em] text-[#5d8572] uppercase">{title}</p>
+      <p className="mt-2 text-2xl font-semibold tabular-nums" style={{ color: to }}>{value}</p>
+      <p className="mt-2 text-sm text-[#5d8572]">{detail}</p>
     </article>
   );
 }
 
 function Pill({ flow }: { flow: CashFlow }) {
-  const tone = flow === "in" ? "bg-emerald-400/15 text-emerald-200" : flow === "out" ? "bg-rose-400/15 text-rose-200" : "bg-indigo-400/15 text-indigo-200";
+  const tone = flow === "in" ? "bg-emerald-100 text-emerald-800" : flow === "out" ? "bg-rose-100 text-rose-800" : "bg-indigo-100 text-indigo-800";
   return <span className={`rounded-full px-2 py-1 text-xs font-semibold ${tone}`}>{flowLabel[flow]}</span>;
 }
 
