@@ -215,15 +215,15 @@ export function CashBoard({ book, entries, batches, people, teachers }: { book: 
       </header>
       <article className="cash-card rounded-[28px] border px-5 py-6 sm:px-8 sm:py-8">
         <p className="cash-muted text-xs font-semibold tracking-[0.16em] uppercase">Total balance</p>
-        <p className="cash-total mt-2 text-5xl font-semibold tracking-tight sm:text-6xl">{rupees(snapshot.total)}</p>
+        <p className="cash-total mt-2 text-5xl font-bold tracking-tight sm:text-6xl">{rupees(snapshot.total)}</p>
         <p className="cash-muted mt-3 text-sm">Cash {rupees(snapshot.cash)} · Bank {rupees(snapshot.bank)}</p>
       </article>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MoneyCard title="Cash balance" value={rupees(snapshot.cash)} detail="Current cash in hand" to="#0f766e" />
-        <MoneyCard title="Bank balance" value={rupees(snapshot.bank)} detail="Current bank balance" to="#1d4ed8" />
-        <MoneyCard title="This period inflow" value={rupees(snapshot.periodIn)} detail={month ? monthTitle(month) : "All months"} to="#047857" />
-        <MoneyCard title="This period outflow" value={rupees(snapshot.periodOut)} detail={month ? monthTitle(month) : "All months"} to="#be123c" />
-        <MoneyCard title="Net cash flow" value={rupees(snapshot.net)} detail={snapshot.net >= 0 ? "Positive flow" : "More spent than received"} to="#c2410c" />
+        <MoneyCard title="Cash balance" value={rupees(snapshot.cash)} detail="Current cash in hand" tone="cash-num-cash" />
+        <MoneyCard title="Bank balance" value={rupees(snapshot.bank)} detail="Current bank balance" tone="cash-num-bank" />
+        <MoneyCard title="This period inflow" value={rupees(snapshot.periodIn)} detail={month ? monthTitle(month) : "All months"} tone="cash-num-in" />
+        <MoneyCard title="This period outflow" value={rupees(snapshot.periodOut)} detail={month ? monthTitle(month) : "All months"} tone="cash-num-out" />
+        <MoneyCard title="Net cash flow" value={rupees(snapshot.net)} detail={snapshot.net >= 0 ? "Positive flow" : "More spent than received"} tone="cash-num-net" />
       </div>
 
       <section className="cash-panel min-w-0 rounded-[28px] border p-3 sm:p-5">
@@ -239,14 +239,14 @@ export function CashBoard({ book, entries, batches, people, teachers }: { book: 
             <label className="cash-card rounded-2xl border p-3 text-sm">
               <span className="flex items-center justify-between gap-3">
                 <span className="font-medium">Cash in hand</span>
-                <span className="text-lg font-semibold text-[#0f766e]">{rupees(snapshot.cash)}</span>
+                <span className="cash-num-cash text-lg font-bold">{rupees(snapshot.cash)}</span>
               </span>
               <input value={openingCash} onChange={(event) => setOpeningCash(event.target.value)} inputMode="decimal" aria-label="Opening cash balance" className={field} />
             </label>
             <label className="cash-card rounded-2xl border p-3 text-sm">
               <span className="flex items-center justify-between gap-3">
                 <span className="font-medium">Bank balance</span>
-                <span className="text-lg font-semibold text-[#1d4ed8]">{rupees(snapshot.bank)}</span>
+                <span className="cash-num-bank text-lg font-bold">{rupees(snapshot.bank)}</span>
               </span>
               <input value={openingBank} onChange={(event) => setOpeningBank(event.target.value)} inputMode="decimal" aria-label="Opening bank balance" className={field} />
             </label>
@@ -375,7 +375,7 @@ export function CashBoard({ book, entries, batches, people, teachers }: { book: 
                     <td className="px-3 py-3">{row.entry.party || "—"}</td>
                     <td className="px-3 py-3">{row.entry.reference || "—"}</td>
                     <td className="px-3 py-3">{row.entry.mode}</td>
-                    <td className={`px-3 py-3 font-medium whitespace-nowrap ${row.entry.flow === "out" ? "text-rose-700" : "text-emerald-700"}`}>{signed(row.entry)}</td>
+                    <td className={`px-3 py-3 font-bold whitespace-nowrap ${row.entry.flow === "out" ? "cash-num-out" : "cash-num-in"}`}>{signed(row.entry)}</td>
                     <td className="px-3 py-3 whitespace-nowrap">{rupees(row.before)}</td>
                     <td className="px-3 py-3 font-medium whitespace-nowrap">{rupees(row.after)}</td>
                     <td className="px-3 py-3">
@@ -411,11 +411,11 @@ function Field({ label, className = "", children }: { label: string; className?:
   );
 }
 
-function MoneyCard({ title, value, detail, to }: { title: string; value: string; detail: string; to: string }) {
+function MoneyCard({ title, value, detail, tone }: { title: string; value: string; detail: string; tone: string }) {
   return (
     <article className="cash-card flex h-full flex-col rounded-3xl border p-4">
       <p className="cash-muted text-xs font-semibold tracking-[0.12em] uppercase">{title}</p>
-      <p className="mt-2 text-2xl font-semibold tabular-nums" style={{ color: to }}>{value}</p>
+      <p className={`mt-2 text-2xl font-bold tabular-nums ${tone}`}>{value}</p>
       <p className="cash-muted mt-2 text-sm">{detail}</p>
     </article>
   );

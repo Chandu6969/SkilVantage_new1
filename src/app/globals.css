@@ -553,7 +553,12 @@
   --cash-line: #c9ead8;
   --cash-field: #ffffff;
   --cash-field-line: #b7e0cc;
-  --cash-total: #047857;
+  --cash-total: #065f46;
+  --cash-num-cash: #0f766e;
+  --cash-num-bank: #1d4ed8;
+  --cash-num-in: #047857;
+  --cash-num-out: #be123c;
+  --cash-num-net: #c2410c;
   background: var(--cash-bg);
   color: var(--cash-ink);
 }
@@ -568,7 +573,12 @@
   --cash-line: #245445;
   --cash-field: #0c1915;
   --cash-field-line: #2d5c4c;
-  --cash-total: #6ee7b7;
+  --cash-total: #bbf7d0;
+  --cash-num-cash: #5eead4;
+  --cash-num-bank: #93c5fd;
+  --cash-num-in: #86efac;
+  --cash-num-out: #fda4af;
+  --cash-num-net: #fdba74;
 }
 
 .cash-book .cash-card,
@@ -584,6 +594,11 @@
 .cash-book .cash-muted { color: var(--cash-muted); }
 .cash-book .cash-label { color: var(--cash-label); }
 .cash-book .cash-total { color: var(--cash-total); }
+.cash-book .cash-num-cash { color: var(--cash-num-cash); }
+.cash-book .cash-num-bank { color: var(--cash-num-bank); }
+.cash-book .cash-num-in { color: var(--cash-num-in); }
+.cash-book .cash-num-out { color: var(--cash-num-out); }
+.cash-book .cash-num-net { color: var(--cash-num-net); }
 
 .cash-book .cash-field {
   background: var(--cash-field);
