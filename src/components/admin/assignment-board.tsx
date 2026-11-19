@@ -170,7 +170,12 @@ function AssignmentDesk({
           <p className="text-xs font-semibold tracking-[0.16em] uppercase">{theme.title}</p>
           <h2 className="mt-1 text-2xl font-semibold">Assignments</h2>
         </div>
-        <button type="button" onClick={onBack} className="h-10 rounded-xl bg-white/15 px-3 text-sm">Back to dashboard</button>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/admin/print?section=assignments&batch=${selected}&date=${focusDay}`} className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>
+            Print this batch
+          </Link>
+          <button type="button" onClick={onBack} className="h-10 rounded-xl bg-white/15 px-3 text-sm">Back to dashboard</button>
+        </div>
       </div>
       <div className="grid gap-4 p-4 sm:p-5">
         {batches.length === 0 ? <p className="rounded-2xl bg-white/70 px-4 py-6 text-sm">No {theme.title.toLowerCase()} batch yet.</p> : (

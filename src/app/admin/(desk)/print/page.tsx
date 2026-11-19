@@ -393,7 +393,13 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
     );
   }
   if (!batch) {
-    return <BatchChooser section={section} batches={batches} date={date} />;
+    return (
+      <div className="mx-auto max-w-3xl">
+        <h1 className="text-2xl font-semibold">Open a batch first</h1>
+        <p className="mt-1 text-sm text-[var(--desk-muted)]">Print uses the batch already open on the assignments page.</p>
+        <Link href="/admin/assignments" className="mt-3 inline-block text-sm underline">Back to assignments</Link>
+      </div>
+    );
   }
 
   const members = (await store.listMembers(batch.id)).sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -498,27 +504,3 @@ function markCode(status: ClassDayStatus | undefined, off: boolean) {
   return off ? "WO" : "—";
 }
 
-function BatchChooser({ section, batches, date }: { section: "attendance" | "assignments"; batches: TrainingBatch[]; date: string }) {
-  const title = section === "assignments" ? "assignment" : "attendance";
-  return (
-    <div className="mx-auto grid max-w-3xl gap-3">
-      <div>
-        <h1 className="text-2xl font-semibold">Choose one batch</h1>
-        <p className="mt-1 text-sm text-[var(--desk-muted)]">The {title} PDF includes only the batch you open, for {dayStamp(date)}.</p>
-      </div>
-      {batches.length === 0 ? <p className="rounded-2xl border border-dashed border-[var(--desk-line)] p-8 text-sm text-[var(--desk-muted)]">Add a batch first.</p> : null}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {batches.map((batch) => {
-          const professional = batch.learnerType === "professional";
-          return (
-            <Link key={batch.id} href={`/admin/print?section=${section}&batch=${batch.id}&date=${date}`} className="batch-pick rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4 text-[var(--desk-text)]">
-              <p className={`text-xs font-semibold tracking-[0.14em] uppercase ${professional ? "batch-kind-professional" : "batch-kind-student"}`}>{professional ? "Professionals" : "Students"}</p>
-              <p className="mt-1 text-xl font-semibold text-[var(--desk-text)]">{batch.name}</p>
-              <p className="mt-1 text-sm text-[var(--desk-muted)]">{batch.label}</p>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
