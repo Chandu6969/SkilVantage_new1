@@ -16,6 +16,25 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
   if (!batch) notFound();
   const members = await store.listMembers(id);
   const fees = (await store.listFees()).filter((fee) => fee.batchId === id);
+  const cashFees = (await store.listCashEntries()).flatMap((entry) => {
+    if (entry.flow !== "in" || (entry.category !== "Student Fee" && entry.category !== "Professional Fee")) return [];
+    if (entry.batchId && entry.batchId !== id) return [];
+    if (entry.feeId && fees.some((fee) => fee.id === entry.feeId)) return [];
+    const member = entry.memberId
+      ? members.find((item) => item.id === entry.memberId)
+      : members.find((item) => item.fullName.trim().toLowerCase() === entry.party.trim().toLowerCase());
+    if (!member) return [];
+    return [{
+      id: entry.id,
+      batchId: id,
+      memberId: member.id,
+      amount: entry.amount,
+      kind: entry.mode === "UPI" ? "upi" as const : entry.account === "cash" ? "cash" as const : "bank" as const,
+      paidOn: entry.date,
+      note: entry.description,
+      createdAt: entry.createdAt,
+    }];
+  });
   const today = todayIST();
   const todayMarks = (await store.listAttendance(id)).filter((mark) => mark.date === today);
   const peers = await store.listBatches(batch.learnerType);
@@ -37,7 +56,7 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
         <BatchRename batch={batch} tone="#065f46" />
         <DeleteBatch id={batch.id} name={batch.name} count={members.length} back={back} light />
       </div>
-      <BatchBoard batch={batch} members={members} batches={peers} fees={fees} today={today} todayMarks={todayMarks} />
+      <BatchBoard batch={batch} members={members} batches={peers} fees={[...fees, ...cashFees]} today={today} todayMarks={todayMarks} />
     </div>
   );
 }

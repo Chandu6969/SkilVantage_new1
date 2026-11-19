@@ -4,9 +4,14 @@ import type { LeadStore } from "@/lib/store/types";
 
 const globalStore = globalThis as unknown as { skilVantageStore?: LeadStore };
 
+function createStore() {
+  return process.env.DATABASE_URL ? new PostgresStore() : new FileStore();
+}
+
 export function getStore() {
-  if (!globalStore.skilVantageStore) {
-    globalStore.skilVantageStore = process.env.DATABASE_URL ? new PostgresStore() : new FileStore();
+  const current = globalStore.skilVantageStore;
+  if (!current || typeof current.clearAttendance !== "function" || typeof current.deleteFee !== "function") {
+    globalStore.skilVantageStore = createStore();
   }
   return globalStore.skilVantageStore;
 }

@@ -64,8 +64,11 @@ export interface LeadStore {
   resetMessaged(batchId: string): Promise<void>;
   listAttendance(batchId: string): Promise<AttendanceMark[]>;
   markAttendance(mark: AttendanceMark): Promise<AttendanceMark>;
+  clearAttendance(batchId: string, memberId: string, date: string): Promise<void>;
   listFees(): Promise<FeePayment[]>;
   addFee(fee: FeePayment): Promise<void>;
+  updateFee(fee: FeePayment): Promise<void>;
+  deleteFee(id: string): Promise<boolean>;
   getCashBook(): Promise<CashBook>;
   saveCashBook(book: Pick<CashBook, "openingCash" | "openingBank">): Promise<CashBook>;
   markCashSynced(at: string): Promise<CashBook>;

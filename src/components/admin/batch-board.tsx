@@ -18,7 +18,7 @@ export function BatchBoard({ batch, members, batches, fees, today, todayMarks }:
   const [filter, setFilter] = useState<Filter>("all");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ fullName: "", phone: "", email: "", note: "" });
+  const [form, setForm] = useState({ fullName: "", phone: "", branch: "", batchId: batch.id });
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(members.length === 0);
   const [editing, setEditing] = useState<string | null>(null);
@@ -101,9 +101,15 @@ export function BatchBoard({ batch, members, batches, fees, today, todayMarks }:
   }
 
   async function markToday(member: BatchMember, status: string) {
-    if (status !== "present" && status !== "absent" && status !== "leave" && status !== "late") return;
+    const allowed = status === "present" || status === "absent" || status === "leave" || status === "late";
+    if (status !== "" && !allowed) return;
     const previous = attendance[member.id];
-    setAttendance((current) => ({ ...current, [member.id]: status }));
+    setAttendance((current) => {
+      const next = { ...current };
+      if (status === "") delete next[member.id];
+      else next[member.id] = status as ClassDayStatus;
+      return next;
+    });
     setError("");
     const response = await fetch("/api/v1/admin/attendance", {
       method: "POST",
@@ -180,10 +186,10 @@ export function BatchBoard({ batch, members, batches, fees, today, todayMarks }:
     event.preventDefault();
     setSaving(true);
     setError("");
-    const response = await fetch(`/api/v1/admin/batches/${batch.id}/members`, {
+    const response = await fetch(`/api/v1/admin/batches/${form.batchId || batch.id}/members`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ fullName: form.fullName, phone: form.phone, email: "", note: form.branch }),
     });
     const data = (await response.json()) as { ok?: boolean; error?: string; fields?: Record<string, string>; member?: BatchMember };
     setSaving(false);
@@ -191,9 +197,12 @@ export function BatchBoard({ batch, members, batches, fees, today, todayMarks }:
       setError(data.fields ? Object.values(data.fields)[0] || data.error || "Check the details." : data.error || "Check the details.");
       return;
     }
-    setRows((current) => [...current, data.member!].sort((a, b) => a.fullName.localeCompare(b.fullName)));
-    setForm({ fullName: "", phone: "", email: "", note: "" });
-    setNotice(`${data.member.fullName} added to ${batch.name}.`);
+    if (data.member.batchId === batch.id) {
+      setRows((current) => [...current, data.member!].sort((a, b) => a.fullName.localeCompare(b.fullName)));
+    }
+    const target = batches.find((item) => item.id === data.member?.batchId)?.name || batch.name;
+    setForm({ fullName: "", phone: "", branch: "", batchId: batch.id });
+    setNotice(`${data.member.fullName} added to ${target}.`);
     router.refresh();
   }
 
@@ -263,8 +272,10 @@ export function BatchBoard({ batch, members, batches, fees, today, todayMarks }:
             <p className="text-sm font-medium">Add {noun} details</p>
             <input required value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} placeholder="Full name" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
             <input required value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="Phone number" inputMode="tel" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
-            <input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="Email, optional" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
-            <input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Note, optional" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
+            <select required value={form.batchId} onChange={(event) => setForm({ ...form, batchId: event.target.value })} aria-label="Batch" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3">
+              {batches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <input value={form.branch} onChange={(event) => setForm({ ...form, branch: event.target.value })} placeholder="Branch" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
             <button type="submit" disabled={saving} className="h-11 rounded-xl bg-[#14967c] text-sm text-white disabled:opacity-60">{saving ? "Saving…" : `Save ${noun}`}</button>
           </form>
         ) : null}
@@ -279,8 +290,7 @@ export function BatchBoard({ batch, members, batches, fees, today, todayMarks }:
                 <p className="text-sm font-medium">Edit {member.fullName}</p>
                 <input required value={editForm.fullName} onChange={(event) => setEditForm({ ...editForm, fullName: event.target.value })} placeholder="Full name" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
                 <input required value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} placeholder="Phone number" inputMode="tel" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
-                <input value={editForm.email} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} placeholder="Email, optional" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
-                <input value={editForm.note} onChange={(event) => setEditForm({ ...editForm, note: event.target.value })} placeholder="Note, optional" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
+                <input value={editForm.note} onChange={(event) => setEditForm({ ...editForm, note: event.target.value })} placeholder="Branch" className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3" />
                 <select value={editForm.batchId} onChange={(event) => setEditForm({ ...editForm, batchId: event.target.value })} className="h-11 rounded-xl border border-[var(--desk-line)] bg-transparent px-3">
                   {batches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </select>
@@ -294,7 +304,7 @@ export function BatchBoard({ batch, members, batches, fees, today, todayMarks }:
             <li key={member.id} className="relative overflow-hidden rounded-3xl p-4 text-white" style={{ background: `linear-gradient(165deg, ${look.from}, ${look.to})` }}>
               <span className="absolute top-3 right-4 text-sm text-white/70">{index + 1}</span>
               <span className="mx-auto grid size-28 place-items-center rounded-full bg-white text-3xl font-semibold" style={{ color: look.from }}>{initials(member.fullName)}</span>
-              <p className="mt-4 text-sm text-white/80">{member.note || batch.name}</p>
+              <p className="mt-4 text-sm text-white/80">{member.note ? `${member.note} · ${batch.name}` : batch.name}</p>
               <Link href={`/admin/people/${member.id}`} className="mt-1 block text-2xl font-semibold leading-tight hover:underline">{member.fullName}</Link>
               <CallNumber phone={member.phone} />
               <PaymentLine fees={fees.filter((fee) => fee.memberId === member.id)} tone={look.from} />

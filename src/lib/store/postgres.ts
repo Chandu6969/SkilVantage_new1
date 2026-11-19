@@ -576,6 +576,14 @@ export class PostgresStore implements LeadStore {
     return mark;
   }
 
+  async clearAttendance(batchId: string, memberId: string, date: string) {
+    await this.init();
+    await pool().query(
+      "DELETE FROM desk_items WHERE kind = 'attendance' AND batch_id = $1 AND member_id = $2 AND record->>'date' = $3",
+      [batchId, memberId, date],
+    );
+  }
+
   async listFees() {
     const rows = await this.deskRows<FeePayment>("fee");
     return rows.sort((a, b) => b.paidOn.localeCompare(a.paidOn) || b.createdAt.localeCompare(a.createdAt));
@@ -587,6 +595,21 @@ export class PostgresStore implements LeadStore {
       "INSERT INTO desk_items (id, kind, batch_id, member_id, created_at, record) VALUES ($1,'fee',$2,$3,$4,$5::jsonb)",
       [fee.id, fee.batchId, fee.memberId, fee.createdAt, JSON.stringify(fee)],
     );
+  }
+
+  async updateFee(fee: FeePayment) {
+    await this.init();
+    const updated = await pool().query(
+      "UPDATE desk_items SET batch_id = $2, member_id = $3, record = $4::jsonb WHERE id = $1 AND kind = 'fee'",
+      [fee.id, fee.batchId, fee.memberId, JSON.stringify(fee)],
+    );
+    if ((updated.rowCount ?? 0) === 0) await this.addFee(fee);
+  }
+
+  async deleteFee(id: string) {
+    await this.init();
+    const result = await pool().query("DELETE FROM desk_items WHERE id = $1 AND kind = 'fee'", [id]);
+    return (result.rowCount ?? 0) > 0;
   }
 
   async listAssignments(batchId?: string) {

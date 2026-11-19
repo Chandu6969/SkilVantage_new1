@@ -543,6 +543,59 @@
   color: #14211c;
 }
 
+.cash-book {
+  --cash-bg: #e7f6ee;
+  --cash-ink: #134e4a;
+  --cash-muted: #5d8572;
+  --cash-label: #3d6b58;
+  --cash-card: #ffffff;
+  --cash-panel: #f4fbf7;
+  --cash-line: #c9ead8;
+  --cash-field: #ffffff;
+  --cash-field-line: #b7e0cc;
+  --cash-total: #047857;
+  background: var(--cash-bg);
+  color: var(--cash-ink);
+}
+
+.desk[data-theme="dark"] .cash-book {
+  --cash-bg: #101c18;
+  --cash-ink: #e7f6ee;
+  --cash-muted: #9dccb6;
+  --cash-label: #c9ead8;
+  --cash-card: #173028;
+  --cash-panel: #12241e;
+  --cash-line: #245445;
+  --cash-field: #0c1915;
+  --cash-field-line: #2d5c4c;
+  --cash-total: #6ee7b7;
+}
+
+.cash-book .cash-card,
+.cash-book .cash-panel {
+  background: var(--cash-card);
+  border-color: var(--cash-line);
+}
+
+.cash-book .cash-panel {
+  background: var(--cash-panel);
+}
+
+.cash-book .cash-muted { color: var(--cash-muted); }
+.cash-book .cash-label { color: var(--cash-label); }
+.cash-book .cash-total { color: var(--cash-total); }
+
+.cash-book .cash-field {
+  background: var(--cash-field);
+  border-color: var(--cash-field-line);
+  color: var(--cash-ink);
+  color-scheme: light;
+}
+
+.cash-book .cash-field::placeholder { color: var(--cash-muted); }
+
+.desk[data-theme="dark"] .cash-book .cash-field { color-scheme: dark; }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {

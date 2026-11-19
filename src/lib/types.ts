@@ -104,6 +104,9 @@ export interface CashEntry {
   reference: string;
   mode: string;
   description: string;
+  memberId?: string;
+  batchId?: string;
+  feeId?: string;
   createdAt: string;
 }
 

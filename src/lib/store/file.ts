@@ -412,6 +412,14 @@ export class FileStore implements LeadStore {
     });
   }
 
+  async clearAttendance(batchId: string, memberId: string, date: string) {
+    await this.locked(async () => {
+      const body = await this.read();
+      body.attendance = body.attendance.filter((item) => !(item.batchId === batchId && item.memberId === memberId && item.date === date));
+      await this.write(body);
+    });
+  }
+
   async listFees() {
     const body = await this.read();
     return body.fees.sort((a, b) => b.paidOn.localeCompare(a.paidOn) || b.createdAt.localeCompare(a.createdAt));
@@ -422,6 +430,27 @@ export class FileStore implements LeadStore {
       const body = await this.read();
       body.fees.push(fee);
       await this.write(body);
+    });
+  }
+
+  async updateFee(fee: FeePayment) {
+    await this.locked(async () => {
+      const body = await this.read();
+      const index = body.fees.findIndex((item) => item.id === fee.id);
+      if (index === -1) body.fees.push(fee);
+      else body.fees[index] = fee;
+      await this.write(body);
+    });
+  }
+
+  async deleteFee(id: string) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const before = body.fees.length;
+      body.fees = body.fees.filter((item) => item.id !== id);
+      if (body.fees.length === before) return false;
+      await this.write(body);
+      return true;
     });
   }
 

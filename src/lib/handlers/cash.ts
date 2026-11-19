@@ -1,10 +1,10 @@
 import { CASH_CATEGORIES, CASH_MODES } from "@/lib/cash-book";
-import { cashEntryId } from "@/lib/ids";
+import { cashEntryId, feeId } from "@/lib/ids";
 import { mirrorCashBook, sheetsStatus } from "@/lib/sheets";
 import { assertSameOrigin, json, readJson } from "@/lib/security";
 import { getStore } from "@/lib/store";
 import { sessionFromRequest } from "@/lib/auth";
-import type { CashAccount, CashEntry, CashFlow } from "@/lib/types";
+import type { CashAccount, CashEntry, CashFlow, FeeKind } from "@/lib/types";
 
 async function guard(req: Request) {
   if (!assertSameOrigin(req)) return { error: json({ ok: false, error: "This action can only be taken from the SkilVantage site." }, 403) };
@@ -65,13 +65,50 @@ export async function postCashOpening(req: Request) {
   return json({ ok: true, book });
 }
 
+function feeKind(entry: CashEntry): FeeKind {
+  if (entry.mode === "UPI") return "upi";
+  if (entry.account === "cash" || entry.mode === "Cash") return "cash";
+  return "bank";
+}
+
+async function syncLearnerFee(entry: CashEntry, memberId: string, batchId: string) {
+  const learnerFee = (entry.category === "Student Fee" || entry.category === "Professional Fee") && entry.flow === "in";
+  const store = getStore();
+  if (!learnerFee || !memberId || !batchId) {
+    if (entry.feeId) await store.deleteFee(entry.feeId);
+    entry.feeId = "";
+    entry.memberId = "";
+    entry.batchId = "";
+    return;
+  }
+  const members = await store.listMembers(batchId);
+  if (!members.some((member) => member.id === memberId)) return;
+  const fee = {
+    id: entry.feeId || feeId(),
+    batchId,
+    memberId,
+    amount: entry.amount,
+    kind: feeKind(entry),
+    paidOn: entry.date,
+    note: entry.description,
+    createdAt: entry.createdAt,
+  };
+  if (entry.feeId) await store.updateFee(fee);
+  else await store.addFee(fee);
+  entry.feeId = fee.id;
+  entry.memberId = memberId;
+  entry.batchId = batchId;
+}
+
 export async function postCashEntry(req: Request) {
   const access = await guard(req);
   if ("error" in access) return access.error;
   const body = await readJson(req);
   if (!body.ok || !body.data || typeof body.data !== "object") return json({ ok: false, error: "Check the transaction." }, 400);
-  const entry = entryFrom(body.data as Record<string, unknown>, new Date().toISOString(), cashEntryId());
+  const data = body.data as Record<string, unknown>;
+  const entry = entryFrom(data, new Date().toISOString(), cashEntryId());
   if (!entry) return json({ ok: false, error: "Choose the date, type, account, category, and an amount above zero." }, 400);
+  await syncLearnerFee(entry, text(data.memberId, 40), text(data.batchId, 40));
   await getStore().addCashEntry(entry);
   return json({ ok: true, entry }, 201);
 }
@@ -84,8 +121,11 @@ export async function patchCashEntry(req: Request, ctx: { params: Promise<{ id: 
   if (!body.ok || !body.data || typeof body.data !== "object") return json({ ok: false, error: "Check the transaction." }, 400);
   const current = (await getStore().listCashEntries()).find((item) => item.id === id);
   if (!current) return json({ ok: false, error: "That transaction is no longer in the book." }, 404);
-  const next = entryFrom(body.data as Record<string, unknown>, current.createdAt, id);
+  const data = body.data as Record<string, unknown>;
+  const next = entryFrom(data, current.createdAt, id);
   if (!next) return json({ ok: false, error: "Choose the date, type, account, category, and an amount above zero." }, 400);
+  next.feeId = current.feeId || "";
+  await syncLearnerFee(next, text(data.memberId, 40), text(data.batchId, 40));
   const saved = await getStore().updateCashEntry(id, {
     date: next.date,
     flow: next.flow,
@@ -96,6 +136,9 @@ export async function patchCashEntry(req: Request, ctx: { params: Promise<{ id: 
     reference: next.reference,
     mode: next.mode,
     description: next.description,
+    memberId: next.memberId || "",
+    batchId: next.batchId || "",
+    feeId: next.feeId || "",
   });
   if (!saved) return json({ ok: false, error: "That transaction is no longer in the book." }, 404);
   return json({ ok: true, entry: saved });
@@ -105,7 +148,9 @@ export async function deleteCashEntry(req: Request, ctx: { params: Promise<{ id:
   const access = await guard(req);
   if ("error" in access) return access.error;
   const { id } = await ctx.params;
+  const current = (await getStore().listCashEntries()).find((item) => item.id === id);
   const removed = await getStore().deleteCashEntry(id);
+  if (removed && current?.feeId) await getStore().deleteFee(current.feeId);
   if (!removed) return json({ ok: false, error: "That transaction is no longer in the book." }, 404);
   return json({ ok: true });
 }

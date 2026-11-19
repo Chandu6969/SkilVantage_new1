@@ -27,8 +27,12 @@ export async function postAttendance(req: Request) {
   const status = data.status === "present" || data.status === "absent" || data.status === "leave" || data.status === "holiday" || data.status === "late" ? data.status : "";
   const batch = await getStore().getBatch(batchId);
   const members = batch ? await getStore().listMembers(batchId) : [];
-  if (!batch || !members.some((member) => member.id === memberId) || !date || !status) {
+  if (!batch || !members.some((member) => member.id === memberId) || !date) {
     return json({ ok: false, error: "Choose a student and a valid day." }, 400);
+  }
+  if (!status) {
+    await getStore().clearAttendance(batchId, memberId, date);
+    return json({ ok: true, mark: null });
   }
   const mark = await getStore().markAttendance({
     id: attendanceId(),
