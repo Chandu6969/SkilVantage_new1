@@ -71,7 +71,7 @@ function monthsPaid(fees: FeePayment[]) {
   return [...totals.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
 
-export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string; batch?: string; date?: string; id?: string; month?: string }> }) {
+export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string; batch?: string; date?: string; id?: string; month?: string; audience?: string }> }) {
   const params = await searchParams;
   const section = params.section === "assignments" || params.section === "teachers" || params.section === "person" || params.section === "cash" ? params.section : "attendance";
   const store = getStore();
@@ -218,7 +218,53 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
   }
 
   const batches = await store.listBatches();
+  const audienceFilter = params.audience === "student" || params.audience === "professional" ? params.audience : "all";
   const batch = batches.find((item) => item.id === params.batch);
+  if (!batch && section === "attendance") {
+    const visible = batches.filter((item) => audienceFilter === "all" || item.learnerType === audienceFilter);
+    const members = (await Promise.all(visible.map((item) => store.listMembers(item.id)))).flat().sort((a, b) => a.fullName.localeCompare(b.fullName));
+    const marks = (await Promise.all(visible.map((item) => store.listAttendance(item.id)))).flat().filter((mark) => mark.date === date);
+    const count = (status: ClassDayStatus) => marks.filter((mark) => mark.status === status && members.some((member) => member.id === mark.memberId)).length;
+    const present = count("present");
+    const absent = count("absent");
+    const leave = count("leave");
+    const late = count("late");
+    const holiday = count("holiday");
+    const rated = present + late + absent + leave;
+    const rate = rated ? `${Math.round(((present + late) / rated) * 100)}%` : "0%";
+    const who = audienceFilter === "student" ? "Students" : audienceFilter === "professional" ? "Professionals" : "All batches";
+    const report: ReportDocument = {
+      tone: audienceFilter === "professional" ? "professional" : "student",
+      kicker: "DAILY ATTENDANCE REPORT",
+      title: who,
+      subtitle: dayStamp(date),
+      generated,
+      stats: [
+        { label: "Present", value: String(present) },
+        { label: "Absent", value: String(absent) },
+        { label: "Leave", value: String(leave) },
+        { label: "Late join", value: String(late) },
+        { label: "Holiday", value: String(holiday) },
+        { label: "Attendance", value: rate },
+      ],
+      columns: ["S.No", "Name", "Batch", "Status"],
+      rows: members.map((member, index) => [
+        String(index + 1),
+        member.fullName,
+        visible.find((item) => item.id === member.batchId)?.name || "Batch",
+        statusLabel(marks.find((mark) => mark.memberId === member.id)?.status),
+      ]),
+      footer: "P = Present • A = Absent • L = Leave • LJ = Late join • H = Holiday • Skillvantage • Daily Attendance Report",
+    };
+    return (
+      <Letterhead
+        report={report}
+        back="/admin/attendance"
+        summary={`Skillvantage daily attendance\n${dayStamp(date)}\nPresent ${present}\nAbsent ${absent}\nLeave ${leave}\nLate join ${late}\nHoliday ${holiday}\nAttendance ${rate}`}
+        fileName={`Skillvantage-daily-${date}.pdf`}
+      />
+    );
+  }
   if (!batch) {
     return <BatchChooser section={section} batches={batches} date={date} />;
   }
@@ -270,9 +316,10 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
   const present = count("present");
   const absent = count("absent");
   const leave = count("leave");
+  const late = count("late");
   const holiday = count("holiday");
-  const rated = present + absent + leave;
-  const rate = rated ? `${Math.round((present / rated) * 100)}%` : "0%";
+  const rated = present + late + absent + leave;
+  const rate = rated ? `${Math.round(((present + late) / rated) * 100)}%` : "0%";
   const report: ReportDocument = {
     tone,
     kicker: "DAILY ATTENDANCE REPORT",
@@ -283,6 +330,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
       { label: "Present", value: String(present) },
       { label: "Absent", value: String(absent) },
       { label: "Leave", value: String(leave) },
+      { label: "Late join", value: String(late) },
       { label: "Holiday", value: String(holiday) },
       { label: "Attendance", value: rate },
     ],
@@ -293,13 +341,13 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
       member.note || "—",
       statusLabel(marks.find((mark) => mark.memberId === member.id)?.status),
     ]),
-    footer: "P = Present • A = Absent • L = Leave • H = Holiday • Skillvantage • Daily Attendance Report",
+    footer: "P = Present • A = Absent • L = Leave • LJ = Late join • H = Holiday • Skillvantage • Daily Attendance Report",
   };
   return (
     <Letterhead
       report={report}
       back="/admin/attendance"
-      summary={`Skillvantage ${batch.name}\n${dayStamp(date)}\nPresent ${present}\nAbsent ${absent}\nLeave ${leave}\nHoliday ${holiday}\nAttendance ${rate}`}
+      summary={`Skillvantage ${batch.name}\n${dayStamp(date)}\nPresent ${present}\nAbsent ${absent}\nLeave ${leave}\nLate join ${late}\nHoliday ${holiday}\nAttendance ${rate}`}
       fileName={fileName}
     />
   );

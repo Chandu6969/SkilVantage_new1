@@ -285,7 +285,7 @@ export function AttendanceBoard({
               <Filter className="size-4" aria-hidden="true" />
               Filter
             </button>
-            <Link href={batchId === "all" ? `/admin/print?section=attendance&date=${day}` : `/admin/print?section=attendance&batch=${batchId}&date=${day}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-400/10 px-3 text-sm font-medium text-emerald-300">
+            <Link href={dailyPrintHref(day, audience, batchId)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-400/10 px-3 text-sm font-medium text-emerald-300">
               <Download className="size-4" aria-hidden="true" />
               Attendance export
             </Link>
@@ -335,6 +335,7 @@ export function AttendanceBoard({
           roster={roster}
           batchOf={batchOf}
           pending={pending}
+          printHref={dailyPrintHref(day, audience, batchId)}
           statusOf={(memberId) => asMark(lookup.get(`${memberId}|${day}`))}
           onPrevious={() => moveDay(-1)}
           onNext={() => moveDay(1)}
@@ -363,6 +364,13 @@ export function AttendanceBoard({
       <LegendCard />
     </div>
   );
+}
+
+function dailyPrintHref(day: string, audience: Audience, batchId: string) {
+  const params = new URLSearchParams({ section: "attendance", date: day });
+  if (batchId !== "all") params.set("batch", batchId);
+  if (audience !== "all") params.set("audience", audience);
+  return `/admin/print?${params.toString()}`;
 }
 
 function shortDay(iso: string) {
@@ -537,6 +545,7 @@ function DailyReport({
   roster,
   batchOf,
   pending,
+  printHref,
   statusOf,
   onPrevious,
   onNext,
@@ -547,6 +556,7 @@ function DailyReport({
   roster: BatchMember[];
   batchOf: Map<string, TrainingBatch>;
   pending: string;
+  printHref: string;
   statusOf: (memberId: string) => ClassDayStatus | "";
   onPrevious: () => void;
   onNext: () => void;
@@ -558,6 +568,9 @@ function DailyReport({
   const leave = roster.filter((member) => statusOf(member.id) === "leave").length;
   const late = roster.filter((member) => statusOf(member.id) === "late").length;
   const holiday = roster.filter((member) => statusOf(member.id) === "holiday").length;
+  const unmarked = Math.max(roster.length - present - absent - leave - late - holiday, 0);
+  const marked = present + late + absent + leave;
+  const rate = marked ? Math.round(((present + late) / marked) * 100) : 0;
   return (
     <section id="daily-attendance" className="mt-4 rounded-2xl bg-[#1b2130] p-3 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -566,6 +579,10 @@ function DailyReport({
           <p className="mt-0.5 text-sm text-[#9aa6bd]">{longDay(day)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link href={printHref} className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-400/35 bg-emerald-400/10 px-3 text-xs font-semibold text-emerald-300">
+            <Download className="size-3.5" aria-hidden="true" />
+            Print daily report
+          </Link>
           <button type="button" disabled={pending !== "" || roster.length === 0} onClick={onHoliday} className="h-9 rounded-lg bg-[#38bdf8] px-3 text-xs font-semibold text-[#082f49] disabled:opacity-50">Mark holiday</button>
           <button type="button" aria-label="Previous day" onClick={onPrevious} className="grid size-9 place-items-center rounded-lg bg-[#232a3d] text-[#d5dced]">
             <ChevronLeft className="size-4" />
@@ -575,7 +592,15 @@ function DailyReport({
           </button>
         </div>
       </div>
-      <p className="mt-3 text-sm text-[#c5cde0]">{present} present · {absent} absent · {leave} leave · {late} late join · {holiday} holiday · {Math.max(roster.length - present - absent - leave - late - holiday, 0)} not marked</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <Stat label="Present" value={present} hint={longDay(day)} tone="text-emerald-300" />
+        <Stat label="Absent" value={absent} hint="Marked absent" tone="text-rose-300" />
+        <Stat label="Leave" value={leave} hint="Approved leave" tone="text-amber-300" />
+        <Stat label="Late join" value={late} hint="Joined after the start" tone="text-fuchsia-300" />
+        <Stat label="Holiday" value={holiday} hint="Holiday marks" tone="text-sky-300" />
+        <Stat label="Not marked" value={unmarked} hint="Still open today" tone="text-[#d5dced]" />
+        <Stat label="Attendance" value={`${rate}%`} hint={marked ? `${marked} class marks` : "No class marks yet"} tone="text-[#c4b5fd]" />
+      </div>
       <ul className="mt-3 grid gap-2">
         {roster.length === 0 ? <li className="rounded-xl bg-[#232a3d] px-4 py-6 text-sm text-[#c5cde0]">No learners match this filter.</li> : null}
         {roster.map((member) => {
