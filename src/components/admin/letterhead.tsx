@@ -44,15 +44,18 @@ export function Letterhead({
       </div>
       {payment && report.signOff ? (
         <header className="px-5 pt-5">
-          <div className="relative overflow-hidden rounded-2xl bg-[#0f766e] px-5 py-5 text-center text-white sm:px-6">
-            <div className="pointer-events-none absolute -right-8 -top-12 size-36 rounded-full bg-[#2dd4bf]/40" />
-            <p className="relative text-right text-[0.68rem] text-white/90 sm:absolute sm:right-4 sm:top-3">Date: {report.signOff.issued}</p>
-            <p className="relative mt-1 text-[0.68rem] tracking-[0.18em] sm:tracking-[0.28em]">SKILLVANTAGE • TEACHER MANAGEMENT</p>
-            <h1 className="relative mt-2 text-2xl font-semibold">{report.title}</h1>
-            <p className="relative mt-1 text-sm text-white/90">{report.subtitle}</p>
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-2xl bg-[#0f766e] px-5 py-4 text-white sm:px-6">
+            <div>
+              <p className="text-[0.68rem] tracking-[0.18em]">SKILLVANTAGE • TEACHER MANAGEMENT</p>
+              <h1 className="mt-1 text-xl font-semibold">{report.title}</h1>
+            </div>
+            <div className="ml-auto text-right">
+              <p className="text-sm text-white/90">{report.subtitle}</p>
+              <p className="mt-1 text-xs text-white/80">Date: {report.signOff.issued}</p>
+            </div>
           </div>
         </header>
-      ) : report.compact ? (
+      ) : (
         <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-4 text-white" style={{ background: tone.band }}>
           <div>
             <p className="text-base font-semibold tracking-[0.22em]">SKILLVANTAGE</p>
@@ -63,14 +66,6 @@ export function Letterhead({
             <p className="text-sm font-medium">{report.title} • {report.subtitle}</p>
             <p className="mt-1 text-xs text-white/75">Generated {report.generated}</p>
           </div>
-        </header>
-      ) : (
-        <header className="px-6 py-6 text-white" style={{ background: tone.band }}>
-          <p className="text-lg font-semibold tracking-[0.28em]">SKILLVANTAGE</p>
-          <p className="mt-1 text-[0.68rem] tracking-[0.22em]">LEARN • PRACTICE • GROW</p>
-          <h1 className="mt-4 text-2xl font-semibold">{report.kicker}</h1>
-          <p className="mt-2 text-sm text-white/90">{report.title} • {report.subtitle}</p>
-          <p className="mt-1 text-xs text-white/75">Generated {report.generated}</p>
         </header>
       )}
       <div className="grid gap-2 px-5 py-4" style={{ gridTemplateColumns: `repeat(${Math.max(report.stats.length, 1)}, minmax(0, 1fr))` }}>

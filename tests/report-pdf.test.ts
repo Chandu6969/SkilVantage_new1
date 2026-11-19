@@ -71,6 +71,7 @@ test("a teacher payment sheet carries the class record, the HR sign, and the sta
   assert.match(text, /Taken/);
   assert.match(text, /\(HR\)/);
   assert.match(text, /SKILLVANTAGE/);
+  assert.match(text, /TEACHER MANAGEMENT/);
   assert.match(text, /SkilVantage/);
   assert.match(text, /Official stamp/);
   assert.match(text, /DCTDecode/);
@@ -98,8 +99,8 @@ test("a monthly register is a landscape page with each day", () => {
   assert.match(text, /\(30\)/);
 });
 
-test("a daily attendance header keeps the summary on the right of a short bar", () => {
-  const text = new TextDecoder().decode(buildReportPdf({ ...report, compact: true }));
+test("a report header keeps the summary on the right of a short bar", () => {
+  const text = new TextDecoder().decode(buildReportPdf(report));
   assert.match(text, /DAILY ATTENDANCE REPORT/);
   assert.match(text, /SASI/);
   assert.match(text, /0 764 595 78 re f/);
