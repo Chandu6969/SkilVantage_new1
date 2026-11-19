@@ -83,7 +83,8 @@ export function TeacherDetail({ teacher, days, pays, today }: { teacher: Faculty
         <p className="mt-2 text-sm text-white/85">{teacher.phone}{teacher.email ? ` · ${teacher.email}` : ""}{teacher.note ? ` · ${teacher.note}` : ""}</p>
         <p className="mt-3 text-sm">Unpaid {rupees(owed.reduce((sum, pay) => sum + pay.amount, 0))} · Paid {rupees(paid.reduce((sum, pay) => sum + pay.amount, 0))} · {rupees(classPay(teacher.rate))} a class</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={() => setEditing((value) => !value)} className="h-10 rounded-xl bg-white px-4 text-sm font-medium text-[#065f46]">{editing ? "Close" : "Edit details"}</button>
+          <Link href={`/admin/print?section=teachers&id=${teacher.id}`} className="inline-flex h-10 items-center rounded-xl bg-white px-4 text-sm font-medium text-[#065f46]">Payment PDF</Link>
+          <button type="button" onClick={() => setEditing((value) => !value)} className="h-10 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">{editing ? "Close" : "Edit details"}</button>
           <button type="button" disabled={pending !== ""} onClick={() => void remove()} className="h-10 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">Delete teacher</button>
         </div>
       </header>

@@ -1,3 +1,5 @@
+import { hrSignature, paidStamp } from "@/lib/brand-marks";
+
 export type ReportTone = "student" | "professional" | "teacher";
 
 export type ReportDocument = {
@@ -10,8 +12,9 @@ export type ReportDocument = {
   tableHeading?: string;
   columns: string[];
   rows: string[][];
-  sections?: { heading: string; columns: string[]; rows: string[][] }[];
+  sections?: { heading: string; columns: string[]; rows: string[][]; foot?: string }[];
   footer: string;
+  signOff?: { issued: string; period: string };
 };
 
 const tones: Record<ReportTone, { band: Rgb; soft: Rgb; ink: Rgb }> = {
@@ -29,10 +32,12 @@ function hex(value: string): Rgb {
 function pdfText(value: string) {
   return value
     .replaceAll("₹", "Rs ")
+    .replaceAll("•", "%%B%%")
     .replace(/[^\x20-\x7E]/g, " ")
     .replace(/\\/g, "\\\\")
     .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
+    .replace(/\)/g, "\\)")
+    .replaceAll("%%B%%", "\\225");
 }
 
 function fit(value: string, size: number, width: number) {
@@ -53,6 +58,7 @@ function statusColor(value: string): Rgb | null {
   if (key.startsWith("late")) return hex("7e22ce");
   if (key.startsWith("leave") || key === "pending" || key === "due") return hex("b45309");
   if (key.startsWith("holiday") || key === "submitted") return hex("0369a1");
+  if (key === "taken" || key === "active") return hex("047857");
   if (key.startsWith("not")) return hex("64748b");
   return null;
 }
@@ -62,10 +68,51 @@ const HEIGHT = 842;
 const TABLE_WIDTH = WIDTH - 72;
 
 function widthsFor(columns: string[]) {
+  if (columns.length === 8) return [80, 68, 64, 82, 64, 50, 58, TABLE_WIDTH - 466];
+  if (columns.length === 6) return [72, 78, 112, 124, 64, TABLE_WIDTH - 450];
   if (columns.length === 4) return [42, 200, 170, TABLE_WIDTH - 412];
+  if (columns.length === 5 && columns[0] !== "S.No") return [128, 118, 86, 96, TABLE_WIDTH - 428];
   if (columns.length === 5) return [36, 150, 145, 96, TABLE_WIDTH - 427];
   if (columns.length === 3) return [42, 250, TABLE_WIDTH - 292];
   return columns.map(() => TABLE_WIDTH / Math.max(columns.length, 1));
+}
+
+function textWidth(value: string, size: number) {
+  return pdfText(value).length * size * 0.5;
+}
+
+function centerAt(value: string, size: number) {
+  return (WIDTH - textWidth(value, size)) / 2;
+}
+
+function drawSignOff(
+  commands: string[],
+  readY: () => number,
+  writeY: (value: number) => void,
+  nextPage: () => void,
+  sign: { issued: string; period: string },
+) {
+  const sigW = 136;
+  const sigH = sigW * (hrSignature.height / hrSignature.width);
+  const stampW = 108;
+  const stampH = stampW * (paidStamp.height / paidStamp.width);
+  if (readY() - (Math.max(sigH, stampH) + 42) < 52) nextPage();
+  const top = readY() - 4;
+  const sigY = top - sigH;
+  commands.push("q", `${sigW.toFixed(2)} 0 0 ${sigH.toFixed(2)} 40 ${sigY.toFixed(2)} cm`, "/Sig Do", "Q");
+  const stampX = (WIDTH - stampW) / 2;
+  const stampY = top - stampH + 4;
+  commands.push("q", `${stampW.toFixed(2)} 0 0 ${stampH.toFixed(2)} ${stampX.toFixed(2)} ${stampY.toFixed(2)} cm`, "/Stamp Do", "Q");
+  commands.push(paint(hex("17211e")));
+  commands.push("BT", "/F2 9 Tf", `1 0 0 1 46 ${(sigY - 14).toFixed(1)} Tm`, "(HR) Tj", "ET");
+  commands.push("BT", "/F1 8 Tf", `1 0 0 1 46 ${(sigY - 26).toFixed(1)} Tm`, "(SkilVantage) Tj", "ET");
+  commands.push(paint(hex("3d4a57")));
+  const caption = "Official stamp";
+  commands.push("BT", "/F1 8 Tf", `1 0 0 1 ${((WIDTH - textWidth(caption, 8)) / 2).toFixed(1)} ${(stampY - 12).toFixed(1)} Tm`, "(Official stamp) Tj", "ET");
+  commands.push("BT", "/F1 9 Tf", `1 0 0 1 400 ${(top - 22).toFixed(1)} Tm`, "(Issued:) Tj", "ET");
+  commands.push("BT", "/F2 10 Tf", `1 0 0 1 400 ${(top - 38).toFixed(1)} Tm`, `(${fit(sign.issued, 10, 160)}) Tj`, "ET");
+  commands.push("BT", "/F1 9 Tf", `1 0 0 1 400 ${(top - 56).toFixed(1)} Tm`, `(${fit(`Payment period: ${sign.period}`, 9, 170)}) Tj`, "ET");
+  writeY(Math.min(sigY - 34, stampY - 22));
 }
 
 function layout(report: ReportDocument) {
@@ -78,43 +125,64 @@ function layout(report: ReportDocument) {
     commands = [];
     pages.push(commands);
     commands.push("1 1 1 rg", `0 0 ${WIDTH} ${HEIGHT} re f`);
-    const headerBottom = continued ? 760 : 690;
-    commands.push(paint(tone.band), `0 ${headerBottom} ${WIDTH} ${HEIGHT - headerBottom} re f`);
-    commands.push("1 1 1 rg");
-    commands.push("BT", "/F2 18 Tf", "36 804 Td", "(SKILLVANTAGE) Tj", "ET");
-    commands.push("BT", "/F1 8 Tf", "36 786 Td", "(LEARN   •   PRACTICE   •   GROW) Tj", "ET");
-    commands.push("BT", "/F2 13 Tf", `36 ${continued ? 768 : 758} Td`, `(${fit(report.kicker, 13, 520)}) Tj`, "ET");
+    if (report.signOff && !continued) {
+      commands.push(paint(hex("0f766e")), "32 746 531 78 re f");
+      commands.push("1 1 1 rg");
+      const banner = "SKILLVANTAGE   •   TEACHER MANAGEMENT";
+      const date = `Date: ${report.signOff.issued}`;
+      commands.push("BT", "/F2 8 Tf", `1 0 0 1 ${centerAt(banner, 8).toFixed(1)} 804 Tm`, `(${pdfText(banner)}) Tj`, "ET");
+      commands.push("BT", "/F1 8 Tf", `1 0 0 1 ${(WIDTH - 36 - textWidth(date, 8)).toFixed(1)} 804 Tm`, `(${pdfText(date)}) Tj`, "ET");
+      commands.push("BT", "/F2 16 Tf", `1 0 0 1 ${centerAt(report.title, 16).toFixed(1)} 782 Tm`, `(${fit(report.title, 16, 460)}) Tj`, "ET");
+      commands.push("BT", "/F1 9 Tf", `1 0 0 1 ${centerAt(report.subtitle, 9).toFixed(1)} 764 Tm`, `(${fit(report.subtitle, 9, 460)}) Tj`, "ET");
+    } else {
+      const headerBottom = continued ? 760 : 690;
+      commands.push(paint(tone.band), `0 ${headerBottom} ${WIDTH} ${HEIGHT - headerBottom} re f`);
+      commands.push("1 1 1 rg");
+      commands.push("BT", "/F2 18 Tf", "36 804 Td", "(SKILLVANTAGE) Tj", "ET");
+      commands.push("BT", "/F1 8 Tf", "36 786 Td", "(LEARN   •   PRACTICE   •   GROW) Tj", "ET");
+      commands.push("BT", "/F2 13 Tf", `36 ${continued ? 768 : 758} Td`, `(${fit(report.kicker, 13, 520)}) Tj`, "ET");
+    }
     if (!continued) {
-      commands.push("BT", "/F1 10 Tf", "36 738 Td", `(${fit(`${report.title}  •  ${report.subtitle}`, 10, 520)}) Tj`, "ET");
-      commands.push("BT", "/F1 8 Tf", "36 722 Td", `(${fit(`Generated ${report.generated}`, 8, 520)}) Tj`, "ET");
+      if (!report.signOff) {
+        commands.push("BT", "/F1 10 Tf", "36 738 Td", `(${fit(`${report.title}  •  ${report.subtitle}`, 10, 520)}) Tj`, "ET");
+        commands.push("BT", "/F1 8 Tf", "36 722 Td", `(${fit(`Generated ${report.generated}`, 8, 520)}) Tj`, "ET");
+      }
       const stats = report.stats.slice(0, 5);
       const gap = 8;
       const cardWidth = (WIDTH - 72 - gap * (stats.length - 1)) / Math.max(stats.length, 1);
+      const cardBottom = report.signOff ? 668 : 628;
       stats.forEach((stat, index) => {
         const x = 36 + index * (cardWidth + gap);
-        commands.push(paint(tone.soft), `${x.toFixed(1)} 628 ${cardWidth.toFixed(1)} 58 re f`);
-        commands.push(paint(tone.ink), "BT", "/F2 16 Tf", `1 0 0 1 ${(x + 10).toFixed(1)} 654 Tm`, `(${fit(stat.value, 16, cardWidth - 16)}) Tj`, "ET");
-        commands.push("BT", "/F1 7 Tf", `1 0 0 1 ${(x + 10).toFixed(1)} 638 Tm`, `(${fit(stat.label, 7, cardWidth - 16)}) Tj`, "ET");
+        commands.push(paint(tone.soft), `${x.toFixed(1)} ${cardBottom} ${cardWidth.toFixed(1)} 58 re f`);
+        if (report.signOff) {
+          const valueColor = index === stats.length - 1 ? hex("0f766e") : tone.ink;
+          commands.push(paint(hex("5d8572")), "BT", "/F1 7 Tf", `1 0 0 1 ${(x + 10).toFixed(1)} ${cardBottom + 38} Tm`, `(${fit(stat.label.toUpperCase(), 7, cardWidth - 16)}) Tj`, "ET");
+          commands.push(paint(valueColor), "BT", "/F2 16 Tf", `1 0 0 1 ${(x + 10).toFixed(1)} ${cardBottom + 16} Tm`, `(${fit(stat.value, 16, cardWidth - 16)}) Tj`, "ET");
+        } else {
+          commands.push(paint(tone.ink), "BT", "/F2 16 Tf", `1 0 0 1 ${(x + 10).toFixed(1)} ${cardBottom + 26} Tm`, `(${fit(stat.value, 16, cardWidth - 16)}) Tj`, "ET");
+          commands.push("BT", "/F1 7 Tf", `1 0 0 1 ${(x + 10).toFixed(1)} ${cardBottom + 10} Tm`, `(${fit(stat.label, 7, cardWidth - 16)}) Tj`, "ET");
+        }
       });
-      y = 608;
+      y = cardBottom - 18;
     } else {
       y = 736;
     }
   }
 
-  function drawTable(heading: string, columns: string[], rows: string[][]) {
+  function drawTable(heading: string, columns: string[], rows: string[][], foot?: string) {
     const widths = widthsFor(columns);
     if (heading) {
       if (y - 46 < 52) open(true);
       commands.push(paint(tone.ink), "BT", "/F2 11 Tf", `1 0 0 1 36 ${(y - 16).toFixed(1)} Tm`, `(${fit(heading, 11, 520)}) Tj`, "ET");
       y -= 24;
     }
+    const size = columns.length >= 6 ? 7 : 9;
     const drawHead = () => {
       if (y - 22 < 52) open(true);
       commands.push(paint(tone.band), `36 ${(y - 22).toFixed(1)} ${TABLE_WIDTH} 22 re f`, "1 1 1 rg");
       let x = 36;
       columns.forEach((column, index) => {
-        commands.push("BT", "/F2 8 Tf", `1 0 0 1 ${(x + 6).toFixed(1)} ${(y - 15).toFixed(1)} Tm`, `(${fit(column, 8, widths[index]! - 10)}) Tj`, "ET");
+        commands.push("BT", "/F2 7 Tf", `1 0 0 1 ${(x + 4).toFixed(1)} ${(y - 15).toFixed(1)} Tm`, `(${fit(column, 7, widths[index]! - 8)}) Tj`, "ET");
         x += widths[index]!;
       });
       y -= 22;
@@ -133,17 +201,24 @@ function layout(report: ReportDocument) {
         const color = index === row.length - 1 ? statusColor(cell) : null;
         commands.push(paint(color || (rows.length ? hex("17211e") : hex("64748b"))));
         const width = widths[index] ?? widths[widths.length - 1] ?? TABLE_WIDTH;
-        commands.push("BT", "/F1 9 Tf", `1 0 0 1 ${(cellX + 6).toFixed(1)} ${(top - 14).toFixed(1)} Tm`, `(${fit(cell, 9, width - 10)}) Tj`, "ET");
+        commands.push("BT", `/F1 ${size} Tf`, `1 0 0 1 ${(cellX + 4).toFixed(1)} ${(top - 14).toFixed(1)} Tm`, `(${fit(cell, size, width - 8)}) Tj`, "ET");
         cellX += widths[index] ?? width;
       });
       y -= 20;
     });
+    if (foot) {
+      if (y - 18 < 52) open(true);
+      const size = 9;
+      commands.push(paint(tone.ink), "BT", `/F2 ${size} Tf`, `1 0 0 1 ${(36 + TABLE_WIDTH - textWidth(foot, size)).toFixed(1)} ${(y - 12).toFixed(1)} Tm`, `(${fit(foot, size, 240)}) Tj`, "ET");
+      y -= 20;
+    }
     y -= 12;
   }
 
   open(false);
   drawTable(report.tableHeading || "", report.columns, report.rows);
-  for (const section of report.sections || []) drawTable(section.heading, section.columns, section.rows);
+  for (const section of report.sections || []) drawTable(section.heading, section.columns, section.rows, section.foot);
+  if (report.signOff) drawSignOff(commands, () => y, (next) => { y = next; }, () => open(true), report.signOff);
   const count = pages.length;
   return pages.map((page, index) => {
     page.push("0.420 0.455 0.482 rg");
@@ -153,41 +228,87 @@ function layout(report: ReportDocument) {
   });
 }
 
+function jpegBytes(value: string) {
+  const binary = atob(value.replace(/\s/g, ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+function concatBytes(parts: Uint8Array[]) {
+  const length = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(length);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+const encoder = new TextEncoder();
+
 export function buildReportPdf(report: ReportDocument): Uint8Array {
   const groups = layout(report);
   const pageCount = groups.length;
+  const marks = report.signOff
+    ? [
+        { name: "Sig", mark: hrSignature },
+        { name: "Stamp", mark: paidStamp },
+      ]
+    : [];
   const fontRegular = 3 + pageCount * 2;
   const fontBold = fontRegular + 1;
-  const objects: { id: number; body: string }[] = [
-    { id: 1, body: "<< /Type /Catalog /Pages 2 0 R >>" },
+  const imageIds = marks.map((_, index) => fontBold + 1 + index);
+  const xobjects = marks.map((item, index) => `/${item.name} ${imageIds[index]} 0 R`).join(" ");
+  const objects: { id: number; body: Uint8Array }[] = [
+    { id: 1, body: encoder.encode("<< /Type /Catalog /Pages 2 0 R >>") },
     {
       id: 2,
-      body: `<< /Type /Pages /Kids [${groups.map((_, index) => `${3 + index * 2} 0 R`).join(" ")}] /Count ${pageCount} >>`,
+      body: encoder.encode(`<< /Type /Pages /Kids [${groups.map((_, index) => `${3 + index * 2} 0 R`).join(" ")}] /Count ${pageCount} >>`),
     },
   ];
   groups.forEach((stream, index) => {
     const pageId = 3 + index * 2;
     const contentId = pageId + 1;
-    const length = new TextEncoder().encode(stream).length;
-    objects.push({ id: contentId, body: `<< /Length ${length} >>\nstream\n${stream}\nendstream` });
+    const streamBytes = encoder.encode(stream);
+    objects.push({
+      id: contentId,
+      body: concatBytes([encoder.encode(`<< /Length ${streamBytes.length} >>\nstream\n`), streamBytes, encoder.encode("\nendstream")]),
+    });
+    const resources = `<< /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >>${xobjects ? ` /XObject << ${xobjects} >>` : ""} >>`;
     objects.push({
       id: pageId,
-      body: `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ${contentId} 0 R /Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> >>`,
+      body: encoder.encode(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ${contentId} 0 R /Resources ${resources} >>`),
     });
   });
-  objects.push({ id: fontRegular, body: "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>" });
-  objects.push({ id: fontBold, body: "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>" });
+  objects.push({ id: fontRegular, body: encoder.encode("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>") });
+  objects.push({ id: fontBold, body: encoder.encode("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>") });
+  marks.forEach((item, index) => {
+    const bytes = jpegBytes(item.mark.jpeg);
+    objects.push({
+      id: imageIds[index]!,
+      body: concatBytes([
+        encoder.encode(`<< /Type /XObject /Subtype /Image /Width ${item.mark.width} /Height ${item.mark.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bytes.length} >>\nstream\n`),
+        bytes,
+        encoder.encode("\nendstream"),
+      ]),
+    });
+  });
   objects.sort((a, b) => a.id - b.id);
 
-  let output = "%PDF-1.4\n";
+  const chunks: Uint8Array[] = [encoder.encode("%PDF-1.4\n")];
   const offsets: number[] = [];
+  let cursor = chunks[0]!.length;
   for (const object of objects) {
-    offsets[object.id] = Buffer.byteLength(output);
-    output += `${object.id} 0 obj\n${object.body}\nendobj\n`;
+    offsets[object.id] = cursor;
+    const head = encoder.encode(`${object.id} 0 obj\n`);
+    const tail = encoder.encode("\nendobj\n");
+    chunks.push(head, object.body, tail);
+    cursor += head.length + object.body.length + tail.length;
   }
-  const xref = Buffer.byteLength(output);
-  let table = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (let id = 1; id <= objects.length; id += 1) table += `${String(offsets[id] ?? 0).padStart(10, "0")} 00000 n \n`;
-  output += `${table}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return new TextEncoder().encode(output);
+  const table = [`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`];
+  for (let id = 1; id <= objects.length; id += 1) table.push(`${String(offsets[id] ?? 0).padStart(10, "0")} 00000 n \n`);
+  chunks.push(encoder.encode(`${table.join("")}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${cursor}\n%%EOF`));
+  return concatBytes(chunks);
 }

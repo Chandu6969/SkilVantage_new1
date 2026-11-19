@@ -10,10 +10,10 @@ function createStore() {
 
 export function getStore() {
   const current = globalStore.skilVantageStore;
-  if (!current || typeof current.clearAttendance !== "function" || typeof current.deleteFee !== "function") {
-    globalStore.skilVantageStore = createStore();
-  }
-  return globalStore.skilVantageStore;
+  if (current && typeof current.clearAttendance === "function" && typeof current.deleteFee === "function") return current;
+  const created = createStore();
+  globalStore.skilVantageStore = created;
+  return created;
 }
 
 export function resetStoreForTests() {

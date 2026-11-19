@@ -48,6 +48,36 @@ test("a learner report keeps the monthly payments and the assignment", () => {
   assert.match(text, /Pending/);
 });
 
+test("a teacher payment sheet carries the class record, the HR sign, and the stamp", () => {
+  const text = new TextDecoder().decode(buildReportPdf({
+    ...report,
+    kicker: "TEACHER PAYMENT",
+    title: "Skill Vantage - Teacher Details",
+    subtitle: "Teacher information and class record • September 2026",
+    tableHeading: "Teacher details",
+    columns: ["Teacher name", "Phone", "Email", "Subject / course", "Joining date", "Status", "Month classes", "Total classes"],
+    rows: [["lova Raj", "7661041185", "No Email", "SQL", "03 Sept 2026", "Active", "11", "11"]],
+    sections: [{
+      heading: "Teacher class record • September 2026",
+      columns: ["Date", "Teacher name", "Course / subject", "Class / session", "Amount / class", "Status"],
+      rows: [["03 Sept 2026", "lova Raj", "Data Base& SQL", "10:00 PM - 11:00 PM", "Rs 350", "Taken"]],
+    }],
+    signOff: { issued: "30 September 2026", period: "September 2026" },
+    footer: "Skill Vantage • Teacher Management Record • Printed document",
+  }));
+  assert.match(text, /Teacher details/);
+  assert.match(text, /lova Raj/);
+  assert.match(text, /10:00 PM - 11:00 PM/);
+  assert.match(text, /Taken/);
+  assert.match(text, /\(HR\)/);
+  assert.match(text, /SKILLVANTAGE/);
+  assert.match(text, /SkilVantage/);
+  assert.match(text, /Official stamp/);
+  assert.match(text, /DCTDecode/);
+  assert.match(text, /Payment period: September 2026/);
+  assert.match(text, /Date: 30 September 2026/);
+});
+
 test("a long report keeps every row across pages", () => {
   const rows = Array.from({ length: 40 }, (_, index) => [String(index + 1), `Learner ${index + 1}`, "Course", index % 2 ? "Absent" : "Present"]);
   const text = new TextDecoder().decode(buildReportPdf({ ...report, rows }));

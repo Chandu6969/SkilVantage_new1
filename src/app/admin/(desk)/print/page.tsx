@@ -51,6 +51,31 @@ function statusLabel(status: ClassDayStatus | undefined) {
   return "Not marked";
 }
 
+function shortDay(iso: string) {
+  const day = iso.slice(0, 10);
+  const [year, month, date] = day.split("-").map(Number);
+  if (!year || !month || !date) return iso || "—";
+  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+function longDay(iso: string) {
+  const [year, month, date] = iso.split("-").map(Number);
+  if (!year || !month || !date) return iso;
+  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+function monthTitle(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  if (!year || !month) return key;
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+function issueDate(month: string, today: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const last = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+  return today.startsWith(month) && today < last ? today : last;
+}
+
 function monthName(key: string) {
   const [year, month] = key.split("-").map(Number);
   if (!year || !month) return key;
@@ -146,36 +171,81 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
   }
 
   if (section === "teachers") {
-    const [teachers, listed] = await Promise.all([store.listFaculty(), store.listFacultyPays()]);
-    const pays = listed.filter((pay) => pay.kind !== "deducted");
-    const due = pays.filter((pay) => pay.status === "due").reduce((sum, pay) => sum + pay.amount, 0);
-    const paid = pays.filter((pay) => pay.status === "paid").reduce((sum, pay) => sum + pay.amount, 0);
+    const [listedTeachers, listedPays] = await Promise.all([store.listFaculty(), store.listFacultyPays()]);
+    const chosen = listedTeachers.find((teacher) => teacher.id === params.id);
+    const teachers = chosen ? [chosen] : listedTeachers;
+    const classes = listedPays.filter((pay) => pay.kind !== "deducted" && teachers.some((teacher) => teacher.id === pay.teacherId));
+    const monthKeys = [...new Set(classes.map((pay) => pay.classDate.slice(0, 7)).filter((key) => /^\d{4}-\d{2}$/.test(key)))].sort();
+    const month = /^\d{4}-\d{2}$/.test(params.month || "") ? params.month! : monthKeys.at(-1) || today.slice(0, 7);
+    const period = monthTitle(month);
+    const monthClasses = classes.filter((pay) => pay.classDate.startsWith(month)).sort((a, b) => a.classDate.localeCompare(b.classDate) || a.createdAt.localeCompare(b.createdAt));
+    const taughtThisMonth = chosen ? teachers : teachers.filter((teacher) => monthClasses.some((pay) => pay.teacherId === teacher.id));
+    const roster = taughtThisMonth.length ? taughtThisMonth : teachers;
+    const total = monthClasses.reduce((sum, pay) => sum + pay.amount, 0);
+    const issued = issueDate(month, today);
     const report: ReportDocument = {
-      tone: "teacher",
-      kicker: "TEACHER PAY REPORT",
-      title: "Teachers",
-      subtitle: dayStamp(today),
+      tone: "student",
+      kicker: "TEACHER PAYMENT",
+      title: "Skill Vantage - Teacher Details",
+      subtitle: `Teacher information and class record • ${period}`,
       generated,
       stats: [
-        { label: "Teachers", value: String(teachers.length) },
-        { label: "Unpaid", value: rupees(due) },
-        { label: "Paid", value: rupees(paid) },
-        { label: "Classes", value: String(pays.length) },
+        { label: "Teachers listed", value: String(roster.length) },
+        { label: "Classes taken", value: String(monthClasses.length) },
+        { label: "Total payment", value: rupees(total) },
       ],
-      columns: ["S.No", "Teacher", "Course", "Unpaid", "Paid"],
-      rows: teachers.map((teacher, index) => {
-        const owed = pays.filter((pay) => pay.teacherId === teacher.id && pay.status === "due").reduce((sum, pay) => sum + pay.amount, 0);
-        const settled = pays.filter((pay) => pay.teacherId === teacher.id && pay.status === "paid").reduce((sum, pay) => sum + pay.amount, 0);
-        return [String(index + 1), teacher.fullName, `${programName(teacher.course)} • ${rupees(classPay(teacher.rate))}`, rupees(owed), rupees(settled)];
+      tableHeading: "Teacher Details",
+      columns: ["Teacher Name", "Phone", "Email", "Subject / Course", "Joining Date", "Status", "Month Classes", "Total Classes"],
+      rows: roster.map((teacher) => {
+        const taught = classes.filter((pay) => pay.teacherId === teacher.id);
+        const thisMonth = taught.filter((pay) => pay.classDate.startsWith(month));
+        return [
+          teacher.fullName,
+          teacher.phone || "—",
+          teacher.email || "No Email",
+          programName(teacher.course),
+          shortDay(teacher.createdAt),
+          "ACTIVE",
+          String(thisMonth.length),
+          String(taught.length),
+        ];
       }),
-      footer: "Skillvantage • Teacher pay report • Unpaid is still due for class",
+      sections: [
+        {
+          heading: `Teacher Payment Summary • ${period}`,
+          columns: ["Teacher Name", "Subject / Course", "Classes Taken", "Amount / Class", "Total Amount"],
+          rows: roster.map((teacher) => {
+            const rows = monthClasses.filter((pay) => pay.teacherId === teacher.id);
+            return [teacher.fullName, programName(teacher.course), String(rows.length), rupees(classPay(teacher.rate)), rupees(rows.reduce((sum, pay) => sum + pay.amount, 0))];
+          }),
+          foot: `Month Total: ${rupees(total)}`,
+        },
+        {
+          heading: `Teacher Class Record • ${period}`,
+          columns: ["Date", "Teacher Name", "Course / Subject", "Class / Session", "Amount / Class", "Status"],
+          rows: monthClasses.map((pay) => {
+            const teacher = roster.find((item) => item.id === pay.teacherId) || teachers.find((item) => item.id === pay.teacherId);
+            return [
+              shortDay(pay.classDate),
+              teacher?.fullName || "Teacher",
+              pay.subject || (teacher ? programName(teacher.course) : "Course"),
+              pay.session || "Class",
+              rupees(pay.amount),
+              "TAKEN",
+            ];
+          }),
+        },
+      ],
+      signOff: { issued: longDay(issued), period },
+      footer: "Skill Vantage • Teacher Management Record • Printed document",
     };
+    const fileName = `Skillvantage-Teacher-Payment-${period.replace(/\s+/g, "-")}.pdf`;
     return (
       <Letterhead
         report={report}
-        back="/admin/teacher"
-        summary={`Skillvantage teachers\nUnpaid ${rupees(due)}\nPaid ${rupees(paid)}`}
-        fileName="Skillvantage-teachers.pdf"
+        back={chosen ? `/admin/teacher/${chosen.id}` : "/admin/teacher"}
+        summary={`Skillvantage teacher payment\n${period}\n${roster.map((teacher) => teacher.fullName).join(", ") || "No teacher"}\nTotal ${rupees(total)}`}
+        fileName={fileName}
       />
     );
   }
