@@ -58,19 +58,20 @@ export function TeacherDetail({ teacher, days, pays, today }: { teacher: Faculty
     router.refresh();
   }
 
-  async function settle(id: string) {
+  async function settle(id: string, status: "paid" | "due") {
     setPending(id);
+    setError("");
     const response = await fetch(`/api/v1/admin/faculty/pay/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paidOn: today }),
+      body: JSON.stringify({ status, paidOn: today }),
     });
     setPending("");
     if (!response.ok) {
-      setError("Could not mark this amount paid.");
+      setError(status === "paid" ? "Could not mark this amount paid." : "Could not undo this payment.");
       return;
     }
-    setView("paid");
+    setView(status === "paid" ? "paid" : "unpaid");
     router.refresh();
   }
 
@@ -103,7 +104,12 @@ export function TeacherDetail({ teacher, days, pays, today }: { teacher: Faculty
         {rows.map((pay) => (
           <li key={pay.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] px-4 py-3 text-sm">
             <span>{pay.classDate} · {rupees(pay.amount)}{pay.note ? ` · ${pay.note}` : ""}</span>
-            {pay.status === "paid" ? <span className="text-xs text-emerald-200">Paid {pay.paidOn}</span> : <button type="button" disabled={pending !== ""} onClick={() => void settle(pay.id)} className="h-9 rounded-full bg-[#1e3a8a] px-4 text-xs font-medium text-white">Pay</button>}
+            {pay.status === "paid" ? (
+              <span className="flex items-center gap-2">
+                <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200">Paid {pay.paidOn}</span>
+                <button type="button" disabled={pending !== ""} onClick={() => void settle(pay.id, "due")} className="h-9 rounded-full border border-white/30 px-3 text-xs font-medium">Undo</button>
+              </span>
+            ) : <button type="button" disabled={pending !== ""} onClick={() => void settle(pay.id, "paid")} className="h-9 rounded-full bg-[#1e3a8a] px-4 text-xs font-medium text-white">Pay</button>}
           </li>
         ))}
         {rows.length === 0 ? <li className="rounded-2xl border border-dashed border-[var(--desk-line)] px-4 py-8 text-sm text-[var(--desk-muted)]">{view === "unpaid" ? "No unpaid classes." : "No paid classes yet."}</li> : null}

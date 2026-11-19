@@ -783,6 +783,17 @@ export class PostgresStore implements LeadStore {
     return item;
   }
 
+  async reopenFacultyPay(id: string) {
+    await this.init();
+    const current = await pool().query<{ record: FacultyPay }>("SELECT record FROM desk_items WHERE id = $1 AND kind = 'faculty-pay'", [id]);
+    const item = current.rows[0]?.record;
+    if (!item) return null;
+    item.status = "due";
+    item.paidOn = "";
+    await pool().query("UPDATE desk_items SET record = $2::jsonb WHERE id = $1", [id, JSON.stringify(item)]);
+    return item;
+  }
+
   async getCashBook() {
     await this.init();
     const result = await pool().query<{ record: CashBook }>("SELECT record FROM desk_items WHERE id = 'cash-book' AND kind = 'cash-book'");

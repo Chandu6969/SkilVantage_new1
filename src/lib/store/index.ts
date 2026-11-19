@@ -10,7 +10,7 @@ function createStore() {
 
 export function getStore() {
   const current = globalStore.skilVantageStore;
-  if (current && typeof current.clearAttendance === "function" && typeof current.deleteFee === "function") return current;
+  if (current && typeof current.clearAttendance === "function" && typeof current.deleteFee === "function" && typeof current.reopenFacultyPay === "function") return current;
   const created = createStore();
   globalStore.skilVantageStore = created;
   return created;

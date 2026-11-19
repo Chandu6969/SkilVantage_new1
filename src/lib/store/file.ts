@@ -711,6 +711,18 @@ export class FileStore implements LeadStore {
     });
   }
 
+  async reopenFacultyPay(id: string) {
+    return this.locked(async () => {
+      const body = await this.read();
+      const item = body.teacherPays.find((row) => row.id === id);
+      if (!item) return null;
+      item.status = "due";
+      item.paidOn = "";
+      await this.write(body);
+      return item;
+    });
+  }
+
   async resetMessaged(batchId: string) {
     await this.locked(async () => {
       const body = await this.read();

@@ -160,8 +160,11 @@ export async function patchFacultyPay(req: Request, ctx: { params: Promise<{ id:
   if ("error" in access) return access.error;
   const { id } = await ctx.params;
   const body = await readJson(req);
-  const paidOn = body.ok && body.data && typeof body.data === "object" ? day((body.data as { paidOn?: unknown }).paidOn) : "";
-  const item = await getStore().settleFacultyPay(id, paidOn || new Date().toISOString().slice(0, 10));
+  const data = body.ok && body.data && typeof body.data === "object" ? (body.data as { paidOn?: unknown; status?: unknown }) : {};
+  const paidOn = day(data.paidOn);
+  const item = data.status === "due"
+    ? await getStore().reopenFacultyPay(id)
+    : await getStore().settleFacultyPay(id, paidOn || new Date().toISOString().slice(0, 10));
   if (!item) return json({ ok: false, error: "Class payment not found." }, 404);
   return json({ ok: true, pay: item });
 }

@@ -92,6 +92,7 @@ export interface LeadStore {
   saveFacultyPay(pay: FacultyPay): Promise<FacultyPay>;
   deleteFacultyPay(id: string): Promise<boolean>;
   settleFacultyPay(id: string, paidOn: string): Promise<FacultyPay | null>;
+  reopenFacultyPay(id: string): Promise<FacultyPay | null>;
   createSession(role: Session["role"]): Promise<{ token: string; expiresAt: string }>;
   getSession(token: string): Promise<Session | null>;
   deleteSession(token: string): Promise<void>;

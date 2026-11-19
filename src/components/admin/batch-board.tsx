@@ -301,7 +301,16 @@ export function BatchBoard({ batch, members, batches, fees, today, todayMarks }:
               </form>
             </li>
           ) : (
-            <li key={member.id} className="relative overflow-hidden rounded-3xl p-4 text-white" style={{ background: `linear-gradient(165deg, ${look.from}, ${look.to})` }}>
+            <li
+              key={member.id}
+              onClick={(event) => {
+                const target = event.target as HTMLElement;
+                if (target.closest("a, button, select, input, textarea, label")) return;
+                router.push(`/admin/people/${member.id}`);
+              }}
+              className="relative cursor-pointer overflow-hidden rounded-3xl p-4 text-white"
+              style={{ background: `linear-gradient(165deg, ${look.from}, ${look.to})` }}
+            >
               <span className="absolute top-3 right-4 text-sm text-white/70">{index + 1}</span>
               <span className="mx-auto grid size-28 place-items-center rounded-full bg-white text-3xl font-semibold" style={{ color: look.from }}>{initials(member.fullName)}</span>
               <p className="mt-4 text-sm text-white/80">{member.note ? `${member.note} · ${batch.name}` : batch.name}</p>
