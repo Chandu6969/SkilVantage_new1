@@ -509,12 +509,11 @@ function BatchChooser({ section, batches, date }: { section: "attendance" | "ass
       {batches.length === 0 ? <p className="rounded-2xl border border-dashed border-[var(--desk-line)] p-8 text-sm text-[var(--desk-muted)]">Add a batch first.</p> : null}
       <div className="grid gap-3 sm:grid-cols-2">
         {batches.map((batch) => {
-          const tone = toneOf(batch.learnerType);
-          const color = tone === "professional" ? "#312e81" : "#065f46";
+          const professional = batch.learnerType === "professional";
           return (
-            <Link key={batch.id} href={`/admin/print?section=${section}&batch=${batch.id}&date=${date}`} className="rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4">
-              <p className="text-xs font-semibold tracking-[0.14em] uppercase" style={{ color }}>{batch.learnerType === "professional" ? "Professionals" : "Students"}</p>
-              <p className="mt-1 text-xl font-semibold">{batch.name}</p>
+            <Link key={batch.id} href={`/admin/print?section=${section}&batch=${batch.id}&date=${date}`} className="batch-pick rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4 text-[var(--desk-text)]">
+              <p className={`text-xs font-semibold tracking-[0.14em] uppercase ${professional ? "batch-kind-professional" : "batch-kind-student"}`}>{professional ? "Professionals" : "Students"}</p>
+              <p className="mt-1 text-xl font-semibold text-[var(--desk-text)]">{batch.name}</p>
               <p className="mt-1 text-sm text-[var(--desk-muted)]">{batch.label}</p>
             </Link>
           );

@@ -562,6 +562,12 @@
   color: #14211c;
 }
 
+.batch-kind-student { color: #6ee7b7; }
+.batch-kind-professional { color: #c4b5fd; }
+
+.desk[data-theme="light"] .batch-kind-student { color: #065f46; }
+.desk[data-theme="light"] .batch-kind-professional { color: #4338ca; }
+
 .dash-board {
   --dash-bg: #f4fbf6;
   --dash-ink: #14211c;
