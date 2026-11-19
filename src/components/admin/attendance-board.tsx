@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, ChevronLeft, ChevronRight, Download, Filter } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { avatarColor, displayPhone, initials } from "@/lib/batches";
 import { todayIST } from "@/lib/dates";
 import type { AttendanceMark, BatchMember, ClassDayStatus, LearnerType, TrainingBatch } from "@/lib/types";
@@ -87,7 +87,6 @@ export function AttendanceBoard({
   const [audience, setAudience] = useState<Audience>(opened?.learnerType || "all");
   const [batchId, setBatchId] = useState(opened?.id || "all");
   const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState(Boolean(opened));
   const [page, setPage] = useState(1);
   const [overrides, setOverrides] = useState<Record<string, ClassDayStatus>>({});
   const [pending, setPending] = useState("");
@@ -157,7 +156,6 @@ export function AttendanceBoard({
   const currentPage = Math.min(page, pages);
   const start = (currentPage - 1) * PAGE_SIZE;
   const slice = roster.slice(start, start + PAGE_SIZE);
-  const filtering = audience !== "all" || batchId !== "all" || query.trim() !== "";
 
   function chooseAudience(next: Audience) {
     setAudience(next);
@@ -287,52 +285,39 @@ export function AttendanceBoard({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setFilters((open) => !open)}
-            className={`inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm ${filters || filtering ? "bg-[#4f6dff] text-white" : "bg-[#232a3d] text-[#d5dced]"}`}
-          >
-            <Filter className="size-4" aria-hidden="true" />
-            Filter
-          </button>
-        </div>
-
-        {filters ? (
-          <div className="mt-3 grid gap-3 rounded-2xl bg-[#1b2130] p-3 sm:grid-cols-3">
-            <div>
-              <p className="text-xs text-[#9aa6bd]">Group</p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {([["all", "All"], ["student", "Students"], ["professional", "Professionals"]] as const).map(([key, label]) => (
-                  <button key={key} type="button" onClick={() => chooseAudience(key)} className={`h-9 rounded-lg px-3 text-sm ${audience === key ? "bg-[#4f6dff] text-white" : "bg-[#232a3d] text-[#d5dced]"}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
+        <div className="mt-4 grid gap-3 rounded-2xl bg-[#1b2130] p-3 sm:grid-cols-3">
+          <div>
+            <p className="text-xs text-[#9aa6bd]">Group</p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {([["all", "All"], ["student", "Students"], ["professional", "Professionals"]] as const).map(([key, label]) => (
+                <button key={key} type="button" onClick={() => chooseAudience(key)} className={`h-9 rounded-lg px-3 text-sm ${audience === key ? "bg-[#4f6dff] text-white" : "bg-[#232a3d] text-[#d5dced]"}`}>
+                  {label}
+                </button>
+              ))}
             </div>
-            <label className="text-xs text-[#9aa6bd]">
-              Batch
-              <select
-                value={visibleBatches.some((batch) => batch.id === batchId) ? batchId : "all"}
-                onChange={(event) => { setBatchId(event.target.value); setPage(1); }}
-                className="mt-1 h-10 w-full rounded-xl bg-[#232a3d] px-3 text-sm text-white outline-none"
-                style={{ colorScheme: "dark" }}
-              >
-                <option value="all">All batches</option>
-                {visibleBatches.map((batch) => <option key={batch.id} value={batch.id}>{batch.label} · {batch.name}</option>)}
-              </select>
-            </label>
-            <label className="text-xs text-[#9aa6bd]">
-              Name
-              <input
-                value={query}
-                onChange={(event) => { setQuery(event.target.value); setPage(1); }}
-                placeholder="Search a learner"
-                className="mt-1 h-10 w-full rounded-xl bg-[#232a3d] px-3 text-sm text-white outline-none placeholder:text-[#7f8aa3]"
-              />
-            </label>
           </div>
-        ) : null}
+          <label className="text-xs text-[#9aa6bd]">
+            Batch
+            <select
+              value={visibleBatches.some((batch) => batch.id === batchId) ? batchId : "all"}
+              onChange={(event) => { setBatchId(event.target.value); setPage(1); }}
+              className="mt-1 h-10 w-full rounded-xl bg-[#232a3d] px-3 text-sm text-white outline-none"
+              style={{ colorScheme: "dark" }}
+            >
+              <option value="all">All batches</option>
+              {visibleBatches.map((batch) => <option key={batch.id} value={batch.id}>{batch.label} · {batch.name}</option>)}
+            </select>
+          </label>
+          <label className="text-xs text-[#9aa6bd]">
+            Name
+            <input
+              value={query}
+              onChange={(event) => { setQuery(event.target.value); setPage(1); }}
+              placeholder="Search a learner"
+              className="mt-1 h-10 w-full rounded-xl bg-[#232a3d] px-3 text-sm text-white outline-none placeholder:text-[#7f8aa3]"
+            />
+          </label>
+        </div>
 
         {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
 
