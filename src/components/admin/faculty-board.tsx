@@ -73,7 +73,8 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
   const [subject, setSubject] = useState(teachers[0] ? programName(teachers[0].course) : "");
   const [session, setSession] = useState("");
   const [kind, setKind] = useState<ClassRecordKind>("taken");
-  const [report, setReport] = useState<"daily" | "monthly">("daily");
+  const [selectedId, setSelectedId] = useState("");
+  const [report, setReport] = useState<"daily" | "monthly" | "all">("daily");
   const [filters, setFilters] = useState(false);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
@@ -85,17 +86,23 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
     return payState[pay.id] || pay.status;
   }
 
+  const selected = teachers.find((item) => item.id === selectedId);
   const visiblePays = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return pays.filter((pay) => {
       const person = teachers.find((item) => item.id === pay.teacherId);
-      if (filterId !== "all" && pay.teacherId !== filterId) return false;
+      if (selectedId && pay.teacherId !== selectedId) return false;
+      if (!selectedId && filterId !== "all" && pay.teacherId !== filterId) return false;
       if (needle && !person?.fullName.toLowerCase().includes(needle)) return false;
       return true;
     });
-  }, [filterId, pays, query, teachers]);
+  }, [filterId, pays, query, selectedId, teachers]);
 
-  const periodPays = visiblePays.filter((pay) => (report === "daily" ? pay.classDate === date : pay.classDate.startsWith(month)));
+  const periodPays = visiblePays.filter((pay) => {
+    if (report === "all" || selectedId) return true;
+    if (report === "daily") return pay.classDate === date;
+    return pay.classDate.startsWith(month);
+  });
   const taken = periodPays.filter((pay) => pay.kind !== "deducted");
   const deducted = periodPays.filter((pay) => pay.kind === "deducted");
   const gross = taken.reduce((sum, pay) => sum + pay.amount, 0);
@@ -130,7 +137,6 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
       return;
     }
     setMonth(monthKey(date) || month);
-    setReport("daily");
     router.refresh();
   }
 
@@ -167,7 +173,16 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
       chooseTeacher(next?.id || "");
     }
     if (filterId === person.id) setFilterId("all");
+    if (selectedId === person.id) setSelectedId("");
     router.refresh();
+  }
+
+  function openTeacher(person: Faculty) {
+    setSelectedId(person.id);
+    setFilterId(person.id);
+    chooseTeacher(person.id);
+    setReport("all");
+    window.setTimeout(() => document.getElementById("teacher-record")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }
 
   async function togglePay(pay: FacultyPay) {
@@ -206,37 +221,49 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
             pays={pays}
             payState={payState}
             pending={pending !== ""}
-            onOpen={() => router.push(`/admin/teacher/${person.id}`)}
+            selected={person.id === selectedId}
+            onOpen={() => openTeacher(person)}
             onDelete={() => void removeTeacher(person)}
             onPay={(pay) => void togglePay(pay)}
           />
         ))}
       </div>
 
-      <section className="min-w-0 rounded-[28px] bg-[#141824] p-3 sm:p-4">
+      <section id="teacher-record" className="min-w-0 rounded-[28px] bg-[#141824] p-3 sm:p-4">
         <div className="flex flex-wrap items-start justify-between gap-3 px-1 pt-1">
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#0f766e]">
               <CalendarDays className="size-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Teacher record</h1>
-              <p className="mt-0.5 text-sm text-[#9aa6bd]">{report === "daily" ? "One day at a time" : "The full month"}</p>
+              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{selected ? selected.fullName : "Teacher record"}</h1>
+              <p className="mt-0.5 text-sm text-[#9aa6bd]">{selected ? "All records for this teacher" : report === "daily" ? "One day at a time" : report === "monthly" ? "The full month" : "Every class"}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link href={selected ? `/admin/print?section=teachers&id=${selected.id}` : "/admin/print?section=teachers"} className="inline-flex h-10 items-center rounded-xl bg-[#065f46] px-3 text-sm font-medium text-white">
+              Print PDF
+            </Link>
+            {selected ? (
+              <button type="button" onClick={() => { setSelectedId(""); setFilterId("all"); setReport("daily"); }} className="h-10 rounded-xl bg-[#232a3d] px-3 text-sm font-medium text-white">All teachers</button>
+            ) : null}
             <label className="sr-only" htmlFor="teacher-report">Report</label>
             <select
               id="teacher-report"
-              value={report}
-              onChange={(event) => setReport(event.target.value === "daily" ? "daily" : "monthly")}
+              value={selected ? "all" : report}
+              onChange={(event) => {
+                const next = event.target.value;
+                setReport(next === "monthly" ? "monthly" : next === "all" ? "all" : "daily");
+                if (next !== "all") setSelectedId("");
+              }}
               className="h-10 rounded-xl bg-[#232a3d] px-3 text-sm font-medium text-white outline-none"
               style={{ colorScheme: "dark" }}
             >
+              <option value="all">All records</option>
               <option value="daily">Daily</option>
               <option value="monthly">Monthly</option>
             </select>
-            {report === "monthly" ? (
+            {!selected && report === "monthly" ? (
               <div className="flex items-center gap-1 rounded-xl bg-[#232a3d] px-1.5 py-1">
                 <button type="button" aria-label="Previous month" onClick={() => setMonth(shiftMonth(month, -1))} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
                   <ChevronLeft className="size-4" />
@@ -249,7 +276,7 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
                   <ChevronRight className="size-4" />
                 </button>
               </div>
-            ) : (
+            ) : !selected && report === "daily" ? (
               <div className="flex items-center gap-1 rounded-xl bg-[#232a3d] px-1.5 py-1">
                 <button type="button" aria-label="Previous day" onClick={() => chooseDate(shiftDay(date, -1))} className="grid size-8 place-items-center rounded-lg text-[#c5cde0] hover:bg-white/10">
                   <ChevronLeft className="size-4" />
@@ -263,7 +290,7 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
                   <ChevronRight className="size-4" />
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -292,12 +319,12 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
         <div className="mt-4 rounded-2xl bg-[#1b2130] p-3 sm:p-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold">{report === "daily" ? "Daily teacher record" : "Monthly teacher record"}</h2>
-              <p className="mt-0.5 text-sm text-[#9aa6bd]">{report === "daily" ? dayLabel(date) : monthTitle(month)} · {taken.length} classes taken · Gross {rupees(gross)} · Deduction {rupees(deduction)} · Net {rupees(gross - deduction)}</p>
+              <h2 className="text-base font-semibold">{selected ? `${selected.fullName}'s class record` : report === "daily" ? "Daily teacher record" : report === "monthly" ? "Monthly teacher record" : "All teacher records"}</h2>
+              <p className="mt-0.5 text-sm text-[#9aa6bd]">{selected ? "Every class on file" : report === "daily" ? dayLabel(date) : report === "monthly" ? monthTitle(month) : "Every class"} · {taken.length} classes taken · Gross {rupees(gross)} · Deduction {rupees(deduction)} · Net {rupees(gross - deduction)}</p>
             </div>
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <Stat label="Classes taken" value={String(taken.length)} hint={report === "daily" ? dayLabel(date) : monthTitle(month)} tone="text-emerald-300" />
+            <Stat label="Classes taken" value={String(taken.length)} hint={selected || report === "all" ? "Every class" : report === "daily" ? dayLabel(date) : monthTitle(month)} tone="text-emerald-300" />
             <Stat label="Gross" value={rupees(gross)} hint="Taken classes" tone="text-[#d5dced]" />
             <Stat label="Deduction" value={rupees(deduction)} hint="Deducted classes" tone="text-rose-300" />
             <Stat label="Net payable" value={rupees(gross - deduction)} hint="Gross minus deduction" tone="text-[#c4b5fd]" />
@@ -311,7 +338,7 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
             </label>
             <label className="text-xs font-semibold tracking-[0.14em] text-white/60 uppercase">Teacher
               <select required value={teacherId} onChange={(event) => chooseTeacher(event.target.value)} className={field} style={{ colorScheme: "dark" }}>
-                {teachers.map((item) => <option key={item.id} value={item.id}>{item.fullName}</option>)}
+                {(selected ? teachers.filter((item) => item.id === selected.id) : teachers).map((item) => <option key={item.id} value={item.id}>{item.fullName}</option>)}
               </select>
             </label>
             <label className="text-xs font-semibold tracking-[0.14em] text-white/60 uppercase">Course / Subject
@@ -340,7 +367,7 @@ export function FacultyBoard({ teachers, pays, today }: { teachers: Faculty[]; p
           {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
 
           <ul className="mt-3 grid gap-2">
-            {periodPays.length === 0 ? <li className="rounded-xl bg-[#232a3d] px-4 py-6 text-sm text-[#c5cde0]">No class marked for {report === "daily" ? dayLabel(date) : monthTitle(month)}.</li> : null}
+            {periodPays.length === 0 ? <li className="rounded-xl bg-[#232a3d] px-4 py-6 text-sm text-[#c5cde0]">No class marked{selected ? ` for ${selected.fullName}` : report === "daily" ? ` for ${dayLabel(date)}` : report === "monthly" ? ` for ${monthTitle(month)}` : ""}.</li> : null}
             {periodPays
               .slice()
               .sort((a, b) => a.classDate.localeCompare(b.classDate) || a.createdAt.localeCompare(b.createdAt))
@@ -381,6 +408,7 @@ function TeacherCard({
   pays,
   payState,
   pending,
+  selected,
   onOpen,
   onDelete,
   onPay,
@@ -390,6 +418,7 @@ function TeacherCard({
   pays: FacultyPay[];
   payState: Record<string, "paid" | "due">;
   pending: boolean;
+  selected: boolean;
   onOpen: () => void;
   onDelete: () => void;
   onPay: (pay: FacultyPay) => void;
@@ -412,7 +441,7 @@ function TeacherCard({
         if (event.key === "Enter") onOpen();
       }}
       tabIndex={0}
-      className={`relative cursor-pointer overflow-hidden p-4 text-white ${shape}`}
+      className={`relative cursor-pointer overflow-hidden p-4 text-white ${shape} ${selected ? "ring-2 ring-white" : ""}`}
       style={{ background: `linear-gradient(160deg, ${look.from}, ${look.to})` }}
     >
       <span className={`inline-flex max-w-full bg-white font-semibold ${tab}`} style={{ color: look.from }}>{programName(person.course)}</span>

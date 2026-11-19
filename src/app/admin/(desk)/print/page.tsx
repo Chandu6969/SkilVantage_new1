@@ -176,13 +176,15 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
     const teachers = chosen ? [chosen] : listedTeachers;
     const classes = listedPays.filter((pay) => pay.kind !== "deducted" && teachers.some((teacher) => teacher.id === pay.teacherId));
     const monthKeys = [...new Set(classes.map((pay) => pay.classDate.slice(0, 7)).filter((key) => /^\d{4}-\d{2}$/.test(key)))].sort();
-    const month = /^\d{4}-\d{2}$/.test(params.month || "") ? params.month! : monthKeys.at(-1) || today.slice(0, 7);
-    const period = monthTitle(month);
-    const monthClasses = classes.filter((pay) => pay.classDate.startsWith(month)).sort((a, b) => a.classDate.localeCompare(b.classDate) || a.createdAt.localeCompare(b.createdAt));
+    const askedMonth = /^\d{4}-\d{2}$/.test(params.month || "") ? params.month! : "";
+    const month = askedMonth || (chosen ? "" : monthKeys.at(-1) || today.slice(0, 7));
+    const monthClasses = (month ? classes.filter((pay) => pay.classDate.startsWith(month)) : classes).sort((a, b) => a.classDate.localeCompare(b.classDate) || a.createdAt.localeCompare(b.createdAt));
+    const covered = [...new Set(monthClasses.map((pay) => pay.classDate.slice(0, 7)))].sort();
+    const period = month ? monthTitle(month) : covered.length > 1 ? `${monthTitle(covered[0]!)} – ${monthTitle(covered.at(-1)!)}` : covered[0] ? monthTitle(covered[0]) : "All classes";
     const taughtThisMonth = chosen ? teachers : teachers.filter((teacher) => monthClasses.some((pay) => pay.teacherId === teacher.id));
     const roster = taughtThisMonth.length ? taughtThisMonth : teachers;
     const total = monthClasses.reduce((sum, pay) => sum + pay.amount, 0);
-    const issued = issueDate(month, today);
+    const issued = month ? issueDate(month, today) : today;
     const report: ReportDocument = {
       tone: "student",
       kicker: "TEACHER PAYMENT",
@@ -239,7 +241,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
       signOff: { issued: longDay(issued), period },
       footer: "Skill Vantage • Teacher Management Record • Printed document",
     };
-    const fileName = `Skillvantage-Teacher-Payment-${period.replace(/\s+/g, "-")}.pdf`;
+    const fileName = `Skillvantage-Teacher-Payment-${chosen ? `${safeFile(chosen.fullName)}-` : ""}${period.replace(/\s+/g, "-")}.pdf`;
     return (
       <Letterhead
         report={report}
