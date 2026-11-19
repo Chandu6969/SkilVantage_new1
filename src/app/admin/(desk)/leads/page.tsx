@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeleteRegistration } from "@/components/admin/delete-registration";
 import { RegistrationsBoard } from "@/components/admin/registrations-board";
 import { formatStamp } from "@/lib/dates";
 import { programName } from "@/lib/palette";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LeadsPage() {
   const session = await currentSession();
+  const canDelete = session?.role === "admin";
   const rows = (await getStore().listRegistrations())
     .filter((item) => !item.sample)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -30,12 +32,15 @@ export default async function LeadsPage() {
       <p className="mt-1 text-sm text-[var(--desk-muted)]">{rows.length} records.</p>
       <div className="mt-4 space-y-3 lg:hidden">
         {rows.slice(0, 200).map((lead) => (
-          <Link key={lead.id} href={`/admin/leads/${lead.id}`} className="block rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4">
-            <p className="font-medium">{lead.fullName}</p>
-            <p className="text-sm text-[var(--desk-muted)]">{lead.learnerType === "student" ? "Student" : "Professional"} · {programName(lead.program)} · {lead.status}</p>
-            <p className="text-sm text-[var(--desk-muted)]">{lead.phone}{lead.email ? ` · ${lead.email}` : ""}</p>
-            <p className="text-sm text-[var(--desk-muted)]">{formatStamp(lead.createdAt)}{lead.sample ? " · Sample" : ""}</p>
-          </Link>
+          <article key={lead.id} className="flex items-start justify-between gap-3 rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4">
+            <Link href={`/admin/leads/${lead.id}`} className="min-w-0">
+              <p className="font-medium">{lead.fullName}</p>
+              <p className="text-sm text-[var(--desk-muted)]">{lead.learnerType === "student" ? "Student" : "Professional"} · {programName(lead.program)} · {lead.status}</p>
+              <p className="text-sm text-[var(--desk-muted)]">{lead.phone}{lead.email ? ` · ${lead.email}` : ""}</p>
+              <p className="text-sm text-[var(--desk-muted)]">{formatStamp(lead.createdAt)}</p>
+            </Link>
+            {canDelete ? <DeleteRegistration id={lead.id} name={lead.fullName} /> : null}
+          </article>
         ))}
       </div>
       <div className="mt-4 hidden overflow-x-auto rounded-3xl border border-[var(--desk-line)] bg-[var(--desk-card)] lg:block">
@@ -49,18 +54,20 @@ export default async function LeadsPage() {
               <th className="px-4 py-3 font-medium">Course</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Follow-up</th>
+              {canDelete ? <th className="px-4 py-3 font-medium"> </th> : null}
             </tr>
           </thead>
           <tbody>
             {rows.slice(0, 200).map((lead) => (
               <tr key={lead.id} className="border-b border-[var(--desk-line)] last:border-0">
                 <td className="px-4 py-3 whitespace-nowrap">{formatStamp(lead.createdAt)}</td>
-                <td className="px-4 py-3"><Link className="underline-offset-4 hover:underline" href={`/admin/leads/${lead.id}`}>{lead.fullName}</Link>{lead.sample ? " · sample" : ""}</td>
+                <td className="px-4 py-3"><Link className="underline-offset-4 hover:underline" href={`/admin/leads/${lead.id}`}>{lead.fullName}</Link></td>
                 <td className="px-4 py-3">{lead.phone}</td>
                 <td className="px-4 py-3">{lead.learnerType === "student" ? "Student" : "Professional"}</td>
                 <td className="px-4 py-3">{programName(lead.program)}</td>
                 <td className="px-4 py-3">{lead.status}</td>
                 <td className="px-4 py-3">{lead.followUpDate || "—"}</td>
+                {canDelete ? <td className="px-4 py-3"><DeleteRegistration id={lead.id} name={lead.fullName} /></td> : null}
               </tr>
             ))}
           </tbody>
