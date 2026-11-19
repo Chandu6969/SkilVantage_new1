@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { MESSAGE_TEMPLATES, avatarColor, displayPhone, initials, personalize, whatsAppHref } from "@/lib/batches";
-import type { BatchMember, TrainingBatch } from "@/lib/types";
+import { rupees } from "@/components/admin/desk-charts";
+import { MESSAGE_TEMPLATES, displayPhone, initials, personalize, whatsAppHref } from "@/lib/batches";
+import type { BatchMember, FeePayment, TrainingBatch } from "@/lib/types";
 
 type Filter = "all" | "unsent" | "absent";
 
-export function BatchBoard({ batch, members, batches }: { batch: TrainingBatch; members: BatchMember[]; batches: TrainingBatch[] }) {
+export function BatchBoard({ batch, members, batches, fees }: { batch: TrainingBatch; members: BatchMember[]; batches: TrainingBatch[]; fees: FeePayment[] }) {
   const router = useRouter();
   const [rows, setRows] = useState(members);
   const [draft, setDraft] = useState("");
@@ -161,7 +162,7 @@ export function BatchBoard({ batch, members, batches }: { batch: TrainingBatch; 
   }
 
   return (
-    <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+    <div className="mt-4 grid gap-4">
       <section className="rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4">
         <p className="text-xs tracking-[0.16em] text-[var(--desk-muted)]">MESSAGE</p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -231,12 +232,12 @@ export function BatchBoard({ batch, members, batches }: { batch: TrainingBatch; 
             <button type="submit" disabled={saving} className="h-11 rounded-xl bg-[#14967c] text-sm text-white disabled:opacity-60">{saving ? "Saving…" : `Save ${noun}`}</button>
           </form>
         ) : null}
-        <ul className="mt-4 space-y-2">
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visible.length === 0 ? (
-            <li className="rounded-xl border border-dashed border-[var(--desk-line)] px-4 py-8 text-center text-sm text-[var(--desk-muted)]">
+            <li className="rounded-3xl border border-dashed border-[var(--desk-line)] px-4 py-8 text-center text-sm text-[var(--desk-muted)] sm:col-span-2">
               {rows.length === 0 ? `No ${noun}s yet. Add the first name and phone when you have them.` : "Nothing matches this filter."}
             </li>
-          ) : visible.map((member) => editing === member.id ? (
+          ) : visible.map((member, index) => editing === member.id ? (
             <li key={member.id} className="rounded-xl bg-[var(--desk-card-2)] px-3 py-3">
               <form onSubmit={(event) => void saveEdit(event, member)} className="grid gap-2">
                 <p className="text-sm font-medium">Edit {member.fullName}</p>
@@ -254,32 +255,40 @@ export function BatchBoard({ batch, members, batches }: { batch: TrainingBatch; 
               </form>
             </li>
           ) : (
-            <li key={member.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-[var(--desk-card-2)] px-3 py-2.5">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" style={{ background: avatarColor(member.fullName) }}>
-                {initials(member.fullName)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <Link href={`/admin/people/${member.id}`} className="block truncate font-medium hover:underline">{member.fullName}{member.messaged ? <span className="ml-2 text-xs text-[#8ee0c0]">Sent</span> : null}</Link>
-                <span className="block text-sm text-[var(--desk-muted)]">{displayPhone(member.phone)}{member.note ? ` · ${member.note}` : ""}</span>
-              </span>
-              <button type="button" onClick={() => void patch(member.id, { absentToday: !member.absentToday })} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${member.absentToday ? "bg-[#ffe4e6] text-[#9f1239]" : "bg-[#d1fae5] text-[#065f46]"}`}>
-                {member.absentToday ? "Absent" : "Present"}
-              </button>
-              <button type="button" onClick={() => startEdit(member)} className="rounded-full border border-[var(--desk-line)] px-3 py-1.5 text-sm">Edit</button>
-              <button type="button" onClick={() => openChat(member, true)} className="rounded-full border border-[#1ec9a0] px-3 py-1.5 text-sm text-[#8ee0c0]">
-                WhatsApp
-              </button>
-              <button
-                type="button"
-                onClick={() => void sendBack(member)}
-                className="rounded-full border px-3 py-1.5 text-sm" style={{ borderColor: "#fb7185", color: "#e11d48" }}
-              >
-                Remove
-              </button>
+            <li key={member.id} className="relative overflow-hidden rounded-3xl bg-[#0f766e] p-4 text-white">
+              <span className="absolute top-3 right-4 text-sm text-white/70">{index + 1}</span>
+              <span className="mx-auto grid size-28 place-items-center rounded-full bg-[#ecfdf5] text-3xl font-semibold text-[#064e3b]">{initials(member.fullName)}</span>
+              <p className="mt-4 text-sm text-white/80">{member.note || batch.name}</p>
+              <Link href={`/admin/people/${member.id}`} className="mt-1 block text-2xl font-semibold leading-tight hover:underline">{member.fullName}</Link>
+              <p className="mt-1 text-sm text-white/75">{displayPhone(member.phone)}{member.messaged ? " · Sent" : ""}</p>
+              <PaymentLine fees={fees.filter((fee) => fee.memberId === member.id)} />
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="button" onClick={() => void patch(member.id, { absentToday: !member.absentToday })} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${member.absentToday ? "bg-white text-[#9f1239]" : "bg-[#ecfdf5] text-[#065f46]"}`}>
+                  {member.absentToday ? "Absent" : "Present"}
+                </button>
+                <button type="button" onClick={() => startEdit(member)} className="rounded-full border border-white/40 px-3 py-1.5 text-sm">Edit</button>
+                <button type="button" onClick={() => openChat(member, true)} className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-[#0f766e]">WhatsApp</button>
+                <button type="button" onClick={() => void sendBack(member)} className="rounded-full border border-white/40 px-3 py-1.5 text-sm">Remove</button>
+              </div>
             </li>
           ))}
         </ul>
       </section>
+    </div>
+  );
+}
+
+function PaymentLine({ fees }: { fees: FeePayment[] }) {
+  const latest = [...fees].sort((a, b) => b.paidOn.localeCompare(a.paidOn))[0];
+  if (!latest) {
+    return <p className="mt-3"><span className="inline-flex rounded-full bg-white/15 px-3 py-1 text-sm">Payment not recorded</span></p>;
+  }
+  const [year, month] = latest.paidOn.split("-").map(Number);
+  const label = year && month ? new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }) : latest.paidOn;
+  return (
+    <div className="mt-3">
+      <span className="inline-flex rounded-full bg-[#ecfdf5] px-3 py-1 text-sm font-medium text-[#065f46]">Payment recorded</span>
+      <p className="mt-2 text-sm text-white/90">{rupees(latest.amount)} · {label}</p>
     </div>
   );
 }

@@ -14,6 +14,7 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
   const batch = await store.getBatch(id);
   if (!batch) notFound();
   const members = await store.listMembers(id);
+  const fees = (await store.listFees()).filter((fee) => fee.batchId === id);
   const peers = await store.listBatches(batch.learnerType);
   const back = batch.learnerType === "student" ? "/admin/students" : "/admin/professionals";
 
@@ -33,7 +34,7 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
         <BatchRename batch={batch} tone="#065f46" />
         <DeleteBatch id={batch.id} name={batch.name} count={members.length} back={back} light />
       </div>
-      <BatchBoard batch={batch} members={members} batches={peers} />
+      <BatchBoard batch={batch} members={members} batches={peers} fees={fees} />
     </div>
   );
 }
