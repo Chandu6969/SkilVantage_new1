@@ -1,33 +1,16 @@
 import Link from "next/link";
 import { RegistrationsBoard } from "@/components/admin/registrations-board";
-import { programs } from "@/lib/content";
 import { formatStamp } from "@/lib/dates";
-import { matchesLead } from "@/lib/metrics";
 import { programName } from "@/lib/palette";
 import { getStore } from "@/lib/store";
-import { LEAD_STATUSES } from "@/lib/types";
 import { currentSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeadsPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
-  const params = await searchParams;
+export default async function LeadsPage() {
   const session = await currentSession();
-  const filters = {
-    q: params.q,
-    program: params.program,
-    learnerType: params.learnerType,
-    status: params.status,
-    from: params.from,
-    to: params.to,
-    includeSample: params.includeSample === "1",
-  };
   const rows = (await getStore().listRegistrations())
-    .filter((item) => matchesLead(item, filters))
+    .filter((item) => !item.sample)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
@@ -43,40 +26,8 @@ export default async function LeadsPage({
         ) : null}
       </div>
       <RegistrationsBoard rows={rows} />
-      <form className="mt-4 grid gap-3 rounded-3xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4 md:grid-cols-3" method="get">
-        <label className="field">Search<input name="q" defaultValue={params.q || ""} placeholder="Name, email, phone, id" /></label>
-        <label className="field">Course
-          <select name="program" defaultValue={params.program || ""}>
-            <option value="">All courses</option>
-            {programs.map((program) => <option key={program.slug} value={program.slug}>{program.name}</option>)}
-          </select>
-        </label>
-        <label className="field">Learner
-          <select name="learnerType" defaultValue={params.learnerType || ""}>
-            <option value="">Students and professionals</option>
-            <option value="student">Student / Fresher</option>
-            <option value="professional">Working Professional</option>
-          </select>
-        </label>
-        <label className="field">Status
-          <select name="status" defaultValue={params.status || ""}>
-            <option value="">Any status</option>
-            {LEAD_STATUSES.map((status) => <option key={status}>{status}</option>)}
-          </select>
-        </label>
-        <label className="field">From<input type="date" name="from" defaultValue={params.from || ""} /></label>
-        <label className="field">To<input type="date" name="to" defaultValue={params.to || ""} /></label>
-        <label className="flex items-center gap-2 text-sm md:col-span-2">
-          <input type="checkbox" name="includeSample" value="1" defaultChecked={params.includeSample === "1"} />
-          Include sample records
-        </label>
-        <div className="flex gap-3">
-          <button className="h-12 flex-1 rounded-xl bg-[#6d4dff] text-white" type="submit">Apply filters</button>
-          <Link href="/admin/leads" className="inline-flex h-12 items-center px-3 text-sm underline">Clear</Link>
-        </div>
-      </form>
       <h2 className="mt-6 text-lg font-semibold">All registrations</h2>
-      <p className="mt-1 text-sm text-[var(--desk-muted)]">{rows.length} matching records.</p>
+      <p className="mt-1 text-sm text-[var(--desk-muted)]">{rows.length} records.</p>
       <div className="mt-4 space-y-3 lg:hidden">
         {rows.slice(0, 200).map((lead) => (
           <Link key={lead.id} href={`/admin/leads/${lead.id}`} className="block rounded-2xl border border-[var(--desk-line)] bg-[var(--desk-card)] p-4">
@@ -115,8 +66,8 @@ export default async function LeadsPage({
           </tbody>
         </table>
       </div>
-      {rows.length > 200 ? <p className="mt-3 text-sm text-[var(--desk-muted)]">Showing the latest 200 matches. Export CSV for the full list.</p> : null}
-      {rows.length === 0 ? <p className="mt-6 text-sm text-[var(--desk-muted)]">No registrations match these filters.</p> : null}
+      {rows.length > 200 ? <p className="mt-3 text-sm text-[var(--desk-muted)]">Showing the latest 200. Export CSV for the full list.</p> : null}
+      {rows.length === 0 ? <p className="mt-6 text-sm text-[var(--desk-muted)]">No registrations yet.</p> : null}
     </div>
   );
 }
