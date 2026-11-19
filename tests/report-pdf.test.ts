@@ -78,6 +78,26 @@ test("a teacher payment sheet carries the class record, the HR sign, and the sta
   assert.match(text, /Date: 30 September 2026/);
 });
 
+test("a monthly register is a landscape page with each day", () => {
+  const days = Array.from({ length: 30 }, (_, index) => String(index + 1));
+  const text = new TextDecoder().decode(buildReportPdf({
+    ...report,
+    kicker: "MONTHLY ATTENDANCE REPORT",
+    title: "All batches",
+    subtitle: "November 2026",
+    wide: true,
+    columns: ["S.No", "Name", ...days],
+    rows: [["1", "Gopireddy Avinash", "P", "A", "LJ", ...Array.from({ length: 27 }, () => "—")]],
+    footer: "P = Present • A = Absent • LJ = Late join • WO = Week off • Skillvantage • Monthly Attendance Report",
+  }));
+  assert.match(text, /MediaBox \[0 0 842 595\]/);
+  assert.match(text, /MONTHLY ATTENDANCE REPORT/);
+  assert.match(text, /Gopireddy Avinash/);
+  assert.match(text, /\(P\)/);
+  assert.match(text, /\(LJ\)/);
+  assert.match(text, /\(30\)/);
+});
+
 test("a long report keeps every row across pages", () => {
   const rows = Array.from({ length: 40 }, (_, index) => [String(index + 1), `Learner ${index + 1}`, "Course", index % 2 ? "Absent" : "Present"]);
   const text = new TextDecoder().decode(buildReportPdf({ ...report, rows }));

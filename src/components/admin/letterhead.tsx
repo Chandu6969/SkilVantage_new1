@@ -10,12 +10,17 @@ const tones: Record<ReportTone, { band: string; soft: string; ink: string }> = {
 
 function statusClass(value: string) {
   const key = value.trim().toLowerCase();
-  if (key.startsWith("present") || key === "paid" || key === "reviewed" || key === "taken" || key === "active") return "text-[#047857]";
-  if (key.startsWith("absent")) return "text-[#be123c]";
-  if (key.startsWith("late")) return "text-[#7e22ce]";
-  if (key.startsWith("leave") || key === "pending" || key === "due") return "text-[#b45309]";
-  if (key.startsWith("holiday") || key === "submitted") return "text-[#0369a1]";
+  if (key === "p" || key.startsWith("present") || key === "paid" || key === "reviewed" || key === "taken" || key === "active") return "text-[#047857]";
+  if (key === "a" || key.startsWith("absent")) return "text-[#be123c]";
+  if (key === "lj" || key.startsWith("late")) return "text-[#7e22ce]";
+  if (key === "l" || key.startsWith("leave") || key === "pending" || key === "due") return "text-[#b45309]";
+  if (key === "h" || key.startsWith("holiday") || key === "submitted") return "text-[#0369a1]";
+  if (key === "wo" || key === "—" || key === "-") return "text-[#64748b]";
   return "text-[#64748b]";
+}
+
+function isMarkCode(value: string) {
+  return ["p", "a", "l", "lj", "h", "wo", "—", "-"].includes(value.trim().toLowerCase());
 }
 
 export function Letterhead({
@@ -32,7 +37,7 @@ export function Letterhead({
   const tone = tones[report.tone];
   const payment = Boolean(report.signOff);
   return (
-    <div className="print-sheet print-letter mx-auto max-w-3xl overflow-hidden rounded-3xl bg-white text-[#17211e] shadow-xl">
+    <div className={`print-sheet print-letter mx-auto overflow-hidden rounded-3xl bg-white text-[#17211e] shadow-xl ${report.wide ? "print-wide max-w-6xl" : "max-w-3xl"}`}>
       <div className="no-print flex flex-wrap items-center justify-between gap-3 border-b border-black/5 px-5 py-3">
         <Link href={back} className="text-sm text-[#3d4a57] hover:underline">Back</Link>
         <ReportActions report={report} summary={summary} fileName={fileName} />
@@ -99,17 +104,17 @@ function ReportTable({
       <div className={sheet ? "rounded-2xl border border-[#d7efe4] bg-[#f7fbf9] p-3" : ""}>
         {heading ? <h2 className="mb-2 text-sm font-semibold" style={{ color: tone.ink }}>{heading}</h2> : null}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left text-sm">
+          <table className={`w-full text-left ${columns.length > 12 ? "min-w-[1080px] text-[11px]" : "min-w-[680px] text-sm"}`}>
             <thead>
               <tr className="text-[0.68rem] tracking-wide text-white" style={{ background: sheet ? "#0f766e" : tone.band }}>
-                {columns.map((column) => <th key={column} className="px-2 py-2 font-medium">{column}</th>)}
+                {columns.map((column, index) => <th key={`${column}-${index}`} className="px-2 py-2 font-medium">{column}</th>)}
               </tr>
             </thead>
             <tbody>
               {rows.map((row, index) => (
                 <tr key={`${row[0]}-${index}`} className={index % 2 === 0 ? "bg-white" : "bg-[#f4fbf7]"}>
                   {row.map((cell, cellIndex) => (
-                    <td key={`${columnKey(columns, cellIndex)}-${index}`} className="px-2 py-2 align-middle">{cellIndex === row.length - 1 ? <StatusCell value={cell} /> : cell}</td>
+                    <td key={`${columnKey(columns, cellIndex)}-${index}`} className="px-2 py-2 align-middle">{cellIndex === row.length - 1 || isMarkCode(cell) ? <StatusCell value={cell} /> : cell}</td>
                   ))}
                 </tr>
               ))}

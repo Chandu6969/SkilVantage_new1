@@ -15,6 +15,7 @@ export type ReportDocument = {
   sections?: { heading: string; columns: string[]; rows: string[][]; foot?: string }[];
   footer: string;
   signOff?: { issued: string; period: string };
+  wide?: boolean;
 };
 
 const tones: Record<ReportTone, { band: Rgb; soft: Rgb; ink: Rgb }> = {
@@ -33,6 +34,8 @@ function pdfText(value: string) {
   return value
     .replaceAll("₹", "Rs ")
     .replaceAll("•", "%%B%%")
+    .replaceAll("—", "-")
+    .replaceAll("–", "-")
     .replace(/[^\x20-\x7E]/g, " ")
     .replace(/\\/g, "\\\\")
     .replace(/\(/g, "\\(")
@@ -53,13 +56,13 @@ function paint(color: Rgb) {
 
 function statusColor(value: string): Rgb | null {
   const key = value.trim().toLowerCase();
-  if (key.startsWith("present") || key === "paid" || key === "reviewed") return hex("047857");
-  if (key.startsWith("absent")) return hex("be123c");
-  if (key.startsWith("late")) return hex("7e22ce");
-  if (key.startsWith("leave") || key === "pending" || key === "due") return hex("b45309");
-  if (key.startsWith("holiday") || key === "submitted") return hex("0369a1");
+  if (key === "p" || key.startsWith("present") || key === "paid" || key === "reviewed") return hex("047857");
+  if (key === "a" || key.startsWith("absent")) return hex("be123c");
+  if (key === "lj" || key.startsWith("late")) return hex("7e22ce");
+  if (key === "l" || key.startsWith("leave") || key === "pending" || key === "due") return hex("b45309");
+  if (key === "h" || key.startsWith("holiday") || key === "submitted") return hex("0369a1");
   if (key === "taken" || key === "active") return hex("047857");
-  if (key.startsWith("not")) return hex("64748b");
+  if (key === "wo" || key === "-" || key === "—" || key.startsWith("not")) return hex("64748b");
   return null;
 }
 
@@ -67,14 +70,20 @@ const WIDTH = 595;
 const HEIGHT = 842;
 const TABLE_WIDTH = WIDTH - 72;
 
-function widthsFor(columns: string[]) {
-  if (columns.length === 8) return [80, 68, 64, 82, 64, 50, 58, TABLE_WIDTH - 466];
-  if (columns.length === 6) return [72, 78, 112, 124, 64, TABLE_WIDTH - 450];
-  if (columns.length === 4) return [42, 200, 170, TABLE_WIDTH - 412];
-  if (columns.length === 5 && columns[0] !== "S.No") return [128, 118, 86, 96, TABLE_WIDTH - 428];
-  if (columns.length === 5) return [36, 150, 145, 96, TABLE_WIDTH - 427];
-  if (columns.length === 3) return [42, 250, TABLE_WIDTH - 292];
-  return columns.map(() => TABLE_WIDTH / Math.max(columns.length, 1));
+function widthsFor(columns: string[], tableWidth = TABLE_WIDTH) {
+  if (columns.length > 12) {
+    const day = 15;
+    const serial = 26;
+    const name = Math.max(90, tableWidth - serial - (columns.length - 2) * day);
+    return [serial, name, ...columns.slice(2).map(() => day)];
+  }
+  if (columns.length === 8) return [80, 68, 64, 82, 64, 50, 58, tableWidth - 466];
+  if (columns.length === 6) return [72, 78, 112, 124, 64, tableWidth - 450];
+  if (columns.length === 4) return [42, 200, 170, tableWidth - 412];
+  if (columns.length === 5 && columns[0] !== "S.No") return [128, 118, 86, 96, tableWidth - 428];
+  if (columns.length === 5) return [36, 150, 145, 96, tableWidth - 427];
+  if (columns.length === 3) return [42, 250, tableWidth - 292];
+  return columns.map(() => tableWidth / Math.max(columns.length, 1));
 }
 
 function textWidth(value: string, size: number) {
@@ -115,42 +124,52 @@ function drawSignOff(
   writeY(Math.min(sigY - 34, stampY - 22));
 }
 
+function pageBox(report: ReportDocument) {
+  return report.wide ? { width: 842, height: 595 } : { width: WIDTH, height: HEIGHT };
+}
+
 function layout(report: ReportDocument) {
   const tone = tones[report.tone];
+  const { width, height } = pageBox(report);
+  const tableWidth = width - 72;
   const pages: string[][] = [];
   let commands: string[] = [];
   let y = 0;
 
+  function center(value: string, size: number) {
+    return (width - textWidth(value, size)) / 2;
+  }
+
   function open(continued: boolean) {
     commands = [];
     pages.push(commands);
-    commands.push("1 1 1 rg", `0 0 ${WIDTH} ${HEIGHT} re f`);
+    commands.push("1 1 1 rg", `0 0 ${width} ${height} re f`);
     if (report.signOff && !continued) {
-      commands.push(paint(hex("0f766e")), "32 746 531 78 re f");
+      commands.push(paint(hex("0f766e")), `32 ${height - 96} 531 78 re f`);
       commands.push("1 1 1 rg");
       const banner = "SKILLVANTAGE   •   TEACHER MANAGEMENT";
       const date = `Date: ${report.signOff.issued}`;
-      commands.push("BT", "/F2 8 Tf", `1 0 0 1 ${centerAt(banner, 8).toFixed(1)} 804 Tm`, `(${pdfText(banner)}) Tj`, "ET");
-      commands.push("BT", "/F1 8 Tf", `1 0 0 1 ${(WIDTH - 36 - textWidth(date, 8)).toFixed(1)} 804 Tm`, `(${pdfText(date)}) Tj`, "ET");
-      commands.push("BT", "/F2 16 Tf", `1 0 0 1 ${centerAt(report.title, 16).toFixed(1)} 782 Tm`, `(${fit(report.title, 16, 460)}) Tj`, "ET");
-      commands.push("BT", "/F1 9 Tf", `1 0 0 1 ${centerAt(report.subtitle, 9).toFixed(1)} 764 Tm`, `(${fit(report.subtitle, 9, 460)}) Tj`, "ET");
+      commands.push("BT", "/F2 8 Tf", `1 0 0 1 ${center(banner, 8).toFixed(1)} ${height - 38} Tm`, `(${pdfText(banner)}) Tj`, "ET");
+      commands.push("BT", "/F1 8 Tf", `1 0 0 1 ${(width - 36 - textWidth(date, 8)).toFixed(1)} ${height - 38} Tm`, `(${pdfText(date)}) Tj`, "ET");
+      commands.push("BT", "/F2 16 Tf", `1 0 0 1 ${center(report.title, 16).toFixed(1)} ${height - 60} Tm`, `(${fit(report.title, 16, 460)}) Tj`, "ET");
+      commands.push("BT", "/F1 9 Tf", `1 0 0 1 ${center(report.subtitle, 9).toFixed(1)} ${height - 78} Tm`, `(${fit(report.subtitle, 9, 460)}) Tj`, "ET");
     } else {
-      const headerBottom = continued ? 760 : 690;
-      commands.push(paint(tone.band), `0 ${headerBottom} ${WIDTH} ${HEIGHT - headerBottom} re f`);
+      const headerBottom = continued ? height - 82 : height - 152;
+      commands.push(paint(tone.band), `0 ${headerBottom} ${width} ${height - headerBottom} re f`);
       commands.push("1 1 1 rg");
-      commands.push("BT", "/F2 18 Tf", "36 804 Td", "(SKILLVANTAGE) Tj", "ET");
-      commands.push("BT", "/F1 8 Tf", "36 786 Td", "(LEARN   •   PRACTICE   •   GROW) Tj", "ET");
-      commands.push("BT", "/F2 13 Tf", `36 ${continued ? 768 : 758} Td`, `(${fit(report.kicker, 13, 520)}) Tj`, "ET");
+      commands.push("BT", "/F2 18 Tf", `36 ${height - 38} Td`, "(SKILLVANTAGE) Tj", "ET");
+      commands.push("BT", "/F1 8 Tf", `36 ${height - 56} Td`, "(LEARN   •   PRACTICE   •   GROW) Tj", "ET");
+      commands.push("BT", "/F2 13 Tf", `36 ${continued ? height - 74 : height - 84} Td`, `(${fit(report.kicker, 13, width - 72)}) Tj`, "ET");
     }
     if (!continued) {
       if (!report.signOff) {
-        commands.push("BT", "/F1 10 Tf", "36 738 Td", `(${fit(`${report.title}  •  ${report.subtitle}`, 10, 520)}) Tj`, "ET");
-        commands.push("BT", "/F1 8 Tf", "36 722 Td", `(${fit(`Generated ${report.generated}`, 8, 520)}) Tj`, "ET");
+        commands.push("BT", "/F1 10 Tf", `36 ${height - 104} Td`, `(${fit(`${report.title}  •  ${report.subtitle}`, 10, width - 72)}) Tj`, "ET");
+        commands.push("BT", "/F1 8 Tf", `36 ${height - 120} Td`, `(${fit(`Generated ${report.generated}`, 8, width - 72)}) Tj`, "ET");
       }
       const stats = report.stats.slice(0, 5);
       const gap = 8;
-      const cardWidth = (WIDTH - 72 - gap * (stats.length - 1)) / Math.max(stats.length, 1);
-      const cardBottom = report.signOff ? 668 : 628;
+      const cardWidth = (width - 72 - gap * (stats.length - 1)) / Math.max(stats.length, 1);
+      const cardBottom = report.signOff ? height - 174 : height - 214;
       stats.forEach((stat, index) => {
         const x = 36 + index * (cardWidth + gap);
         commands.push(paint(tone.soft), `${x.toFixed(1)} ${cardBottom} ${cardWidth.toFixed(1)} 58 re f`);
@@ -165,51 +184,56 @@ function layout(report: ReportDocument) {
       });
       y = cardBottom - 18;
     } else {
-      y = 736;
+      y = height - 106;
     }
   }
 
   function drawTable(heading: string, columns: string[], rows: string[][], foot?: string) {
-    const widths = widthsFor(columns);
+    const widths = widthsFor(columns, tableWidth);
+    const dense = columns.length > 12;
+    const rowHeight = dense ? 16 : 20;
+    const headHeight = dense ? 16 : 22;
+    const pad = dense ? 2 : 4;
     if (heading) {
       if (y - 46 < 52) open(true);
-      commands.push(paint(tone.ink), "BT", "/F2 11 Tf", `1 0 0 1 36 ${(y - 16).toFixed(1)} Tm`, `(${fit(heading, 11, 520)}) Tj`, "ET");
+      commands.push(paint(tone.ink), "BT", "/F2 11 Tf", `1 0 0 1 36 ${(y - 16).toFixed(1)} Tm`, `(${fit(heading, 11, tableWidth)}) Tj`, "ET");
       y -= 24;
     }
-    const size = columns.length >= 6 ? 7 : 9;
+    const size = dense || columns.length >= 6 ? 7 : 9;
     const drawHead = () => {
-      if (y - 22 < 52) open(true);
-      commands.push(paint(tone.band), `36 ${(y - 22).toFixed(1)} ${TABLE_WIDTH} 22 re f`, "1 1 1 rg");
+      if (y - headHeight < 52) open(true);
+      commands.push(paint(tone.band), `36 ${(y - headHeight).toFixed(1)} ${tableWidth} ${headHeight} re f`, "1 1 1 rg");
       let x = 36;
+      const headSize = dense ? 6 : 7;
       columns.forEach((column, index) => {
-        commands.push("BT", "/F2 7 Tf", `1 0 0 1 ${(x + 4).toFixed(1)} ${(y - 15).toFixed(1)} Tm`, `(${fit(column, 7, widths[index]! - 8)}) Tj`, "ET");
+        commands.push("BT", `/F2 ${headSize} Tf`, `1 0 0 1 ${(x + pad).toFixed(1)} ${(y - (dense ? 11 : 15)).toFixed(1)} Tm`, `(${fit(column, headSize, widths[index]! - pad * 2)}) Tj`, "ET");
         x += widths[index]!;
       });
-      y -= 22;
+      y -= headHeight;
     };
     drawHead();
     const body = rows.length ? rows : [["", "Nothing recorded yet."]];
     body.forEach((row, rowIndex) => {
-      if (y - 20 < 52) {
+      if (y - rowHeight < 52) {
         open(true);
         drawHead();
       }
       const top = y;
-      if (rowIndex % 2 === 0) commands.push("0.973 0.984 0.984 rg", `36 ${(top - 20).toFixed(1)} ${TABLE_WIDTH} 20 re f`);
+      if (rowIndex % 2 === 0) commands.push("0.973 0.984 0.984 rg", `36 ${(top - rowHeight).toFixed(1)} ${tableWidth} ${rowHeight} re f`);
       let cellX = 36;
       row.forEach((cell, index) => {
-        const color = index === row.length - 1 ? statusColor(cell) : null;
+        const color = statusColor(cell);
         commands.push(paint(color || (rows.length ? hex("17211e") : hex("64748b"))));
-        const width = widths[index] ?? widths[widths.length - 1] ?? TABLE_WIDTH;
-        commands.push("BT", `/F1 ${size} Tf`, `1 0 0 1 ${(cellX + 4).toFixed(1)} ${(top - 14).toFixed(1)} Tm`, `(${fit(cell, size, width - 8)}) Tj`, "ET");
-        cellX += widths[index] ?? width;
+        const cellWidth = widths[index] ?? widths[widths.length - 1] ?? tableWidth;
+        commands.push("BT", `/F1 ${size} Tf`, `1 0 0 1 ${(cellX + pad).toFixed(1)} ${(top - (dense ? 11 : 14)).toFixed(1)} Tm`, `(${fit(cell, size, cellWidth - pad * 2)}) Tj`, "ET");
+        cellX += widths[index] ?? cellWidth;
       });
-      y -= 20;
+      y -= rowHeight;
     });
     if (foot) {
       if (y - 18 < 52) open(true);
       const size = 9;
-      commands.push(paint(tone.ink), "BT", `/F2 ${size} Tf`, `1 0 0 1 ${(36 + TABLE_WIDTH - textWidth(foot, size)).toFixed(1)} ${(y - 12).toFixed(1)} Tm`, `(${fit(foot, size, 240)}) Tj`, "ET");
+      commands.push(paint(tone.ink), "BT", `/F2 ${size} Tf`, `1 0 0 1 ${(36 + tableWidth - textWidth(foot, size)).toFixed(1)} ${(y - 12).toFixed(1)} Tm`, `(${fit(foot, size, 240)}) Tj`, "ET");
       y -= 20;
     }
     y -= 12;
@@ -222,8 +246,8 @@ function layout(report: ReportDocument) {
   const count = pages.length;
   return pages.map((page, index) => {
     page.push("0.420 0.455 0.482 rg");
-    page.push("BT", "/F1 8 Tf", "36 36 Td", `(${fit(report.footer, 8, 430)}) Tj`, "ET");
-    page.push("BT", "/F1 8 Tf", "500 36 Td", `(${index + 1} / ${count}) Tj`, "ET");
+    page.push("BT", "/F1 8 Tf", "36 36 Td", `(${fit(report.footer, 8, tableWidth - 80)}) Tj`, "ET");
+    page.push("BT", "/F1 8 Tf", `${width - 95} 36 Td`, `(${index + 1} / ${count}) Tj`, "ET");
     return page.join("\n");
   });
 }
@@ -249,6 +273,7 @@ function concatBytes(parts: Uint8Array[]) {
 const encoder = new TextEncoder();
 
 export function buildReportPdf(report: ReportDocument): Uint8Array {
+  const { width, height } = pageBox(report);
   const groups = layout(report);
   const pageCount = groups.length;
   const marks = report.signOff
@@ -279,7 +304,7 @@ export function buildReportPdf(report: ReportDocument): Uint8Array {
     const resources = `<< /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >>${xobjects ? ` /XObject << ${xobjects} >>` : ""} >>`;
     objects.push({
       id: pageId,
-      body: encoder.encode(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ${contentId} 0 R /Resources ${resources} >>`),
+      body: encoder.encode(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Contents ${contentId} 0 R /Resources ${resources} >>`),
     });
   });
   objects.push({ id: fontRegular, body: encoder.encode("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>") });

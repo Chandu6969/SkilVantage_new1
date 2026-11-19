@@ -336,7 +336,13 @@ export function AttendanceBoard({
           />
         ) : (
           <>
-            <h2 className="mt-4 px-1 text-sm font-semibold text-[#d5dced]">Monthly attendance report</h2>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 px-1">
+              <h2 className="text-sm font-semibold text-[#d5dced]">Monthly attendance report</h2>
+              <Link href={monthlyPrintHref(month, audience, batchId)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-400/35 bg-emerald-400/10 px-3 text-xs font-semibold text-emerald-300">
+                <Download className="size-3.5" aria-hidden="true" />
+                Print monthly report
+              </Link>
+            </div>
             <Summary month={monthLabel(month)} days={days} roster={roster} totals={totals} cellOf={cellOf} today={today} batchOf={batchOf} />
             <Detail
               days={days}
@@ -361,6 +367,13 @@ export function AttendanceBoard({
       {report === "monthly" ? <LegendCard /> : null}
     </div>
   );
+}
+
+function monthlyPrintHref(month: string, audience: Audience, batchId: string) {
+  const params = new URLSearchParams({ section: "attendance", month });
+  if (batchId !== "all") params.set("batch", batchId);
+  if (audience !== "all") params.set("audience", audience);
+  return `/admin/print?${params.toString()}`;
 }
 
 function dailyPrintHref(day: string, audience: Audience, batchId: string) {

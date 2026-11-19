@@ -448,6 +448,25 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+  .print-wide {
+    max-width: none !important;
+  }
+  .print-wide table {
+    min-width: 0 !important;
+    font-size: 8px !important;
+  }
+  .print-wide th,
+  .print-wide td {
+    padding: 2px 1px !important;
+  }
+}
+
+@page monthly {
+  size: A4 landscape;
+}
+
+.print-wide {
+  page: monthly;
 }
 
 .desk {

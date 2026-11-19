@@ -292,6 +292,61 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
   const batches = await store.listBatches();
   const audienceFilter = params.audience === "student" || params.audience === "professional" ? params.audience : "all";
   const batch = batches.find((item) => item.id === params.batch);
+  const month = /^\d{4}-\d{2}$/.test(params.month || "") ? params.month! : "";
+  if (section === "attendance" && month) {
+    const visible = batch ? [batch] : batches.filter((item) => audienceFilter === "all" || item.learnerType === audienceFilter);
+    const members = (await Promise.all(visible.map((item) => store.listMembers(item.id)))).flat().sort((a, b) => {
+      const order = (visible.find((item) => item.id === a.batchId)?.sort || 0) - (visible.find((item) => item.id === b.batchId)?.sort || 0);
+      return order || a.fullName.localeCompare(b.fullName);
+    });
+    const marks = (await Promise.all(visible.map((item) => store.listAttendance(item.id)))).flat().filter((mark) => mark.date.startsWith(month));
+    const marked = new Map(marks.map((mark) => [`${mark.memberId}|${mark.date}`, mark.status]));
+    const days = monthDays(month);
+    const tally = { present: 0, absent: 0, leave: 0, late: 0, holiday: 0 };
+    for (const member of members) {
+      for (const day of days) {
+        if (day.iso > today) continue;
+        const status = marked.get(`${member.id}|${day.iso}`);
+        if (status && status in tally) tally[status as keyof typeof tally] += 1;
+      }
+    }
+    const rated = tally.present + tally.late + tally.absent + tally.leave;
+    const rate = rated ? `${Math.round(((tally.present + tally.late) / rated) * 100)}%` : "0%";
+    const who = batch ? batch.name : audienceFilter === "student" ? "Students" : audienceFilter === "professional" ? "Professionals" : "All batches";
+    const columns = ["S.No", "Name", ...days.map((day) => day.label)];
+    const rows = members.map((member, index) => [
+      String(index + 1),
+      member.fullName,
+      ...days.map((day) => markCode(marked.get(`${member.id}|${day.iso}`), day.off)),
+    ]);
+    const report: ReportDocument = {
+      tone: batch ? toneOf(batch.learnerType) : audienceFilter === "professional" ? "professional" : "student",
+      kicker: "MONTHLY ATTENDANCE REPORT",
+      title: who,
+      subtitle: monthTitle(month),
+      generated,
+      wide: true,
+      stats: [
+        { label: "Present", value: String(tally.present) },
+        { label: "Absent", value: String(tally.absent) },
+        { label: "Leave", value: String(tally.leave) },
+        { label: "Late join", value: String(tally.late) },
+        { label: "Attendance", value: rate },
+      ],
+      tableHeading: "Daily register",
+      columns,
+      rows,
+      footer: "P = Present • A = Absent • L = Leave • LJ = Late join • H = Holiday • WO = Week off • Skillvantage • Monthly Attendance Report",
+    };
+    return (
+      <Letterhead
+        report={report}
+        back="/admin/attendance"
+        summary={`Skillvantage monthly attendance\n${monthTitle(month)}\n${who}\nPresent ${tally.present}\nAbsent ${tally.absent}\nLeave ${tally.leave}\nLate join ${tally.late}\nHoliday ${tally.holiday}\nAttendance ${rate}`}
+        fileName={`Skillvantage-monthly-${month}${batch ? `-${safeFile(batch.name)}` : ""}.pdf`}
+      />
+    );
+  }
   if (!batch && section === "attendance") {
     const visible = batches.filter((item) => audienceFilter === "all" || item.learnerType === audienceFilter);
     const members = (await Promise.all(visible.map((item) => store.listMembers(item.id)))).flat().sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -423,6 +478,24 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
       fileName={fileName}
     />
   );
+}
+
+function monthDays(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  const count = new Date(Date.UTC(year, month || 1, 0)).getUTCDate();
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.UTC(year, (month || 1) - 1, index + 1));
+    return { iso: date.toISOString().slice(0, 10), label: String(index + 1), off: date.getUTCDay() === 0 };
+  });
+}
+
+function markCode(status: ClassDayStatus | undefined, off: boolean) {
+  if (status === "present") return "P";
+  if (status === "absent") return "A";
+  if (status === "leave") return "L";
+  if (status === "late") return "LJ";
+  if (status === "holiday") return "H";
+  return off ? "WO" : "—";
 }
 
 function BatchChooser({ section, batches, date }: { section: "attendance" | "assignments"; batches: TrainingBatch[]; date: string }) {
