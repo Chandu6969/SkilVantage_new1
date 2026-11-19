@@ -92,7 +92,7 @@ export function AttendanceBoard({
   const [overrides, setOverrides] = useState<Record<string, ClassDayStatus>>({});
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
-  const [report, setReport] = useState<"daily" | "monthly">("monthly");
+  const [report, setReport] = useState<"daily" | "monthly">("daily");
 
   const days = useMemo(() => daysOf(month), [month]);
   const monthChoices = useMemo(() => {
