@@ -76,6 +76,13 @@ export function displayPhone(phone: string) {
   return phone;
 }
 
+export function callHref(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) return `tel:+91${digits}`;
+  if (digits.length >= 8 && digits.length <= 15) return `tel:+${digits}`;
+  return null;
+}
+
 export function whatsAppHref(phone: string, text: string) {
   const digits = phone.replace(/\D/g, "");
   const number = digits.length === 10 ? `91${digits}` : digits;

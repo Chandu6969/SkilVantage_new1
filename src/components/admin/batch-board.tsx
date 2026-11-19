@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { rupees } from "@/components/admin/desk-charts";
-import { MESSAGE_TEMPLATES, displayPhone, initials, personalize, whatsAppHref } from "@/lib/batches";
-import type { BatchMember, FeePayment, TrainingBatch } from "@/lib/types";
+import { MESSAGE_TEMPLATES, batchLook, callHref, displayPhone, initials, personalize, whatsAppHref } from "@/lib/batches";
+import type { AttendanceMark, BatchMember, ClassDayStatus, FeePayment, TrainingBatch } from "@/lib/types";
 
 type Filter = "all" | "unsent" | "absent";
 
-export function BatchBoard({ batch, members, batches, fees }: { batch: TrainingBatch; members: BatchMember[]; batches: TrainingBatch[]; fees: FeePayment[] }) {
+export function BatchBoard({ batch, members, batches, fees, today, todayMarks }: { batch: TrainingBatch; members: BatchMember[]; batches: TrainingBatch[]; fees: FeePayment[]; today: string; todayMarks: AttendanceMark[] }) {
   const router = useRouter();
   const [rows, setRows] = useState(members);
   const [draft, setDraft] = useState("");
@@ -23,7 +23,14 @@ export function BatchBoard({ batch, members, batches, fees }: { batch: TrainingB
   const [showForm, setShowForm] = useState(members.length === 0);
   const [editing, setEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ fullName: "", phone: "", email: "", note: "", batchId: batch.id });
+  const [attendance, setAttendance] = useState<Record<string, ClassDayStatus>>(() => {
+    const map: Record<string, ClassDayStatus> = {};
+    for (const mark of todayMarks) map[mark.memberId] = mark.status;
+    return map;
+  });
+  const [lit, setLit] = useState<Record<string, string>>({});
   const noun = batch.learnerType === "student" ? "student" : "professional";
+  const look = batchLook(batch);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -93,9 +100,38 @@ export function BatchBoard({ batch, members, batches, fees }: { batch: TrainingB
     setNotice("Sent marks cleared for this batch.");
   }
 
+  async function markToday(member: BatchMember, status: string) {
+    if (status !== "present" && status !== "absent" && status !== "leave" && status !== "late") return;
+    const previous = attendance[member.id];
+    setAttendance((current) => ({ ...current, [member.id]: status }));
+    setError("");
+    const response = await fetch("/api/v1/admin/attendance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ batchId: batch.id, memberId: member.id, date: today, status }),
+    });
+    const data = (await response.json()) as { ok?: boolean; error?: string };
+    if (!response.ok || !data.ok) {
+      setAttendance((current) => {
+        const next = { ...current };
+        if (previous) next[member.id] = previous;
+        else delete next[member.id];
+        return next;
+      });
+      setError(data.error || "Could not save attendance.");
+      return;
+    }
+    await patch(member.id, { absentToday: status === "absent" });
+    router.refresh();
+  }
+
   async function sendBack(member: BatchMember) {
+    setLit((current) => ({ ...current, [member.id]: "remove" }));
     const sure = window.confirm(`Remove ${member.fullName} from ${batch.name}? They will show up again in Registrations.`);
-    if (!sure) return;
+    if (!sure) {
+      setLit((current) => ({ ...current, [member.id]: "" }));
+      return;
+    }
     setError("");
     const response = await fetch(`/api/v1/admin/batches/${batch.id}/members/${member.id}`, { method: "DELETE" });
     const data = (await response.json()) as { ok?: boolean; error?: string };
@@ -255,20 +291,31 @@ export function BatchBoard({ batch, members, batches, fees }: { batch: TrainingB
               </form>
             </li>
           ) : (
-            <li key={member.id} className="relative overflow-hidden rounded-3xl bg-[#0f766e] p-4 text-white">
+            <li key={member.id} className="relative overflow-hidden rounded-3xl p-4 text-white" style={{ background: `linear-gradient(165deg, ${look.from}, ${look.to})` }}>
               <span className="absolute top-3 right-4 text-sm text-white/70">{index + 1}</span>
-              <span className="mx-auto grid size-28 place-items-center rounded-full bg-[#ecfdf5] text-3xl font-semibold text-[#064e3b]">{initials(member.fullName)}</span>
+              <span className="mx-auto grid size-28 place-items-center rounded-full bg-white text-3xl font-semibold" style={{ color: look.from }}>{initials(member.fullName)}</span>
               <p className="mt-4 text-sm text-white/80">{member.note || batch.name}</p>
               <Link href={`/admin/people/${member.id}`} className="mt-1 block text-2xl font-semibold leading-tight hover:underline">{member.fullName}</Link>
-              <p className="mt-1 text-sm text-white/75">{displayPhone(member.phone)}{member.messaged ? " · Sent" : ""}</p>
-              <PaymentLine fees={fees.filter((fee) => fee.memberId === member.id)} />
+              <CallNumber phone={member.phone} />
+              <PaymentLine fees={fees.filter((fee) => fee.memberId === member.id)} tone={look.from} />
               <div className="mt-4 flex flex-wrap gap-2">
-                <button type="button" onClick={() => void patch(member.id, { absentToday: !member.absentToday })} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${member.absentToday ? "bg-white text-[#9f1239]" : "bg-[#ecfdf5] text-[#065f46]"}`}>
-                  {member.absentToday ? "Absent" : "Present"}
-                </button>
-                <button type="button" onClick={() => startEdit(member)} className="rounded-full border border-white/40 px-3 py-1.5 text-sm">Edit</button>
-                <button type="button" onClick={() => openChat(member, true)} className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-[#0f766e]">WhatsApp</button>
-                <button type="button" onClick={() => void sendBack(member)} className="rounded-full border border-white/40 px-3 py-1.5 text-sm">Remove</button>
+                <select
+                  aria-label={`Attendance for ${member.fullName}`}
+                  value={attendance[member.id] === "holiday" ? "holiday" : attendance[member.id] || ""}
+                  onChange={(event) => void markToday(member, event.target.value)}
+                  className={attendance[member.id] ? "h-9 rounded-full border border-white bg-white px-3 text-sm font-medium outline-none" : "h-9 rounded-full border border-white/55 bg-transparent px-3 text-sm text-white outline-none"}
+                  style={{ color: attendance[member.id] ? look.from : undefined, colorScheme: attendance[member.id] ? "light" : "dark" }}
+                >
+                  <option value="">Attendance</option>
+                  <option value="present">Present</option>
+                  <option value="absent">Absent</option>
+                  <option value="leave">Leave</option>
+                  <option value="late">Late join</option>
+                  {attendance[member.id] === "holiday" ? <option value="holiday">Holiday</option> : null}
+                </select>
+                <button type="button" onClick={() => { setLit((current) => ({ ...current, [member.id]: "edit" })); startEdit(member); }} className={actionClass(lit[member.id] === "edit")} style={lit[member.id] === "edit" ? { color: look.from } : undefined}>Edit</button>
+                <button type="button" onClick={() => { setLit((current) => ({ ...current, [member.id]: "whatsapp" })); openChat(member, true); }} className={actionClass(lit[member.id] === "whatsapp")} style={lit[member.id] === "whatsapp" ? { color: look.from } : undefined}>WhatsApp</button>
+                <button type="button" onClick={() => void sendBack(member)} className={actionClass(lit[member.id] === "remove")} style={lit[member.id] === "remove" ? { color: look.from } : undefined}>Remove</button>
               </div>
             </li>
           ))}
@@ -278,16 +325,29 @@ export function BatchBoard({ batch, members, batches, fees }: { batch: TrainingB
   );
 }
 
-function PaymentLine({ fees }: { fees: FeePayment[] }) {
+function actionClass(active: boolean) {
+  return active
+    ? "rounded-full border border-white bg-white px-3 py-1.5 text-sm font-medium"
+    : "rounded-full border border-white/55 bg-transparent px-3 py-1.5 text-sm text-white";
+}
+
+function CallNumber({ phone }: { phone: string }) {
+  const label = displayPhone(phone);
+  const href = callHref(phone);
+  if (!href) return <p className="mt-1 text-sm text-white/75">{label}</p>;
+  return <a href={href} className="mt-1 inline-block text-sm text-white underline-offset-2 hover:underline">{label}</a>;
+}
+
+function PaymentLine({ fees, tone }: { fees: FeePayment[]; tone: string }) {
   const latest = [...fees].sort((a, b) => b.paidOn.localeCompare(a.paidOn))[0];
   if (!latest) {
-    return <p className="mt-3"><span className="inline-flex rounded-full bg-white/15 px-3 py-1 text-sm">Payment not recorded</span></p>;
+    return <p className="mt-3"><span className="inline-flex rounded-full border border-white/40 px-3 py-1 text-sm">Payment not recorded</span></p>;
   }
   const [year, month] = latest.paidOn.split("-").map(Number);
   const label = year && month ? new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }) : latest.paidOn;
   return (
     <div className="mt-3">
-      <span className="inline-flex rounded-full bg-[#ecfdf5] px-3 py-1 text-sm font-medium text-[#065f46]">Payment recorded</span>
+      <span className="inline-flex rounded-full bg-white px-3 py-1 text-sm font-medium" style={{ color: tone }}>Payment recorded</span>
       <p className="mt-2 text-sm text-white/90">{rupees(latest.amount)} · {label}</p>
     </div>
   );

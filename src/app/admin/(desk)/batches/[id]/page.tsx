@@ -4,6 +4,7 @@ import { BatchBoard } from "@/components/admin/batch-board";
 import { BatchRename } from "@/components/admin/batch-rename";
 import { DeleteBatch } from "@/components/admin/delete-batch";
 import { DeskHeader } from "@/components/admin/desk-header";
+import { todayIST } from "@/lib/dates";
 import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,8 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
   if (!batch) notFound();
   const members = await store.listMembers(id);
   const fees = (await store.listFees()).filter((fee) => fee.batchId === id);
+  const today = todayIST();
+  const todayMarks = (await store.listAttendance(id)).filter((mark) => mark.date === today);
   const peers = await store.listBatches(batch.learnerType);
   const back = batch.learnerType === "student" ? "/admin/students" : "/admin/professionals";
 
@@ -34,7 +37,7 @@ export default async function BatchPage({ params }: { params: Promise<{ id: stri
         <BatchRename batch={batch} tone="#065f46" />
         <DeleteBatch id={batch.id} name={batch.name} count={members.length} back={back} light />
       </div>
-      <BatchBoard batch={batch} members={members} batches={peers} fees={fees} />
+      <BatchBoard batch={batch} members={members} batches={peers} fees={fees} today={today} todayMarks={todayMarks} />
     </div>
   );
 }
