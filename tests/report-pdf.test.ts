@@ -98,6 +98,13 @@ test("a monthly register is a landscape page with each day", () => {
   assert.match(text, /\(30\)/);
 });
 
+test("a daily attendance header keeps the summary on the right of a short bar", () => {
+  const text = new TextDecoder().decode(buildReportPdf({ ...report, compact: true }));
+  assert.match(text, /DAILY ATTENDANCE REPORT/);
+  assert.match(text, /SASI/);
+  assert.match(text, /0 764 595 78 re f/);
+});
+
 test("a long report keeps every row across pages", () => {
   const rows = Array.from({ length: 40 }, (_, index) => [String(index + 1), `Learner ${index + 1}`, "Course", index % 2 ? "Absent" : "Present"]);
   const text = new TextDecoder().decode(buildReportPdf({ ...report, rows }));

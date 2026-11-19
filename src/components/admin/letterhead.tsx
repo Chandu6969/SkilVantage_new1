@@ -52,6 +52,18 @@ export function Letterhead({
             <p className="relative mt-1 text-sm text-white/90">{report.subtitle}</p>
           </div>
         </header>
+      ) : report.compact ? (
+        <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-4 text-white" style={{ background: tone.band }}>
+          <div>
+            <p className="text-base font-semibold tracking-[0.22em]">SKILLVANTAGE</p>
+            <p className="mt-0.5 text-[0.62rem] tracking-[0.18em]">LEARN • PRACTICE • GROW</p>
+            <h1 className="mt-1 text-lg font-semibold">{report.kicker}</h1>
+          </div>
+          <div className="ml-auto text-right">
+            <p className="text-sm font-medium">{report.title} • {report.subtitle}</p>
+            <p className="mt-1 text-xs text-white/75">Generated {report.generated}</p>
+          </div>
+        </header>
       ) : (
         <header className="px-6 py-6 text-white" style={{ background: tone.band }}>
           <p className="text-lg font-semibold tracking-[0.28em]">SKILLVANTAGE</p>

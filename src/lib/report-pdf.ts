@@ -16,6 +16,7 @@ export type ReportDocument = {
   footer: string;
   signOff?: { issued: string; period: string };
   wide?: boolean;
+  compact?: boolean;
 };
 
 const tones: Record<ReportTone, { band: Rgb; soft: Rgb; ink: Rgb }> = {
@@ -153,6 +154,17 @@ function layout(report: ReportDocument) {
       commands.push("BT", "/F1 8 Tf", `1 0 0 1 ${(width - 36 - textWidth(date, 8)).toFixed(1)} ${height - 38} Tm`, `(${pdfText(date)}) Tj`, "ET");
       commands.push("BT", "/F2 16 Tf", `1 0 0 1 ${center(report.title, 16).toFixed(1)} ${height - 60} Tm`, `(${fit(report.title, 16, 460)}) Tj`, "ET");
       commands.push("BT", "/F1 9 Tf", `1 0 0 1 ${center(report.subtitle, 9).toFixed(1)} ${height - 78} Tm`, `(${fit(report.subtitle, 9, 460)}) Tj`, "ET");
+    } else if (report.compact && !continued) {
+      const headerBottom = height - 78;
+      commands.push(paint(tone.band), `0 ${headerBottom} ${width} ${height - headerBottom} re f`);
+      commands.push("1 1 1 rg");
+      commands.push("BT", "/F2 16 Tf", `36 ${height - 26} Td`, "(SKILLVANTAGE) Tj", "ET");
+      commands.push("BT", "/F1 8 Tf", `36 ${height - 40} Td`, "(LEARN   •   PRACTICE   •   GROW) Tj", "ET");
+      commands.push("BT", "/F2 12 Tf", `36 ${height - 58} Td`, `(${fit(report.kicker, 12, 250)}) Tj`, "ET");
+      const summary = fit(`${report.title}  •  ${report.subtitle}`, 9, 250);
+      const generatedLine = fit(`Generated ${report.generated}`, 8, 220);
+      commands.push("BT", "/F1 9 Tf", `1 0 0 1 ${(width - 36 - textWidth(summary, 9)).toFixed(1)} ${height - 32} Tm`, `(${summary}) Tj`, "ET");
+      commands.push("BT", "/F1 8 Tf", `1 0 0 1 ${(width - 36 - textWidth(generatedLine, 8)).toFixed(1)} ${height - 48} Tm`, `(${generatedLine}) Tj`, "ET");
     } else {
       const headerBottom = continued ? height - 82 : height - 152;
       commands.push(paint(tone.band), `0 ${headerBottom} ${width} ${height - headerBottom} re f`);
@@ -162,14 +174,14 @@ function layout(report: ReportDocument) {
       commands.push("BT", "/F2 13 Tf", `36 ${continued ? height - 74 : height - 84} Td`, `(${fit(report.kicker, 13, width - 72)}) Tj`, "ET");
     }
     if (!continued) {
-      if (!report.signOff) {
+      if (!report.signOff && !report.compact) {
         commands.push("BT", "/F1 10 Tf", `36 ${height - 104} Td`, `(${fit(`${report.title}  •  ${report.subtitle}`, 10, width - 72)}) Tj`, "ET");
         commands.push("BT", "/F1 8 Tf", `36 ${height - 120} Td`, `(${fit(`Generated ${report.generated}`, 8, width - 72)}) Tj`, "ET");
       }
       const stats = report.stats.slice(0, 5);
       const gap = 8;
       const cardWidth = (width - 72 - gap * (stats.length - 1)) / Math.max(stats.length, 1);
-      const cardBottom = report.signOff ? height - 174 : height - 214;
+      const cardBottom = report.signOff ? height - 174 : report.compact ? height - 148 : height - 214;
       stats.forEach((stat, index) => {
         const x = 36 + index * (cardWidth + gap);
         commands.push(paint(tone.soft), `${x.toFixed(1)} ${cardBottom} ${cardWidth.toFixed(1)} 58 re f`);

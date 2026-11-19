@@ -366,6 +366,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
       title: who,
       subtitle: dayStamp(date),
       generated,
+      compact: true,
       stats: [
         { label: "Present", value: String(present) },
         { label: "Absent", value: String(absent) },
@@ -464,6 +465,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
     title: batch.name,
     subtitle: `${audience} • ${dayStamp(date)}`,
     generated,
+    compact: true,
     stats: [
       { label: "Present", value: String(present) },
       { label: "Absent", value: String(absent) },
