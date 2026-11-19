@@ -96,7 +96,7 @@ function monthsPaid(fees: FeePayment[]) {
   return [...totals.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
 
-export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string; batch?: string; date?: string; id?: string; month?: string; audience?: string }> }) {
+export default async function PrintPage({ searchParams }: { searchParams: Promise<{ section?: string; batch?: string; date?: string; id?: string; month?: string; audience?: string; span?: string }> }) {
   const params = await searchParams;
   const section = params.section === "assignments" || params.section === "teachers" || params.section === "person" || params.section === "cash" ? params.section : "attendance";
   const store = getStore();
@@ -408,15 +408,20 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
   const fileName = `Skillvantage-${safeFile(batch.name)}-${date}.pdf`;
 
   if (section === "assignments") {
-    const items = (await store.listAssignments(batch.id)).filter((item) => item.batchId === batch.id);
+    const monthly = params.span === "monthly";
+    const monthKey = /^\d{4}-\d{2}$/.test(params.month || "") ? params.month! : date.slice(0, 7);
+    const items = (await store.listAssignments(batch.id))
+      .filter((item) => item.batchId === batch.id && (monthly ? item.dueOn.startsWith(monthKey) : item.dueOn === date))
+      .sort((a, b) => a.dueOn.localeCompare(b.dueOn) || a.title.localeCompare(b.title));
     const pending = items.filter((item) => item.status === "pending").length;
     const submitted = items.filter((item) => item.status === "submitted").length;
     const reviewed = items.filter((item) => item.status === "reviewed").length;
+    const period = monthly ? monthTitle(monthKey) : dayStamp(date);
     const report: ReportDocument = {
       tone,
-      kicker: "ASSIGNMENT REPORT",
+      kicker: monthly ? "MONTHLY ASSIGNMENT REPORT" : "DAILY ASSIGNMENT REPORT",
       title: batch.name,
-      subtitle: `${audience} • ${dayStamp(date)}`,
+      subtitle: `${audience} • ${period}`,
       generated,
       stats: [
         { label: "Work", value: String(items.length) },
@@ -429,17 +434,17 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
         String(index + 1),
         members.find((member) => member.id === item.memberId)?.fullName || "Learner",
         item.title,
-        item.dueOn,
+        dayStamp(item.dueOn),
         item.status[0]?.toUpperCase() + item.status.slice(1),
       ]),
-      footer: `Skillvantage • ${batch.name} • Assignment report`,
+      footer: `Skillvantage • ${batch.name} • ${monthly ? "Monthly" : "Daily"} assignment report`,
     };
     return (
       <Letterhead
         report={report}
         back="/admin/assignments"
-        summary={`Skillvantage ${batch.name} assignments\n${items.length} pieces of work`}
-        fileName={fileName}
+        summary={`Skillvantage ${batch.name} assignments\n${period}\n${items.length} pieces of work`}
+        fileName={monthly ? `Skillvantage-${safeFile(batch.name)}-${monthKey}.pdf` : fileName}
       />
     );
   }

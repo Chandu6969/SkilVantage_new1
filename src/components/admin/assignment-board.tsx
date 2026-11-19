@@ -8,6 +8,12 @@ import type { AssignmentProgress, BatchMember, ClassAssignment, LearnerType, Tra
 import { Legend, Ring, audienceTheme, type Slice } from "@/components/admin/desk-charts";
 
 const field = "mt-1 h-11 w-full rounded-xl border border-black/10 bg-white/80 px-3 text-sm text-[#14211c] outline-none";
+
+function monthTitle(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  if (!year || !month) return key;
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+}
 const tones: Record<AssignmentProgress, string> = { pending: "#f97316", submitted: "#3b82f6", reviewed: "#10b981" };
 
 export function AssignmentBoard({ batches, members, items }: { batches: TrainingBatch[]; members: BatchMember[]; items: ClassAssignment[] }) {
@@ -157,7 +163,14 @@ function AssignmentDesk({
   const theme = audienceTheme[audience];
   const selected = batchId || batches[0]?.id || "";
   const focusDay = dueOn || todayIST();
-  const rows = items.filter((item) => item.batchId === selected && item.dueOn === focusDay);
+  const [span, setSpan] = useState<"daily" | "monthly">("daily");
+  const [month, setMonth] = useState(focusDay.slice(0, 7));
+  const rows = items
+    .filter((item) => item.batchId === selected && (span === "monthly" ? item.dueOn.startsWith(month) : item.dueOn === focusDay))
+    .sort((a, b) => a.dueOn.localeCompare(b.dueOn) || a.title.localeCompare(b.title));
+  const printHref = span === "monthly"
+    ? `/admin/print?section=assignments&batch=${selected}&month=${month}&span=monthly`
+    : `/admin/print?section=assignments&batch=${selected}&date=${focusDay}&span=daily`;
   const slices: Slice[] = [
     { label: "Pending", value: rows.filter((item) => item.status === "pending").length, color: tones.pending },
     { label: "Submitted", value: rows.filter((item) => item.status === "submitted").length, color: tones.submitted },
@@ -170,9 +183,34 @@ function AssignmentDesk({
           <p className="text-xs font-semibold tracking-[0.16em] uppercase">{theme.title}</p>
           <h2 className="mt-1 text-2xl font-semibold">Assignments</h2>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/admin/print?section=assignments&batch=${selected}&date=${focusDay}`} className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>
-            Print this batch
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="sr-only" htmlFor="assignment-span">Report</label>
+          <select
+            id="assignment-span"
+            value={span}
+            onChange={(event) => {
+              const next = event.target.value === "monthly" ? "monthly" : "daily";
+              setSpan(next);
+              if (next === "monthly") setMonth(focusDay.slice(0, 7));
+            }}
+            className="h-10 rounded-xl bg-white/15 px-3 text-sm text-white outline-none"
+            style={{ colorScheme: "dark" }}
+          >
+            <option value="daily">Daily</option>
+            <option value="monthly">Monthly</option>
+          </select>
+          {span === "monthly" ? (
+            <input
+              type="month"
+              aria-label="Assignment month"
+              value={month}
+              onChange={(event) => event.target.value && setMonth(event.target.value)}
+              className="h-10 rounded-xl bg-white/15 px-3 text-sm text-white outline-none"
+              style={{ colorScheme: "dark" }}
+            />
+          ) : null}
+          <Link href={printHref} className="inline-flex h-10 items-center rounded-xl bg-white px-3 text-sm font-medium" style={{ color: theme.from }}>
+            {span === "monthly" ? "Print monthly report" : "Print daily report"}
           </Link>
           <button type="button" onClick={onBack} className="h-10 rounded-xl bg-white/15 px-3 text-sm">Back to dashboard</button>
         </div>
@@ -196,7 +234,7 @@ function AssignmentDesk({
                 {pending === audience ? "Saving…" : "Give to this batch"}
               </button>
             </form>
-            <p className="text-sm">Assignments due {focusDay}</p>
+            <p className="text-sm">{span === "monthly" ? `Assignments in ${monthTitle(month)}` : `Assignments due ${focusDay}`}</p>
             <ul className="grid gap-2">
               {rows.map((item) => (
                 <li key={item.id} className="grid gap-2 rounded-2xl bg-white/80 px-3 py-3 sm:grid-cols-[1fr_1.2fr_auto] sm:items-center">
@@ -213,7 +251,7 @@ function AssignmentDesk({
                 </li>
               ))}
             </ul>
-            {rows.length === 0 ? <p className="rounded-2xl bg-white/70 px-4 py-6 text-sm">No assignment due on this day.</p> : null}
+            {rows.length === 0 ? <p className="rounded-2xl bg-white/70 px-4 py-6 text-sm">{span === "monthly" ? "No assignment due this month." : "No assignment due on this day."}</p> : null}
           </>
         )}
       </div>
