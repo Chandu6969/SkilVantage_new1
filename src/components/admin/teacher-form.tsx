@@ -8,7 +8,7 @@ import type { Faculty } from "@/lib/types";
 
 const field = "mt-1 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-[#14211c] outline-none";
 
-export function TeacherForm({ teacher }: { teacher?: Faculty }) {
+export function TeacherForm({ teacher, onSaved }: { teacher?: Faculty; onSaved?: (teacher: Faculty) => void }) {
   const router = useRouter();
   const [fullName, setFullName] = useState(teacher?.fullName || "");
   const [phone, setPhone] = useState(teacher?.phone || "");
@@ -32,6 +32,11 @@ export function TeacherForm({ teacher }: { teacher?: Faculty }) {
     setPending(false);
     if (!response.ok || !data.ok || !data.teacher) {
       setError(data.error || "Could not save the teacher.");
+      return;
+    }
+    if (onSaved) {
+      onSaved(data.teacher);
+      router.refresh();
       return;
     }
     router.push(`/admin/teacher/${data.teacher.id}`);

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { callHref, displayPhone, initials } from "@/lib/batches";
+import { TeacherForm } from "@/components/admin/teacher-form";
 import { CLASS_SESSIONS, classPay } from "@/lib/faculty";
 import { programName } from "@/lib/palette";
 import { dayLabel } from "@/components/admin/desk-charts";
@@ -430,14 +431,24 @@ function TeacherCard({
   const due = mine.filter((pay) => (payState[pay.id] || pay.status) !== "paid").sort((a, b) => a.classDate.localeCompare(b.classDate));
   const latestPaid = mine.filter((pay) => (payState[pay.id] || pay.status) === "paid").sort((a, b) => b.classDate.localeCompare(a.classDate))[0];
   const href = callHref(person.phone);
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <article className={`relative bg-[#10221c] p-4 text-white ${shape} ${selected ? "ring-2 ring-white" : ""}`}>
+        <TeacherForm teacher={person} onSaved={() => setEditing(false)} />
+        <button type="button" onClick={() => setEditing(false)} className="mt-3 h-9 rounded-xl border border-white/40 px-3 text-sm">Cancel</button>
+      </article>
+    );
+  }
   return (
     <article
       onClick={(event) => {
         const target = event.target as HTMLElement;
-        if (target.closest("a, button, select, input, textarea")) return;
+        if (target.closest("a, button, select, input, textarea, label")) return;
         onOpen();
       }}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === "Enter") onOpen();
       }}
       tabIndex={0}
@@ -460,6 +471,7 @@ function TeacherCard({
         ) : (
           <span className="inline-flex h-9 items-center rounded-xl border border-white/40 px-3 text-sm text-white/80">No class yet</span>
         )}
+        <button type="button" onClick={() => setEditing(true)} className="h-9 rounded-xl border border-white/55 px-3 text-sm">Edit</button>
         <button type="button" disabled={pending} onClick={onDelete} className="h-9 rounded-xl border border-white/55 px-3 text-sm">Delete</button>
       </div>
     </article>
