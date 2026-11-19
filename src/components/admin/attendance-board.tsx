@@ -92,6 +92,7 @@ export function AttendanceBoard({
   const [overrides, setOverrides] = useState<Record<string, ClassDayStatus>>({});
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
+  const [report, setReport] = useState<"daily" | "monthly">("monthly");
 
   const days = useMemo(() => daysOf(month), [month]);
   const monthChoices = useMemo(() => {
@@ -257,39 +258,44 @@ export function AttendanceBoard({
             </span>
             <div className="min-w-0">
               <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Attendance</h1>
-              <p className="mt-0.5 text-sm text-[#9aa6bd]">Daily list and the monthly grid, together</p>
+              <p className="mt-0.5 text-sm text-[#9aa6bd]">{report === "daily" ? "One day at a time" : "The full month"}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <MonthMenu
-              month={month}
-              choices={monthChoices}
-              onPrevious={() => chooseMonth(shiftMonth(month, -1))}
-              onNext={() => chooseMonth(shiftMonth(month, 1))}
-              onChange={chooseMonth}
-            />
-            <DateMenu day={day} today={today} onChange={chooseDate} />
+            <label className="sr-only" htmlFor="attendance-report">Report</label>
+            <select
+              id="attendance-report"
+              value={report}
+              onChange={(event) => setReport(event.target.value === "daily" ? "daily" : "monthly")}
+              className="h-10 rounded-xl bg-[#232a3d] px-3 text-sm font-medium text-white outline-none"
+              style={{ colorScheme: "dark" }}
+            >
+              <option value="daily">Daily</option>
+              <option value="monthly">Monthly</option>
+            </select>
+            {report === "monthly" ? (
+              <MonthMenu
+                month={month}
+                choices={monthChoices}
+                onPrevious={() => chooseMonth(shiftMonth(month, -1))}
+                onNext={() => chooseMonth(shiftMonth(month, 1))}
+                onChange={chooseMonth}
+              />
+            ) : (
+              <DateMenu day={day} today={today} onChange={chooseDate} />
+            )}
           </div>
         </div>
 
-        <h2 className="mt-4 px-1 text-sm font-semibold text-[#d5dced]">Monthly attendance report</h2>
-        <Summary month={monthLabel(month)} days={days} roster={roster} totals={totals} cellOf={cellOf} today={today} batchOf={batchOf} />
-
         <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setFilters((open) => !open)}
-              className={`inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm ${filters || filtering ? "bg-[#4f6dff] text-white" : "bg-[#232a3d] text-[#d5dced]"}`}
-            >
-              <Filter className="size-4" aria-hidden="true" />
-              Filter
-            </button>
-            <Link href={dailyPrintHref(day, audience, batchId)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-400/10 px-3 text-sm font-medium text-emerald-300">
-              <Download className="size-4" aria-hidden="true" />
-              Attendance export
-            </Link>
-          </div>
+          <button
+            type="button"
+            onClick={() => setFilters((open) => !open)}
+            className={`inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm ${filters || filtering ? "bg-[#4f6dff] text-white" : "bg-[#232a3d] text-[#d5dced]"}`}
+          >
+            <Filter className="size-4" aria-hidden="true" />
+            Filter
+          </button>
         </div>
 
         {filters ? (
@@ -330,38 +336,44 @@ export function AttendanceBoard({
 
         {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
 
-        <DailyReport
-          day={day}
-          roster={roster}
-          batchOf={batchOf}
-          pending={pending}
-          printHref={dailyPrintHref(day, audience, batchId)}
-          statusOf={(memberId) => asMark(lookup.get(`${memberId}|${day}`))}
-          onPrevious={() => moveDay(-1)}
-          onNext={() => moveDay(1)}
-          onMark={saveMark}
-          onHoliday={() => void markHoliday()}
-        />
-
-        <Detail
-          days={days}
-          today={today}
-          roster={roster}
-          slice={slice}
-          start={start}
-          pages={pages}
-          currentPage={currentPage}
-          batchOf={batchOf}
-          pending={pending}
-          selected={day}
-          cellOf={cellOf}
-          onPage={setPage}
-          onToggle={(member, iso, current) => saveMark(member, iso, nextMark(current))}
-          onOpenDay={openDay}
-        />
+        {report === "daily" ? (
+          <DailyReport
+            day={day}
+            roster={roster}
+            batchOf={batchOf}
+            pending={pending}
+            printHref={dailyPrintHref(day, audience, batchId)}
+            statusOf={(memberId) => asMark(lookup.get(`${memberId}|${day}`))}
+            onPrevious={() => moveDay(-1)}
+            onNext={() => moveDay(1)}
+            onMark={saveMark}
+            onHoliday={() => void markHoliday()}
+          />
+        ) : (
+          <>
+            <h2 className="mt-4 px-1 text-sm font-semibold text-[#d5dced]">Monthly attendance report</h2>
+            <Summary month={monthLabel(month)} days={days} roster={roster} totals={totals} cellOf={cellOf} today={today} batchOf={batchOf} />
+            <Detail
+              days={days}
+              today={today}
+              roster={roster}
+              slice={slice}
+              start={start}
+              pages={pages}
+              currentPage={currentPage}
+              batchOf={batchOf}
+              pending={pending}
+              selected={day}
+              cellOf={cellOf}
+              onPage={setPage}
+              onToggle={(member, iso, current) => saveMark(member, iso, nextMark(current))}
+              onOpenDay={(iso) => { openDay(iso); setReport("daily"); }}
+            />
+          </>
+        )}
       </section>
 
-      <LegendCard />
+      {report === "monthly" ? <LegendCard /> : null}
     </div>
   );
 }
