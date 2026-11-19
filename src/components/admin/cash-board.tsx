@@ -221,8 +221,8 @@ export function CashBoard({ book, entries, batches, people, teachers }: { book: 
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <MoneyCard title="Cash balance" value={rupees(snapshot.cash)} detail="Current cash in hand" tone="cash-num-cash" />
         <MoneyCard title="Bank balance" value={rupees(snapshot.bank)} detail="Current bank balance" tone="cash-num-bank" />
-        <MoneyCard title="This period inflow" value={rupees(snapshot.periodIn)} detail={month ? monthTitle(month) : "All months"} tone="cash-num-in" />
-        <MoneyCard title="This period outflow" value={rupees(snapshot.periodOut)} detail={month ? monthTitle(month) : "All months"} tone="cash-num-out" />
+        <MoneyCard title="This period inflow" value={rupees(snapshot.periodIn)} detail={month ? monthTitle(month) : "All months"} tone="cash-num-in" single />
+        <MoneyCard title="This period outflow" value={rupees(snapshot.periodOut)} detail={month ? monthTitle(month) : "All months"} tone="cash-num-out" single />
         <MoneyCard title="Net cash flow" value={rupees(snapshot.net)} detail={snapshot.net >= 0 ? "Positive flow" : "More spent than received"} tone="cash-num-net" />
       </div>
 
@@ -411,10 +411,10 @@ function Field({ label, className = "", children }: { label: string; className?:
   );
 }
 
-function MoneyCard({ title, value, detail, tone }: { title: string; value: string; detail: string; tone: string }) {
+function MoneyCard({ title, value, detail, tone, single = false }: { title: string; value: string; detail: string; tone: string; single?: boolean }) {
   return (
     <article className="cash-card flex h-full flex-col rounded-3xl border p-4">
-      <p className="cash-muted text-xs font-semibold tracking-[0.12em] uppercase">{title}</p>
+      <p className={`cash-muted text-xs font-semibold uppercase ${single ? "whitespace-nowrap tracking-[0.04em]" : "tracking-[0.12em]"}`}>{title}</p>
       <p className={`mt-2 text-2xl font-bold tabular-nums ${tone}`}>{value}</p>
       <p className="cash-muted mt-2 text-sm">{detail}</p>
     </article>
