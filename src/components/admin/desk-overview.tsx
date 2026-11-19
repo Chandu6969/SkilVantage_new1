@@ -1,6 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import type { LearnerType } from "@/lib/types";
 
 export type OverviewFee = {
@@ -71,14 +70,7 @@ export function DeskOverview({ data }: { data: OverviewData }) {
     { label: "Still to pay", value: teacherDue, color: "#f43f5e" },
   ];
   return (
-    <section
-      className="rounded-[28px] p-3 sm:p-5"
-      style={{
-        color: "#14211c",
-        background:
-          "radial-gradient(720px 280px at 0% -10%, rgb(52 211 153 / 0.34), transparent 58%), radial-gradient(560px 260px at 100% 0%, rgb(16 185 129 / 0.2), transparent 54%), #f4fbf6",
-      }}
-    >
+    <section className="dash-board rounded-[28px] p-3 sm:p-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <GradientCard from="#065f46" to="#10b981" title="Students" value={String(data.students)} detail={`${data.siteStudents} registered on the website`} />
         <GradientCard from="#312e81" to="#818cf8" title="Professionals" value={String(data.professionals)} detail={`${data.siteProfessionals} registered on the website`} />
@@ -87,47 +79,47 @@ export function DeskOverview({ data }: { data: OverviewData }) {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <article className="rounded-3xl p-4 sm:p-5" style={glass}>
+        <article className="dash-book rounded-3xl p-4 sm:p-5">
           <h2 className="text-lg font-semibold">Payments</h2>
-          <p className="text-sm" style={{ color: "#3d4a57" }}>Cash, bank, UPI, and what is still owed to teachers.</p>
+          <p className="dash-muted text-sm">Cash, bank, UPI, and what is still owed to teachers.</p>
           <div className="mt-4 grid items-center gap-4 sm:grid-cols-[180px_1fr]">
             <Donut slices={moneySlices} center={rupees(collected + teacherPaid + teacherDue)} caption="All money" />
             <SliceList slices={moneySlices} format={(value) => rupees(value)} />
           </div>
         </article>
-        <article className="rounded-3xl p-4 sm:p-5" style={glass}>
+        <article className="dash-book rounded-3xl p-4 sm:p-5">
           <h2 className="text-lg font-semibold">Courses</h2>
-          <p className="text-sm" style={{ color: "#3d4a57" }}>A pie of who registered, in each course colour.</p>
+          <p className="dash-muted text-sm">A pie of who registered, in each course colour.</p>
           <div className="mt-4 grid items-center gap-4 sm:grid-cols-[180px_1fr]">
             <Pie slices={data.programs.map((item) => ({ label: item.name, value: item.count, color: item.to }))} />
             <SliceList slices={data.programs.map((item) => ({ label: item.name, value: item.count, color: item.from }))} format={(value) => String(value)} />
           </div>
-          <p className="mt-3 text-xs" style={{ color: "#3d4a57" }}>{programTotal} registered on the website</p>
+          <p className="dash-muted mt-3 text-xs">{programTotal} registered on the website</p>
         </article>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-        <article className="rounded-3xl p-4 sm:p-5" style={glass}>
+        <article className="dash-book rounded-3xl p-4 sm:p-5">
           <h3 className="font-semibold">Recent activity</h3>
           <ul className="mt-3 grid gap-3">
-            {activity.length === 0 ? <li className="text-sm text-[#6b728d]">Registrations, fees, and class payments will show up here.</li> : null}
+            {activity.length === 0 ? <li className="dash-soft text-sm">Registrations, fees, and class payments will show up here.</li> : null}
             {activity.map((item) => (
               <li key={item.id} className="flex gap-3 text-sm">
                 <span className="mt-1 size-2.5 shrink-0 rounded-full" style={{ background: item.color }} />
                 <span>
                   <span className="block font-medium">{item.title}</span>
-                  <span className="text-[#6b728d]">{item.detail}</span>
+                  <span className="dash-soft">{item.detail}</span>
                 </span>
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-xs text-[#6b728d]">Open assignments {data.openAssignments} · absent today {data.absentToday}</p>
+          <p className="dash-soft mt-4 text-xs">Open assignments {data.openAssignments} · absent today {data.absentToday}</p>
         </article>
-        <article className="overflow-hidden rounded-3xl" style={glass}>
+        <article className="dash-book overflow-hidden rounded-3xl">
           <div className="flex items-center justify-between px-4 py-4 sm:px-5">
             <div>
               <h3 className="font-semibold">Payments</h3>
-              <p className="text-sm text-[#6b728d]">Student fees and teacher class pay</p>
+              <p className="dash-soft text-sm">Student fees and teacher class pay</p>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -142,9 +134,9 @@ export function DeskOverview({ data }: { data: OverviewData }) {
               </thead>
               <tbody>
                 {paymentRows(data).map((row) => (
-                  <tr key={row.id} className="border-t border-black/5">
+                  <tr key={row.id} className="border-t border-[var(--dash-line)]">
                     <td className="px-4 py-3 font-medium">{row.name}</td>
-                    <td className="px-4 py-3 text-[#6b728d]">{row.from}</td>
+                    <td className="dash-soft px-4 py-3">{row.from}</td>
                     <td className="px-4 py-3">{rupees(row.amount)}</td>
                     <td className="px-4 py-3">
                       <span className="rounded-full px-2.5 py-1 text-xs font-medium text-white" style={{ background: row.color }}>{row.status}</span>
@@ -153,7 +145,7 @@ export function DeskOverview({ data }: { data: OverviewData }) {
                 ))}
               </tbody>
             </table>
-            {paymentRows(data).length === 0 ? <p className="px-5 py-8 text-sm text-[#6b728d]">No payments yet. Cash, bank, and UPI from learners, and class pay for teachers, land in this table.</p> : null}
+            {paymentRows(data).length === 0 ? <p className="dash-soft px-5 py-8 text-sm">No payments yet. Cash, bank, and UPI from learners, and class pay for teachers, land in this table.</p> : null}
           </div>
         </article>
       </div>
@@ -161,23 +153,13 @@ export function DeskOverview({ data }: { data: OverviewData }) {
   );
 }
 
-const glass: CSSProperties = {
-  background: "rgb(255 255 255 / 0.62)",
-  border: "1px solid rgb(255 255 255 / 0.82)",
-  boxShadow: "0 18px 40px rgb(16 80 40 / 0.08)",
-  backdropFilter: "blur(18px)",
-};
-
 function GradientCard({ from, to, title, value, detail }: { from: string; to: string; title: string; value: string; detail: string }) {
   return (
     <article
-      className="relative overflow-hidden rounded-3xl p-4"
+      className="dash-book relative overflow-hidden rounded-3xl p-4"
       style={{
-        color: from,
-        background: `linear-gradient(165deg, color-mix(in srgb, ${to} 46%, white), color-mix(in srgb, ${from} 22%, white))`,
-        border: "1px solid rgb(255 255 255 / 0.84)",
-        boxShadow: "0 18px 42px rgb(16 80 40 / 0.1)",
-        backdropFilter: "blur(18px)",
+        color: "var(--dash-ink)",
+        background: `linear-gradient(165deg, color-mix(in srgb, ${to} 46%, var(--dash-mix)), color-mix(in srgb, ${from} 28%, var(--dash-mix)))`,
       }}
     >
       <span
@@ -204,11 +186,11 @@ function SliceList({ slices, format }: { slices: Slice[]; format: (value: number
         const share = total ? Math.round((slice.value / total) * 100) : 0;
         return (
           <li key={slice.label} className="flex items-center justify-between gap-3 text-sm">
-            <span className="flex items-center gap-2 font-medium" style={{ color: "#14211c" }}>
+            <span className="flex items-center gap-2 font-medium">
               <span className="size-3 rounded-full" style={{ background: slice.color }} />
               {slice.label}
             </span>
-            <span style={{ color: "#3d4a57" }}>{format(slice.value)} · {share}%</span>
+            <span className="dash-muted">{format(slice.value)} · {share}%</span>
           </li>
         );
       })}
@@ -221,7 +203,7 @@ function Donut({ slices, center, caption }: { slices: Slice[]; center: string; c
   return (
     <div className="mx-auto grid size-44 place-items-center">
       <svg viewBox="0 0 160 160" className="col-start-1 row-start-1 size-44" role="img" aria-label={caption}>
-        <circle cx="80" cy="80" r="58" fill="none" stroke="#e7f6ee" strokeWidth="22" />
+        <circle cx="80" cy="80" r="58" fill="none" stroke="var(--dash-track)" strokeWidth="22" />
         {drawn.map((slice) => (
           <circle
             key={slice.label}
@@ -238,8 +220,8 @@ function Donut({ slices, center, caption }: { slices: Slice[]; center: string; c
         ))}
       </svg>
       <div className="col-start-1 row-start-1 px-6 text-center">
-        <p className="text-sm font-semibold leading-5" style={{ color: "#14211c" }}>{center}</p>
-        <p className="text-[0.65rem]" style={{ color: "#3d4a57" }}>{caption}</p>
+        <p className="text-sm font-semibold leading-5">{center}</p>
+        <p className="dash-muted text-[0.65rem]">{caption}</p>
       </div>
     </div>
   );
@@ -250,11 +232,11 @@ function Pie({ slices }: { slices: Slice[] }) {
   return (
     <div className="mx-auto grid size-44 place-items-center">
       <svg viewBox="0 0 160 160" className="col-start-1 row-start-1 size-44" role="img" aria-label="Course registrations">
-        <circle cx="80" cy="80" r="68" fill="#e7f6ee" />
+        <circle cx="80" cy="80" r="68" fill="var(--dash-track)" />
         {drawn.map((slice) => (
           <path key={slice.label} d={slice.d} fill={slice.color} />
         ))}
-        <circle cx="80" cy="80" r="28" fill="rgb(255 255 255 / 0.88)" />
+        <circle cx="80" cy="80" r="28" fill="var(--dash-hole)" />
       </svg>
     </div>
   );

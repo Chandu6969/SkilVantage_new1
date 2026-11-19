@@ -543,6 +543,51 @@
   color: #14211c;
 }
 
+.dash-board {
+  --dash-bg: #f4fbf6;
+  --dash-ink: #14211c;
+  --dash-muted: #3d4a57;
+  --dash-soft: #6b728d;
+  --dash-card: rgb(255 255 255 / 0.62);
+  --dash-line: rgb(255 255 255 / 0.82);
+  --dash-shadow: 0 18px 40px rgb(16 80 40 / 0.08);
+  --dash-mix: white;
+  --dash-track: #e7f6ee;
+  --dash-hole: rgb(255 255 255 / 0.88);
+  color: var(--dash-ink);
+  background:
+    radial-gradient(720px 280px at 0% -10%, rgb(52 211 153 / 0.34), transparent 58%),
+    radial-gradient(560px 260px at 100% 0%, rgb(16 185 129 / 0.2), transparent 54%),
+    var(--dash-bg);
+}
+
+.desk[data-theme="dark"] .dash-board {
+  --dash-bg: #0c1412;
+  --dash-ink: #e7f6ee;
+  --dash-muted: #9dccb6;
+  --dash-soft: #7f9c90;
+  --dash-card: rgb(16 32 27 / 0.82);
+  --dash-line: rgb(45 92 76 / 0.85);
+  --dash-shadow: 0 18px 40px rgb(0 0 0 / 0.28);
+  --dash-mix: #0c1915;
+  --dash-track: #173028;
+  --dash-hole: #10241c;
+  background:
+    radial-gradient(720px 280px at 0% -10%, rgb(16 185 129 / 0.2), transparent 58%),
+    radial-gradient(560px 260px at 100% 0%, rgb(6 78 59 / 0.45), transparent 54%),
+    var(--dash-bg);
+}
+
+.dash-book {
+  background: var(--dash-card);
+  border: 1px solid var(--dash-line);
+  box-shadow: var(--dash-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.dash-muted { color: var(--dash-muted); }
+.dash-soft { color: var(--dash-soft); }
+
 .cash-book {
   --cash-bg: #e7f6ee;
   --cash-ink: #134e4a;
