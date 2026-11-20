@@ -480,6 +480,11 @@
   --desk-muted: #9aaba3;
   --desk-teal: #14967c;
   --desk-teal-2: #1ec9a0;
+  --reg-gap: 0.35rem;
+  --reg-pad: 0.3rem;
+  --reg-stack: 0.85rem;
+  --reg-track: #171e1b;
+  --reg-idle: #2a3330;
   min-height: 100vh;
   background: var(--desk-bg);
   color: var(--desk-text);
@@ -549,6 +554,53 @@
   --desk-line: rgb(16 32 28 / 0.1);
   --desk-text: #14211c;
   --desk-muted: #5d6f68;
+  --reg-gap: 0.55rem;
+  --reg-pad: 0.45rem;
+  --reg-stack: 1.15rem;
+  --reg-track: #ffffff;
+  --reg-idle: #e7eeea;
+}
+
+.reg-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--reg-gap);
+  margin-top: var(--reg-stack);
+  padding: var(--reg-pad);
+  border: 1px solid var(--desk-line);
+  border-radius: 999px;
+  background: var(--reg-track);
+}
+
+.reg-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 9.5rem;
+  min-height: 2.4rem;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--desk-text);
+  background: var(--reg-idle);
+}
+
+.reg-tab[aria-selected="true"] {
+  color: #fff;
+  background: #6d4dff;
+}
+
+.reg-tab[data-tone="contacted"][aria-selected="true"] {
+  background: #15803d;
+}
+
+.reg-tab[data-tone="pending"][aria-selected="true"] {
+  background: #ea580c;
+}
+
+.reg-list {
+  margin-top: var(--reg-stack);
 }
 
 .desk-paper {
