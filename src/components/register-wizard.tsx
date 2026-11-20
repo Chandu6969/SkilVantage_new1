@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useChallenge } from "@/components/use-challenge";
 import { getProgram, professionalAudience, programs, studentAudience, trackLabel } from "@/lib/content";
-import { programGradient } from "@/lib/palette";
+import { programLook } from "@/lib/palette";
 import {
   AVAILABILITY,
   BATCH_TIMINGS,
@@ -322,7 +322,7 @@ export function RegisterWizard({
             <legend className="text-2xl text-ink">Select Your Program</legend>
             <div className="mt-2 grid gap-4 overflow-visible px-2 py-4">
               {programs.map((item) => (
-                <label key={item.slug} className={`sv-pick sv-color-card cursor-pointer rounded-2xl p-4 text-white ${draft.program === item.slug ? "sv-pick-on" : ""}`} style={{ background: programGradient(item.slug) }}>
+                <label key={item.slug} className={`sv-pick sv-color-card cursor-pointer rounded-2xl p-4 text-white ${draft.program === item.slug ? "sv-pick-on" : ""}`} style={{ background: thickProgram(item.slug) }}>
                   <input className="sr-only" type="radio" name="program" checked={draft.program === item.slug} onChange={() => setDraft((current) => ({ ...current, program: item.slug, preferredTrack: item.slug, targetTrack: trackLabel[item.slug], preferredRole: item.roles[0] || "", targetRole: item.roles[0] || "" }))} />
                   <span className="flex items-center justify-between gap-3">
                     <span className="block text-lg">{item.name}</span>
@@ -474,6 +474,11 @@ export function RegisterWizard({
       </div>
     </div>
   );
+}
+
+function thickProgram(slug: string) {
+  const look = programLook(slug);
+  return `linear-gradient(155deg, ${look.from} 0%, color-mix(in srgb, ${look.to} 48%, ${look.from}) 100%)`;
 }
 
 function Choice({ checked, onChange, title, points, tone }: { checked: boolean; onChange: () => void; title: string; points: string[]; tone: "student" | "professional" }) {
