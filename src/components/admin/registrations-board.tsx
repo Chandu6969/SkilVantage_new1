@@ -43,11 +43,13 @@ export function RegistrationsBoard({ rows }: { rows: Registration[] }) {
     <div className="rounded-[28px] bg-[#16122e] p-3 text-white sm:p-4">
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="grid gap-3">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Metric tint="linear-gradient(160deg, #7c6bff, #5b4dff)" title="People registered" value={rows.length} of={rows.length} hint="all registrations" />
             <Metric tint="linear-gradient(160deg, #49d4ff, #2aa8f0)" title="Students" value={students} of={rows.length} hint={`of ${rows.length} total`} />
             <Metric tint="linear-gradient(160deg, #8b6cff, #6a4dff)" title="Professionals" value={professionals} of={rows.length} hint={`of ${rows.length} total`} />
             <Metric tint="linear-gradient(160deg, #e879f9, #c026d3)" title="Signed up today" value={todayCount} of={rows.length} hint={`of ${rows.length} · ${shortDay(today)}`} />
+            <Metric tint="linear-gradient(160deg, #22c55e, #15803d)" title="Contacted" value={rows.filter((row) => row.status === "Contacted").length} of={rows.length} hint="marked contacted" />
+            <Metric tint="linear-gradient(160deg, #fb923c, #ea580c)" title="Pending" value={rows.filter((row) => row.status === "Pending").length} of={rows.length} hint="still to reach" />
           </div>
           <section className="rounded-[24px] bg-[#1c1738] p-4">
             <div className="flex items-center justify-between gap-3">
@@ -63,13 +65,13 @@ export function RegistrationsBoard({ rows }: { rows: Registration[] }) {
                 {recent.length === 0 ? <li className="text-sm text-white/60">No registrations in this view.</li> : null}
                 {recent.map((lead) => (
                   <li key={lead.id}>
-                    <Link href={`/admin/leads/${lead.id}`} className="flex items-center gap-3 rounded-2xl bg-[#241e42] px-3 py-3">
-                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#6d4dff] text-xs font-semibold">{initials(lead.fullName)}</span>
+                    <Link href={`/admin/leads/${lead.id}`} className={`flex items-center gap-3 rounded-2xl px-3 py-3 ${lead.status === "Contacted" ? "bg-[#15803d]" : lead.status === "Pending" ? "bg-[#ea580c]" : "bg-[#241e42]"}`}>
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/20 text-xs font-semibold">{initials(lead.fullName)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{lead.fullName}</span>
-                        <span className="block truncate text-xs text-white/60">{programName(lead.program)} · {lead.learnerType === "student" ? "Student" : "Professional"} · {lead.status}</span>
+                        <span className="block truncate text-xs text-white/80">{programName(lead.program)} · {lead.learnerType === "student" ? "Student" : "Professional"} · {lead.status}</span>
                       </span>
-                      <span className="text-xs text-white/60">{clock(lead.createdAt)}</span>
+                      <span className="text-xs text-white/80">{clock(lead.createdAt)}</span>
                     </Link>
                   </li>
                 ))}

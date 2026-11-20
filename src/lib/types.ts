@@ -10,6 +10,7 @@ export type ProgramSlug = (typeof PROGRAM_SLUGS)[number];
 
 export const LEAD_STATUSES = [
   "New",
+  "Pending",
   "Contacted",
   "Counselling Scheduled",
   "Interested",

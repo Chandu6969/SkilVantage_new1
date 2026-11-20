@@ -43,6 +43,8 @@ export type OverviewData = {
   presentToday: number;
   absentToday: number;
   openAssignments: number;
+  contacted: number;
+  pending: number;
   programs: OverviewProgram[];
   leads: OverviewLead[];
   fees: OverviewFee[];
@@ -76,6 +78,8 @@ export function DeskOverview({ data }: { data: OverviewData }) {
         <GradientCard from="#312e81" to="#818cf8" title="Professionals" value={String(data.professionals)} detail={`${data.siteProfessionals} registered on the website`} />
         <GradientCard from="#1e3a8a" to="#60a5fa" title="Fees collected" value={rupees(collected)} detail={`${data.fees.length} payments recorded`} />
         <GradientCard from="#9a3412" to="#fb923c" title="Teacher pay" value={rupees(teacherDue)} detail={`${rupees(teacherPaid)} already paid · ${data.presentToday} present today`} />
+        <GradientCard from="#14532d" to="#22c55e" title="Contacted" value={String(data.contacted)} detail="Website registrations already reached" />
+        <GradientCard from="#9a3412" to="#fb923c" title="Pending" value={String(data.pending)} detail="Website registrations still waiting" />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -104,11 +108,11 @@ export function DeskOverview({ data }: { data: OverviewData }) {
           <ul className="mt-3 grid gap-3">
             {activity.length === 0 ? <li className="dash-soft text-sm">Registrations, fees, and class payments will show up here.</li> : null}
             {activity.map((item) => (
-              <li key={item.id} className="flex gap-3 text-sm">
-                <span className="mt-1 size-2.5 shrink-0 rounded-full" style={{ background: item.color }} />
+              <li key={item.id} className={`flex gap-3 text-sm ${item.status === "Contacted" ? "rounded-2xl bg-[#15803d] px-3 py-2 text-white" : item.status === "Pending" ? "rounded-2xl bg-[#ea580c] px-3 py-2 text-white" : ""}`}>
+                <span className="mt-1 size-2.5 shrink-0 rounded-full" style={{ background: item.status === "Contacted" || item.status === "Pending" ? "white" : item.color }} />
                 <span>
                   <span className="block font-medium">{item.title}</span>
-                  <span className="dash-soft">{item.detail}</span>
+                  <span className={item.status === "Contacted" || item.status === "Pending" ? "text-white/85" : "dash-soft"}>{item.detail}</span>
                 </span>
               </li>
             ))}
@@ -284,7 +288,8 @@ function recentActivity(data: OverviewData) {
       at: lead.at,
       title: lead.name,
       detail: `${lead.learnerType === "student" ? "Student" : "Professional"} · ${lead.program} · ${lead.status}`,
-      color: lead.learnerType === "student" ? "#10b981" : "#6366f1",
+      color: lead.status === "Contacted" ? "#15803d" : lead.status === "Pending" ? "#ea580c" : lead.learnerType === "student" ? "#10b981" : "#6366f1",
+      status: lead.status,
     })),
     ...data.fees.map((fee) => ({
       id: `fee-${fee.at}-${fee.name}-${fee.amount}`,
@@ -292,6 +297,7 @@ function recentActivity(data: OverviewData) {
       title: `${fee.name} paid ${rupees(fee.amount)}`,
       detail: `${fee.kind.toUpperCase()} · ${fee.batch}`,
       color: fee.kind === "cash" ? "#10b981" : fee.kind === "bank" ? "#3b82f6" : "#f97316",
+      status: "",
     })),
     ...data.teacherPays.map((pay) => ({
       id: `pay-${pay.at}-${pay.name}`,
@@ -299,6 +305,7 @@ function recentActivity(data: OverviewData) {
       title: `${pay.name} class pay ${rupees(pay.amount)}`,
       detail: `${pay.course} · ${pay.status === "paid" ? "Paid" : "Due"}`,
       color: pay.status === "paid" ? "#10b981" : "#f97316",
+      status: "",
     })),
   ];
   return rows.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 6);

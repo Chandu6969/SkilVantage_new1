@@ -29,6 +29,8 @@ export default async function AdminHome() {
     presentToday: marks.filter((mark) => mark.date === today && mark.status === "present").length,
     absentToday: marks.filter((mark) => mark.date === today && mark.status === "absent").length,
     openAssignments: assignments.filter((item) => item.status !== "reviewed").length,
+    contacted: real.filter((item) => item.status === "Contacted").length,
+    pending: real.filter((item) => item.status === "Pending").length,
     programs: programChoices.map((choice) => ({
       slug: choice.slug,
       name: choice.name,
