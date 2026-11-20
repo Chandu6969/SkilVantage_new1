@@ -25,10 +25,10 @@ export function DeleteRegistration({ id, name }: { id: string; name: string }) {
 
   return (
     <span className="inline-flex flex-col items-start gap-1">
-      <button type="button" disabled={pending} onClick={() => void remove()} className="rounded-full border border-rose-400/70 px-3 py-1 text-xs font-medium text-[#fb7185] disabled:opacity-60">
+      <button type="button" disabled={pending} onClick={() => void remove()} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#9f1239] shadow-[inset_0_0_0_1.5px_#9f1239] disabled:opacity-60">
         {pending ? "Deleting…" : "Delete"}
       </button>
-      {error ? <span className="max-w-40 text-xs text-[#fb7185]">{error}</span> : null}
+      {error ? <span className="max-w-40 rounded-md bg-white px-2 py-1 text-xs font-medium text-[#9f1239]">{error}</span> : null}
     </span>
   );
 }
