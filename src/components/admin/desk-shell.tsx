@@ -7,6 +7,7 @@ import {
   Briefcase,
   CalendarCheck,
   ClipboardList,
+  ExternalLink,
   GraduationCap,
   LayoutDashboard,
   Moon,
@@ -79,6 +80,10 @@ export function DeskShell({ role, children }: { role: string; children: React.Re
               </Link>
             );
           })}
+          <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/75 hover:bg-white/5 hover:text-white">
+            <ExternalLink className="size-4" aria-hidden="true" />
+            Main website
+          </a>
         </nav>
         <div className="mt-auto border-t border-white/10 px-3 py-3">
           <div className="flex rounded-full bg-black/30 p-1 text-xs">
@@ -90,7 +95,7 @@ export function DeskShell({ role, children }: { role: string; children: React.Re
             </button>
           </div>
           <div className="mt-2 flex items-center justify-between text-xs text-white/70">
-            <Link href="/" className="hover:text-white">Public site</Link>
+            <a href="/" target="_blank" rel="noopener noreferrer" className="hover:text-white">Main website</a>
             <SignOutButton />
           </div>
           <p className="mt-1 text-[0.65rem] tracking-wide text-white/40 uppercase">{role === "admin" ? "Admin" : "Counsellor"}</p>
@@ -99,7 +104,7 @@ export function DeskShell({ role, children }: { role: string; children: React.Re
       <div className="px-3 py-4 sm:px-5 sm:py-5 lg:px-6">
         <div className="mb-4 flex items-center justify-between text-xs text-[var(--desk-muted)] lg:hidden">
           <span>{role === "admin" ? "Admin" : "Counsellor"}</span>
-          <span className="flex items-center gap-3"><Link href="/">Public site</Link><SignOutButton /></span>
+          <span className="flex items-center gap-3"><a href="/" target="_blank" rel="noopener noreferrer">Main website</a><SignOutButton /></span>
         </div>
         {children}
       </div>
