@@ -101,7 +101,7 @@ export function DeskShell({ role, children }: { role: string; children: React.Re
           <p className="mt-1 text-[0.65rem] tracking-wide text-white/40 uppercase">{role === "admin" ? "Admin" : "Counsellor"}</p>
         </div>
       </aside>
-      <div className="px-3 py-4 sm:px-5 sm:py-5 lg:px-6">
+      <div className="min-w-0 px-3 py-4 sm:px-5 sm:py-5 lg:px-6">
         <div className="mb-4 flex items-center justify-between text-xs text-[var(--desk-muted)] lg:hidden">
           <span>{role === "admin" ? "Admin" : "Counsellor"}</span>
           <span className="flex items-center gap-3"><a href="/" target="_blank" rel="noopener noreferrer">Main website</a><SignOutButton /></span>

@@ -129,41 +129,45 @@ export function RegistrationRoster({ rows, canDelete }: { rows: Registration[]; 
           );
         })}
       </div>
-      <div className="mt-4 hidden overflow-x-auto rounded-3xl border border-[var(--desk-line)] lg:block">
-        <table className="w-full min-w-[1040px] text-left text-sm">
-          <thead className="border-b border-[var(--desk-line)] bg-[var(--desk-card-2)] text-[var(--desk-muted)]">
-            <tr>
-              {["Date (IST)", "Name", "Phone", "Type", "Course", "Status", "Follow-up"].map((label) => (
-                <th key={label} className="px-3 py-3 text-left align-middle font-medium whitespace-nowrap">{label}</th>
-              ))}
-              {canDelete ? <th className="px-3 py-3 align-middle font-medium"> </th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {visible.slice(0, 200).map((lead) => {
-              const status = statusOf(lead);
-              const tone = paint(status);
-              return (
-                <tr key={lead.id} className={`border-b last:border-0 ${tone.row}`}>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap">{formatStamp(lead.createdAt)}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap"><Link className={tone.link} href={`/admin/leads/${lead.id}`}>{lead.fullName}</Link></td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap">{lead.phone}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap">{lead.learnerType === "student" ? "Student" : "Professional"}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap">{programName(lead.program)}</td>
-                  <td className="px-3 py-3 align-middle"><StatusSelect status={status} disabled={busy === lead.id} onChange={(next) => void mark(lead.id, next)} /></td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap">{lead.followUpDate || "—"}</td>
-                  {canDelete ? <td className="px-3 py-3 align-middle"><DeleteRegistration id={lead.id} name={lead.fullName} /></td> : null}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="mt-4 hidden overflow-hidden rounded-3xl border border-[var(--desk-line)] bg-[var(--desk-card)] lg:block">
+        <div className={`${rowGrid(canDelete)} bg-[var(--desk-card-2)] py-3 text-sm font-medium text-[var(--desk-muted)]`}>
+          <span>Date (IST)</span>
+          <span>Name</span>
+          <span>Phone</span>
+          <span>Type</span>
+          <span>Course</span>
+          <span>Status</span>
+          <span>Follow-up</span>
+          {canDelete ? <span className="sr-only">Delete</span> : null}
+        </div>
+        {visible.slice(0, 200).map((lead) => {
+          const status = statusOf(lead);
+          const tone = paint(status);
+          return (
+            <div key={lead.id} className={`${rowGrid(canDelete)} border-t py-3 text-sm ${tone.row}`}>
+              <span className="truncate">{formatStamp(lead.createdAt)}</span>
+              <Link className={`truncate ${tone.link}`} href={`/admin/leads/${lead.id}`}>{lead.fullName}</Link>
+              <span className="truncate">{lead.phone}</span>
+              <span className="truncate">{lead.learnerType === "student" ? "Student" : "Professional"}</span>
+              <span className="truncate">{programName(lead.program)}</span>
+              <StatusSelect status={status} disabled={busy === lead.id} onChange={(next) => void mark(lead.id, next)} />
+              <span className="truncate">{lead.followUpDate || "—"}</span>
+              {canDelete ? <DeleteRegistration id={lead.id} name={lead.fullName} /> : null}
+            </div>
+          );
+        })}
       </div>
       {visible.length > 200 ? <p className="mt-3 text-sm text-[var(--desk-muted)]">Showing the latest 200. Export CSV for the full list.</p> : null}
       {visible.length === 0 ? <p className="mt-6 text-sm text-[var(--desk-muted)]">{tab === "all" ? "No registrations yet." : `No ${tab} registrations yet.`}</p> : null}
       </div>
     </div>
   );
+}
+
+function rowGrid(canDelete: boolean) {
+  return canDelete
+    ? "grid grid-cols-[minmax(0,1.35fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)_minmax(0,1.05fr)_minmax(0,1.2fr)_minmax(0,0.75fr)_4.75rem] items-center gap-x-3 px-4"
+    : "grid grid-cols-[minmax(0,1.35fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)_minmax(0,1.05fr)_minmax(0,1.2fr)_minmax(0,0.75fr)] items-center gap-x-3 px-4";
 }
 
 function StatusSelect({ status, disabled, onChange }: { status: LeadStatus; disabled: boolean; onChange: (status: LeadStatus) => void }) {
@@ -173,7 +177,7 @@ function StatusSelect({ status, disabled, onChange }: { status: LeadStatus; disa
       value={status}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value as LeadStatus)}
-      className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-semibold text-[#14211c] disabled:opacity-60"
+      className="w-full max-w-40 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-semibold text-[#14211c] disabled:opacity-60"
     >
       {choices.map((item) => <option key={item} value={item}>{item}</option>)}
     </select>
