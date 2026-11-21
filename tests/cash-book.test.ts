@@ -59,6 +59,7 @@ test("the cash book keeps an opening balance and a transaction", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sv-cash-"));
   process.env.DATA_DIR = dir;
   delete process.env.DATABASE_URL;
+  delete process.env.MONGODB_URI;
   const storeModule = await import("../src/lib/store/index");
   storeModule.resetStoreForTests();
   const store = storeModule.getStore();

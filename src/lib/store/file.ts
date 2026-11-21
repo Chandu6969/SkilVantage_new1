@@ -37,7 +37,7 @@ function emptyBody(): FileBody {
 }
 
 export class FileStore implements LeadStore {
-  kind = "file" as const;
+  kind: LeadStore["kind"] = "file";
   private queue: Promise<unknown> = Promise.resolve();
 
   private dir() {
@@ -57,32 +57,25 @@ export class FileStore implements LeadStore {
     return run;
   }
 
-  private async read(): Promise<FileBody> {
+  protected async loadRaw(): Promise<string | null> {
     try {
-      const raw = await fs.readFile(this.file(), "utf8");
-      const parsed = JSON.parse(raw) as FileBody;
-      parsed.meta ||= {};
-      parsed.registrations ||= [];
-      parsed.enquiries ||= [];
-      parsed.followups ||= [];
-      parsed.events ||= [];
-      parsed.files ||= [];
-      parsed.sessions ||= [];
-      parsed.batches ||= [];
-      parsed.learners ||= [];
-      parsed.removed ||= [];
-      parsed.attendance ||= [];
-      parsed.fees ||= [];
-      parsed.assignments ||= [];
-      parsed.teacherNotes ||= [];
-      parsed.teachers ||= [];
-      parsed.teacherDays ||= [];
-      parsed.teacherPays ||= [];
-      parsed.cashBook ||= emptyCashBook();
-      parsed.cashEntries ||= [];
-      return parsed;
+      return await fs.readFile(this.file(), "utf8");
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  }
+
+  protected async saveRaw(body: FileBody): Promise<void> {
+    await fs.mkdir(this.dir(), { recursive: true });
+    const temp = path.join(this.dir(), `store.${process.pid}.tmp`);
+    await fs.writeFile(temp, JSON.stringify(body));
+    await fs.rename(temp, this.file());
+  }
+
+  private async read(): Promise<FileBody> {
+    const raw = await this.loadRaw();
+    if (raw == null) {
       const seeded = emptyBody();
       const seed = buildSeed();
       seeded.registrations = seed.registrations;
@@ -92,13 +85,31 @@ export class FileStore implements LeadStore {
       await this.write(seeded);
       return seeded;
     }
+    const parsed = JSON.parse(raw) as FileBody;
+    parsed.meta ||= {};
+    parsed.registrations ||= [];
+    parsed.enquiries ||= [];
+    parsed.followups ||= [];
+    parsed.events ||= [];
+    parsed.files ||= [];
+    parsed.sessions ||= [];
+    parsed.batches ||= [];
+    parsed.learners ||= [];
+    parsed.removed ||= [];
+    parsed.attendance ||= [];
+    parsed.fees ||= [];
+    parsed.assignments ||= [];
+    parsed.teacherNotes ||= [];
+    parsed.teachers ||= [];
+    parsed.teacherDays ||= [];
+    parsed.teacherPays ||= [];
+    parsed.cashBook ||= emptyCashBook();
+    parsed.cashEntries ||= [];
+    return parsed;
   }
 
   private async write(body: FileBody) {
-    await fs.mkdir(this.dir(), { recursive: true });
-    const temp = path.join(this.dir(), `store.${process.pid}.tmp`);
-    await fs.writeFile(temp, JSON.stringify(body));
-    await fs.rename(temp, this.file());
+    await this.saveRaw(body);
   }
 
   async getSecret(name: string) {

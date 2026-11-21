@@ -8,6 +8,7 @@ test("student batches start with SASI and WISE and keep an added person", async 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sv-batches-"));
   process.env.DATA_DIR = dir;
   delete process.env.DATABASE_URL;
+  delete process.env.MONGODB_URI;
   const storeModule = await import("../src/lib/store/index");
   storeModule.resetStoreForTests();
   const store = storeModule.getStore();

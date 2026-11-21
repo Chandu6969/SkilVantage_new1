@@ -19,8 +19,9 @@ Open [http://127.0.0.1:3847](http://127.0.0.1:3847).
 
 Every registration and enquiry is sent to `/api/v1` and saved on the server. Nothing is kept only in the browser. An unfinished form may stay in the browser tab until it is submitted or the tab is closed.
 
-- If `DATABASE_URL` is set, records are stored in Postgres. The published app can be given its own database.
-- If it is not set, records are stored in a private `data/` file on the server. That folder is not committed.
+- If `MONGODB_URI` is set, every record is stored in MongoDB. The database name defaults to `skilvantage`.
+- If `DATABASE_URL` is set and MongoDB is not, records are stored in Postgres.
+- If neither is set, records are stored in a private `data/` file on the server. That folder is not committed.
 - If Google Sheets credentials are set, each new registration, enquiry, and follow-up is also copied into a private spreadsheet. The database remains the source of truth if the sheet is unavailable.
 
 Sample records are loaded into an empty store so the career-team desk is not blank. They are labeled sample and drop out of the counts after the first real registration.

@@ -1,11 +1,14 @@
 import { FileStore } from "@/lib/store/file";
+import { MongoStore } from "@/lib/store/mongo";
 import { PostgresStore } from "@/lib/store/postgres";
 import type { LeadStore } from "@/lib/store/types";
 
 const globalStore = globalThis as unknown as { skilVantageStore?: LeadStore };
 
 function createStore() {
-  return process.env.DATABASE_URL ? new PostgresStore() : new FileStore();
+  if (process.env.MONGODB_URI) return new MongoStore();
+  if (process.env.DATABASE_URL) return new PostgresStore();
+  return new FileStore();
 }
 
 export function getStore() {

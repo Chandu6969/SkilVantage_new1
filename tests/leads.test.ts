@@ -59,8 +59,10 @@ test("resume sniff accepts a small pdf and rejects a renamed text file", () => {
 test("registrations persist on the server and are not only kept in the browser", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "skilvantage-"));
   const previous = process.env.DATABASE_URL;
+  const previousMongo = process.env.MONGODB_URI;
   const previousData = process.env.DATA_DIR;
   delete process.env.DATABASE_URL;
+  delete process.env.MONGODB_URI;
   process.env.DATA_DIR = dir;
   try {
     const storeModule = await import("../src/lib/store/index");
@@ -109,6 +111,8 @@ test("registrations persist on the server and are not only kept in the browser",
   } finally {
     if (previous === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = previous;
+    if (previousMongo === undefined) delete process.env.MONGODB_URI;
+    else process.env.MONGODB_URI = previousMongo;
     if (previousData === undefined) delete process.env.DATA_DIR;
     else process.env.DATA_DIR = previousData;
     await rm(dir, { recursive: true, force: true });

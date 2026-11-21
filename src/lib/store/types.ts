@@ -22,7 +22,8 @@ import type {
 
 /**
  * Lead store used by the website and by /api/v1.
- * Postgres is used when DATABASE_URL is set. Otherwise a private server file is used.
+ * MongoDB is used when MONGODB_URI is set. Postgres is used when DATABASE_URL is set
+ * and MongoDB is not. Otherwise a private server file is used.
  * Google Sheets is a mirror, not the only copy.
  *
  * Later learner features (accounts, lessons, assignments, quizzes, project
@@ -32,7 +33,7 @@ import type {
  * second data model.
  */
 export interface LeadStore {
-  kind: "postgres" | "file";
+  kind: "mongo" | "postgres" | "file";
   getSecret(name: string): Promise<string>;
   insertRegistration(record: Registration): Promise<void>;
   findRecentDuplicate(email: string, program: string): Promise<Registration | null>;
