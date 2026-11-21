@@ -59,8 +59,12 @@ export async function postLogin(req: Request) {
     await new Promise((resolve) => setTimeout(resolve, 250));
     return json({ ok: false, error: "That password is not correct." }, 401);
   }
-  const session = await getStore().createSession(role);
-  return json({ ok: true, role }, 200, { "Set-Cookie": sessionCookie(session.token) });
+  try {
+    const session = await getStore().createSession(role);
+    return json({ ok: true, role }, 200, { "Set-Cookie": sessionCookie(session.token) });
+  } catch {
+    return json({ ok: false, error: "Sign-in could not be saved. Try again." }, 503);
+  }
 }
 
 export async function postLogout(req: Request) {

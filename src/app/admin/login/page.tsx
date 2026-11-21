@@ -15,19 +15,24 @@ export default function AdminLoginPage() {
     setPending(true);
     setError("");
     const password = String(new FormData(event.currentTarget).get("password") || "");
-    const response = await fetch("/api/v1/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-    const data = (await response.json()) as { ok?: boolean; error?: string };
-    setPending(false);
-    if (!response.ok || !data.ok) {
-      setError(data.error || "Sign-in failed.");
-      return;
+    try {
+      const response = await fetch("/api/v1/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = (await response.json()) as { ok?: boolean; error?: string };
+      if (!response.ok || !data.ok) {
+        setError(data.error || "Sign-in failed.");
+        return;
+      }
+      router.push("/admin");
+      router.refresh();
+    } catch {
+      setError("Sign-in did not finish. Try again.");
+    } finally {
+      setPending(false);
     }
-    router.push("/admin");
-    router.refresh();
   }
 
   return (
